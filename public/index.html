@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -162,11 +162,19 @@
         display: block;
       }
 
-      /* Inventory styles */
-      .inventory-section {
+      /* Armor Optimizer styles */
+      .armor-optimizer-section {
         background: rgba(30, 30, 40, 0.8);
         border-radius: 20px;
         padding: 30px;
+        box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
+      }
+
+      .stat-selector-section {
+        background: rgba(30, 30, 40, 0.8);
+        border-radius: 20px;
+        padding: 25px;
+        margin-bottom: 30px;
         box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
       }
 
@@ -187,56 +195,112 @@
         font-size: 1em;
       }
 
-      .inventory-grid {
+      .armor-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
         gap: 20px;
         margin-top: 20px;
       }
 
-      .inventory-item {
+      .armor-item {
         background: rgba(50, 50, 60, 0.8);
         border: 2px solid #444;
         border-radius: 15px;
         padding: 15px;
         transition: all 0.3s ease;
         cursor: pointer;
+        position: relative;
+        overflow: hidden;
       }
 
-      .inventory-item:hover {
+      .armor-item.legendary {
+        background: linear-gradient(
+          135deg,
+          rgba(80, 50, 140, 0.3),
+          rgba(50, 50, 60, 0.8)
+        );
+      }
+
+      .armor-item.exotic {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 215, 0, 0.2),
+          rgba(50, 50, 60, 0.8)
+        );
+        border-color: #ffd700;
+      }
+
+      .armor-item:hover {
         transform: translateY(-3px);
         box-shadow: 0 5px 20px rgba(138, 43, 226, 0.5);
         border-color: #8a2be2;
       }
 
-      .inventory-item.selected {
+      .armor-item.selected {
         background: linear-gradient(
           135deg,
           rgba(138, 43, 226, 0.5),
           rgba(75, 0, 130, 0.5)
         );
         border-color: #ffd700;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
       }
 
-      .item-header {
+      .armor-header {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
+        gap: 15px;
+        align-items: flex-start;
+        margin-bottom: 15px;
       }
 
-      .item-name {
+      .armor-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 2px solid #666;
+        flex-shrink: 0;
+        overflow: hidden;
+      }
+
+      .armor-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .armor-info {
+        flex: 1;
+      }
+
+      .armor-name {
         font-weight: bold;
         font-size: 1.1em;
         color: #ffd700;
+        margin-bottom: 5px;
       }
 
-      .item-power {
+      .exotic .armor-name {
+        background: linear-gradient(45deg, #ffd700, #ffed4e);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .armor-type {
+        color: #aaa;
+        font-size: 0.9em;
+      }
+
+      .armor-power {
+        position: absolute;
+        top: 15px;
+        right: 15px;
         font-size: 1.2em;
+        font-weight: bold;
         color: #8a2be2;
       }
 
-      .item-stats {
+      .armor-stats {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 8px;
@@ -245,20 +309,42 @@
 
       .stat-item {
         text-align: center;
-        padding: 5px;
+        padding: 8px;
         background: rgba(40, 40, 50, 0.8);
-        border-radius: 5px;
+        border-radius: 8px;
+        border: 1px solid rgba(138, 43, 226, 0.2);
       }
 
       .stat-item .stat-name {
-        font-size: 0.8em;
+        font-size: 0.75em;
         color: #aaa;
+        margin-bottom: 2px;
       }
 
       .stat-item .stat-value {
-        font-size: 1.1em;
+        font-size: 1.2em;
         font-weight: bold;
         color: #fff;
+      }
+
+      .armor-tags {
+        display: flex;
+        gap: 5px;
+        margin-top: 10px;
+        flex-wrap: wrap;
+      }
+
+      .armor-tag {
+        padding: 4px 10px;
+        background: rgba(138, 43, 226, 0.3);
+        border-radius: 12px;
+        font-size: 0.8em;
+        color: #fff;
+      }
+
+      .armor-tag.artifice {
+        background: rgba(138, 43, 226, 0.5);
+        color: #ffd700;
       }
 
       .empty-state {
@@ -303,146 +389,189 @@
         border: 2px solid #2196f3;
       }
 
-      /* Armor Optimization Styles */
-      .armor-container {
+      /* Armor tier dropdowns */
+      .armor-tier-selector {
         display: grid;
-        gap: 30px;
-      }
-
-      .armor-section {
-        background: rgba(30, 30, 40, 0.8);
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
-      }
-
-      .armor-section h2 {
-        color: #ffd700;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
         margin-bottom: 20px;
-        font-size: 1.8em;
+      }
+
+      .armor-piece {
+        background: linear-gradient(
+          135deg,
+          rgba(50, 50, 60, 0.8),
+          rgba(40, 40, 50, 0.8)
+        );
+        padding: 15px;
+        border-radius: 12px;
         text-align: center;
-      }
-
-      .armor-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-      }
-
-      .armor-piece-card {
-        background: rgba(50, 50, 60, 0.8);
-        border: 2px solid #444;
-        border-radius: 15px;
-        padding: 20px;
+        border: 2px solid rgba(138, 43, 226, 0.3);
         transition: all 0.3s ease;
       }
 
-      .armor-piece-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 5px 20px rgba(138, 43, 226, 0.5);
+      .armor-piece:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
+      }
+
+      .armor-piece label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #ffd700;
+        font-size: 1.1em;
+      }
+
+      .armor-piece select {
+        width: 100%;
+        padding: 8px;
+        border-radius: 8px;
+        background: #333;
+        color: #fff;
+        border: 1px solid #555;
+        font-size: 1em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .armor-piece select:hover {
         border-color: #8a2be2;
       }
 
-      .armor-piece-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
+      .stat-point-summary {
+        text-align: center;
+        font-size: 1.3em;
+        margin-bottom: 25px;
+        padding: 15px;
+        background: linear-gradient(
+          135deg,
+          rgba(138, 43, 226, 0.3),
+          rgba(75, 0, 130, 0.3)
+        );
+        border-radius: 15px;
+        border: 2px solid rgba(255, 215, 0, 0.4);
+        font-weight: bold;
       }
 
-      .armor-piece-name {
+      .stat-point-summary .error {
+        color: #ff4d4d;
+        font-weight: bold;
+        animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      .stat-allocator {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+
+      .stat-row {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        align-items: start;
+        gap: 20px;
+        padding: 15px;
+        background: linear-gradient(
+          135deg,
+          rgba(40, 40, 50, 0.8),
+          rgba(30, 30, 40, 0.8)
+        );
+        border-radius: 12px;
+        border: 1px solid rgba(138, 43, 226, 0.2);
+        transition: all 0.3s ease;
+      }
+
+      .stat-row:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(50, 50, 60, 0.8),
+          rgba(40, 40, 50, 0.8)
+        );
+        box-shadow: 0 0 20px rgba(138, 43, 226, 0.2);
+      }
+
+      .stat-row label {
         font-weight: bold;
         font-size: 1.2em;
         color: #ffd700;
-      }
-
-      .energy-display {
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
         display: flex;
-        gap: 5px;
         align-items: center;
+        height: 32px;
       }
 
-      .energy-pip {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: #333;
-        border: 1px solid #666;
-      }
-
-      .energy-pip.filled {
-        background: #ffd700;
-        box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
-      }
-
-      .energy-pip.overfilled {
-        background: #ff4d4d;
-        box-shadow: 0 0 5px rgba(255, 77, 77, 0.5);
-      }
-
-      .stat-input-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
-        margin-bottom: 15px;
-      }
-
-      .stat-input-group {
+      .stat-row-data {
         display: flex;
         flex-direction: column;
-        gap: 5px;
-      }
-
-      .stat-input-group label {
-        font-size: 0.9em;
-        color: #aaa;
-      }
-
-      .stat-input {
-        width: 100%;
-        padding: 8px;
-        background: rgba(40, 40, 50, 0.8);
-        border: 1px solid #555;
-        border-radius: 5px;
-        color: #fff;
-        text-align: center;
-        font-size: 1em;
-      }
-
-      .stat-input:focus {
-        outline: none;
-        border-color: #8a2be2;
-        box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
-      }
-
-      .mod-slots {
-        margin-top: 15px;
-      }
-
-      .mod-slot {
-        display: flex;
-        align-items: center;
         gap: 10px;
-        margin-bottom: 10px;
-        padding: 10px;
-        background: rgba(40, 40, 50, 0.8);
-        border-radius: 8px;
       }
 
-      .mod-select {
-        flex: 1;
+      .stat-bonuses {
+        font-size: 0.9em;
+        color: #ccc;
+        line-height: 1.6;
         padding: 8px;
-        background: #333;
-        color: #fff;
-        border: 1px solid #555;
-        border-radius: 5px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        margin-top: 5px;
       }
 
-      .mod-cost {
-        font-weight: bold;
-        color: #ffd700;
-        min-width: 60px;
+      .stat-box-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .stat-box {
+        display: inline-block;
+        width: 36px;
+        height: 32px;
+        line-height: 32px;
         text-align: center;
+        font-size: 0.8em;
+        font-weight: bold;
+        background: linear-gradient(135deg, #333, #2a2a2a);
+        border: 2px solid #555;
+        border-radius: 6px;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.15s;
+      }
+
+      .stat-box:hover:not(.disabled) {
+        border-color: #8a2be2;
+        background: linear-gradient(135deg, #444, #3a3a3a);
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);
+      }
+
+      .stat-box.selected {
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        color: #000;
+        border-color: #ffd700;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+        transform: scale(1.1);
+      }
+
+      .stat-box.disabled {
+        background: linear-gradient(135deg, #222, #1a1a1a);
+        color: #444;
+        border-color: #333;
+        cursor: not-allowed;
+        pointer-events: none;
       }
 
       .stat-totals {
@@ -476,89 +605,7 @@
         color: #8a2be2;
       }
 
-      .optimization-controls {
-        display: flex;
-        gap: 20px;
-        align-items: center;
-        flex-wrap: wrap;
-        margin-bottom: 20px;
-      }
-
-      .opt-button {
-        padding: 12px 24px;
-        background: linear-gradient(135deg, #8a2be2, #4b0082);
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-size: 1.1em;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-
-      .opt-button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 5px 20px rgba(138, 43, 226, 0.5);
-      }
-
-      .target-stats {
-        display: flex;
-        gap: 15px;
-        align-items: center;
-      }
-
-      .target-stat-input {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-      }
-
-      .loadout-section {
-        margin-top: 20px;
-      }
-
-      .loadout-controls {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 15px;
-      }
-
-      .loadout-list {
-        display: grid;
-        gap: 10px;
-      }
-
-      .loadout-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 15px;
-        background: rgba(50, 50, 60, 0.8);
-        border-radius: 10px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-
-      .loadout-item:hover {
-        background: rgba(138, 43, 226, 0.3);
-        transform: translateX(5px);
-      }
-
-      .mod-recommendations {
-        margin-top: 20px;
-        padding: 20px;
-        background: rgba(138, 43, 226, 0.2);
-        border-radius: 10px;
-        border: 2px solid rgba(138, 43, 226, 0.5);
-      }
-
-      .recommendation-item {
-        margin-bottom: 10px;
-        padding: 10px;
-        background: rgba(40, 40, 50, 0.8);
-        border-radius: 5px;
-      }
-
-      /* Keep all existing styles from the original file */
+      /* Artifact Mod Synergies */
       .artifact-container {
         background: rgba(30, 30, 40, 0.8);
         border-radius: 20px;
@@ -867,191 +914,6 @@
         color: #ccc;
       }
 
-      /* Enhanced Stat UI Styles */
-      .armor-tier-selector {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
-      }
-
-      .armor-piece {
-        background: linear-gradient(
-          135deg,
-          rgba(50, 50, 60, 0.8),
-          rgba(40, 40, 50, 0.8)
-        );
-        padding: 15px;
-        border-radius: 12px;
-        text-align: center;
-        border: 2px solid rgba(138, 43, 226, 0.3);
-        transition: all 0.3s ease;
-      }
-
-      .armor-piece:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
-      }
-
-      .armor-piece label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: bold;
-        color: #ffd700;
-        font-size: 1.1em;
-      }
-
-      .armor-piece select {
-        width: 100%;
-        padding: 8px;
-        border-radius: 8px;
-        background: #333;
-        color: #fff;
-        border: 1px solid #555;
-        font-size: 1em;
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-
-      .armor-piece select:hover {
-        border-color: #8a2be2;
-      }
-
-      .stat-point-summary {
-        text-align: center;
-        font-size: 1.3em;
-        margin-bottom: 25px;
-        padding: 15px;
-        background: linear-gradient(
-          135deg,
-          rgba(138, 43, 226, 0.3),
-          rgba(75, 0, 130, 0.3)
-        );
-        border-radius: 15px;
-        border: 2px solid rgba(255, 215, 0, 0.4);
-        font-weight: bold;
-      }
-
-      .stat-point-summary .error {
-        color: #ff4d4d;
-        font-weight: bold;
-        animation: pulse 1s infinite;
-      }
-
-      @keyframes pulse {
-        0% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.05);
-        }
-        100% {
-          transform: scale(1);
-        }
-      }
-
-      .stat-allocator {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 15px;
-      }
-
-      .stat-row {
-        display: grid;
-        grid-template-columns: 120px 1fr;
-        align-items: start;
-        gap: 20px;
-        padding: 15px;
-        background: linear-gradient(
-          135deg,
-          rgba(40, 40, 50, 0.8),
-          rgba(30, 30, 40, 0.8)
-        );
-        border-radius: 12px;
-        border: 1px solid rgba(138, 43, 226, 0.2);
-        transition: all 0.3s ease;
-      }
-
-      .stat-row:hover {
-        background: linear-gradient(
-          135deg,
-          rgba(50, 50, 60, 0.8),
-          rgba(40, 40, 50, 0.8)
-        );
-        box-shadow: 0 0 20px rgba(138, 43, 226, 0.2);
-      }
-
-      .stat-row label {
-        font-weight: bold;
-        font-size: 1.2em;
-        color: #ffd700;
-        text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
-        display: flex;
-        align-items: center;
-        height: 32px;
-      }
-
-      .stat-row-data {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .stat-bonuses {
-        font-size: 0.9em;
-        color: #ccc;
-        line-height: 1.6;
-        padding: 8px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
-        margin-top: 5px;
-      }
-
-      .stat-box-wrapper {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-      }
-
-      .stat-box {
-        display: inline-block;
-        width: 36px;
-        height: 32px;
-        line-height: 32px;
-        text-align: center;
-        font-size: 0.8em;
-        font-weight: bold;
-        background: linear-gradient(135deg, #333, #2a2a2a);
-        border: 2px solid #555;
-        border-radius: 6px;
-        cursor: pointer;
-        user-select: none;
-        transition: all 0.15s;
-      }
-
-      .stat-box:hover:not(.disabled) {
-        border-color: #8a2be2;
-        background: linear-gradient(135deg, #444, #3a3a3a);
-        transform: translateY(-2px);
-        box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);
-      }
-
-      .stat-box.selected {
-        background: linear-gradient(135deg, #ffd700, #ffed4e);
-        color: #000;
-        border-color: #ffd700;
-        box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
-        transform: scale(1.1);
-      }
-
-      .stat-box.disabled {
-        background: linear-gradient(135deg, #222, #1a1a1a);
-        color: #444;
-        border-color: #333;
-        cursor: not-allowed;
-        pointer-events: none;
-      }
-
       .info-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
@@ -1133,13 +995,31 @@
         margin: 2px;
       }
 
-      .armor-piece-card.artifice {
-        background: linear-gradient(
-          135deg,
-          rgba(138, 43, 226, 0.3),
-          rgba(75, 0, 130, 0.3)
-        );
-        border-color: #8a2be2;
+      .loadout-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: rgba(50, 50, 60, 0.8);
+        border-radius: 10px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .loadout-item:hover {
+        background: rgba(138, 43, 226, 0.3);
+        transform: translateX(5px);
+      }
+
+      .optimization-message {
+        text-align: center;
+        padding: 20px;
+        background: rgba(138, 43, 226, 0.2);
+        border-radius: 10px;
+        margin-top: 20px;
+        font-size: 1.1em;
+        color: #ffd700;
       }
 
       @media (max-width: 1200px) {
@@ -1209,18 +1089,28 @@
     </div>
 
     <div class="nav-tabs">
-      <div class="nav-tab active" onclick="switchTab('inventory')">
-        My Armor
+      <div class="nav-tab active" onclick="switchTab('armor')">
+        Armor Optimizer
       </div>
       <div class="nav-tab" onclick="switchTab('artifact')">Artifact</div>
       <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
       <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
-      <div class="nav-tab" onclick="switchTab('armor')">Armor Optimizer</div>
     </div>
 
-    <!-- My Armor Tab -->
-    <div id="inventory" class="content-section active">
-      <div class="inventory-section">
+    <!-- Armor Optimizer Tab -->
+    <div id="armor" class="content-section active">
+      <!-- Stat Selector Section -->
+      <div class="stat-selector-section">
+        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+          Target Stat Distribution
+        </h2>
+        <div class="armor-tier-selector" id="armorTierSelector"></div>
+        <div class="stat-point-summary" id="statPointSummary"></div>
+        <div class="stat-allocator" id="statAllocator"></div>
+      </div>
+
+      <!-- Armor Collection Section -->
+      <div class="armor-optimizer-section">
         <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
           My Armor Collection
         </h2>
@@ -1229,7 +1119,7 @@
           <select
             class="filter-select"
             id="armorTypeFilter"
-            onchange="updateInventoryDisplay()"
+            onchange="updateArmorDisplay()"
           >
             <option value="all">All Armor</option>
             <option value="helmet">Helmets</option>
@@ -1239,15 +1129,162 @@
             <option value="classItem">Class Items</option>
           </select>
 
+          <select
+            class="filter-select"
+            id="armorTierFilter"
+            onchange="updateArmorDisplay()"
+          >
+            <option value="all">All Tiers</option>
+            <option value="legendary">Legendary</option>
+            <option value="exotic">Exotic</option>
+          </select>
+
           <button class="auth-button-small" onclick="loadInventory()">
             Refresh Inventory
           </button>
         </div>
 
-        <div id="inventoryContainer" class="inventory-grid">
+        <div id="armorContainer" class="armor-grid">
           <div class="empty-state">
-            Connect to Bungie.net to load your armor inventory
+            Connect to Bungie.net to load your armor collection
           </div>
+        </div>
+      </div>
+
+      <!-- Current Build Summary -->
+      <div class="armor-optimizer-section" style="margin-top: 30px">
+        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+          Current Build Summary
+        </h2>
+        <div class="stat-totals" id="statTotals">
+          <div class="stat-total-item">
+            <div class="stat-name">Mobility</div>
+            <div class="stat-value" id="totalMobility">0</div>
+            <div class="stat-tier">Tier 0</div>
+          </div>
+          <div class="stat-total-item">
+            <div class="stat-name">Resilience</div>
+            <div class="stat-value" id="totalResilience">0</div>
+            <div class="stat-tier">Tier 0</div>
+          </div>
+          <div class="stat-total-item">
+            <div class="stat-name">Recovery</div>
+            <div class="stat-value" id="totalRecovery">0</div>
+            <div class="stat-tier">Tier 0</div>
+          </div>
+          <div class="stat-total-item">
+            <div class="stat-name">Discipline</div>
+            <div class="stat-value" id="totalDiscipline">0</div>
+            <div class="stat-tier">Tier 0</div>
+          </div>
+          <div class="stat-total-item">
+            <div class="stat-name">Intellect</div>
+            <div class="stat-value" id="totalIntellect">0</div>
+            <div class="stat-tier">Tier 0</div>
+          </div>
+          <div class="stat-total-item">
+            <div class="stat-name">Strength</div>
+            <div class="stat-value" id="totalStrength">0</div>
+            <div class="stat-tier">Tier 0</div>
+          </div>
+        </div>
+
+        <!-- Optimization Controls -->
+        <div
+          style="
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+          "
+        >
+          <button
+            class="auth-button-small"
+            onclick="optimizeArmor()"
+            style="background: linear-gradient(135deg, #4caf50, #2e7d32)"
+          >
+            Optimize Build
+          </button>
+          <button class="auth-button-small" onclick="clearSelection()">
+            Clear Selection
+          </button>
+          <button class="auth-button-small" onclick="showLoadoutModal()">
+            Manage Loadouts
+          </button>
+        </div>
+      </div>
+
+      <!-- Loadout Modal -->
+      <div
+        id="loadoutModal"
+        style="
+          display: none;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.8);
+          z-index: 9999;
+        "
+      >
+        <div
+          style="
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(30, 30, 40, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            min-width: 400px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 2px solid rgba(138, 43, 226, 0.5);
+          "
+        >
+          <h2 style="color: #ffd700; margin-bottom: 20px">Manage Loadouts</h2>
+
+          <div style="margin-bottom: 20px">
+            <input
+              type="text"
+              id="loadoutName"
+              placeholder="Loadout Name"
+              style="
+                width: 100%;
+                padding: 10px;
+                background: rgba(50, 50, 60, 0.8);
+                border: 2px solid #444;
+                border-radius: 8px;
+                color: #fff;
+                font-size: 1em;
+              "
+            />
+            <button
+              class="auth-button-small"
+              onclick="saveLoadout()"
+              style="margin-top: 10px; width: 100%"
+            >
+              Save Current Build
+            </button>
+          </div>
+
+          <div id="loadoutList" style="margin-top: 20px">
+            <!-- Loadouts will be dynamically added here -->
+          </div>
+
+          <button
+            class="auth-button-small"
+            onclick="hideLoadoutModal()"
+            style="
+              margin-top: 20px;
+              background: linear-gradient(135deg, #dc3545, #c82333);
+            "
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
@@ -1285,12 +1322,6 @@
     </div>
     <div id="damage" class="content-section">
       <div class="calc-container">
-        <div class="calc-section">
-          <h2>Armor & Stat Bonuses</h2>
-          <div class="armor-tier-selector" id="armorTierSelector"></div>
-          <div class="stat-point-summary" id="statPointSummary"></div>
-          <div class="stat-allocator" id="statAllocator"></div>
-        </div>
         <div class="calc-row">
           <div class="calc-section">
             <h2>Damage Buffs & Multipliers</h2>
@@ -1958,193 +1989,6 @@
       </div>
     </div>
 
-    <div id="armor" class="content-section">
-      <div class="armor-container">
-        <div class="armor-section">
-          <h2>Armor Stat Rules</h2>
-          <div
-            class="info-card"
-            style="
-              background: rgba(138, 43, 226, 0.2);
-              border: 2px solid rgba(138, 43, 226, 0.5);
-            "
-          >
-            <h3 style="margin-bottom: 15px">Important Rules:</h3>
-            <ul style="list-style-position: inside; line-height: 1.8">
-              <li>
-                Maximum base stat total (unmasterworked):
-                <strong style="color: #ffd700">68 points</strong>
-              </li>
-              <li>
-                Minimum per individual stat (non-class item):
-                <strong style="color: #ffd700">2 points</strong>
-              </li>
-              <li>
-                Maximum per individual stat:
-                <strong style="color: #ffd700">30 points</strong>
-              </li>
-              <li>
-                Top 3 stats (Mobility, Resilience, Recovery) combined maximum:
-                <strong style="color: #ffd700">34 points</strong>
-              </li>
-              <li>
-                Bottom 3 stats (Discipline, Intellect, Strength) combined
-                maximum: <strong style="color: #ffd700">34 points</strong>
-              </li>
-              <li>
-                Masterworking adds <strong style="color: #ffd700">+2</strong> to
-                each stat (<strong style="color: #ffd700">+12 total</strong>)
-              </li>
-              <li>
-                Artifice armor allows
-                <strong style="color: #ffd700">+3</strong> to one chosen stat
-                per piece
-              </li>
-              <li>
-                Each armor piece has
-                <strong style="color: #ffd700">10 energy</strong> when
-                masterworked
-              </li>
-              <li>
-                Stat mods cost
-                <strong style="color: #ffd700">1-4 energy</strong> and provide
-                <strong style="color: #ffd700">+5 or +10</strong> to a stat
-              </li>
-              <li>
-                Font mods cost
-                <strong style="color: #ffd700">3 energy</strong> each:
-                <ul style="margin-left: 20px; margin-top: 5px">
-                  <li>
-                    1 font of a type =
-                    <strong style="color: #ffd700">+30</strong> to stat
-                  </li>
-                  <li>
-                    2+ fonts of same type =
-                    <strong style="color: #ffd700">+20 each</strong> (2 fonts =
-                    +40, 3 fonts = +60)
-                  </li>
-                </ul>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="armor-section">
-          <h2>Current Armor Setup</h2>
-          <div class="armor-grid" id="armorGrid"></div>
-
-          <div class="stat-totals" id="statTotals">
-            <div class="stat-total-item">
-              <div class="stat-name">Mobility</div>
-              <div class="stat-value" id="totalMobility">0</div>
-              <div class="stat-tier">Tier 0</div>
-            </div>
-            <div class="stat-total-item">
-              <div class="stat-name">Resilience</div>
-              <div class="stat-value" id="totalResilience">0</div>
-              <div class="stat-tier">Tier 0</div>
-            </div>
-            <div class="stat-total-item">
-              <div class="stat-name">Recovery</div>
-              <div class="stat-value" id="totalRecovery">0</div>
-              <div class="stat-tier">Tier 0</div>
-            </div>
-            <div class="stat-total-item">
-              <div class="stat-name">Discipline</div>
-              <div class="stat-value" id="totalDiscipline">0</div>
-              <div class="stat-tier">Tier 0</div>
-            </div>
-            <div class="stat-total-item">
-              <div class="stat-name">Intellect</div>
-              <div class="stat-value" id="totalIntellect">0</div>
-              <div class="stat-tier">Tier 0</div>
-            </div>
-            <div class="stat-total-item">
-              <div class="stat-name">Strength</div>
-              <div class="stat-value" id="totalStrength">0</div>
-              <div class="stat-tier">Tier 0</div>
-            </div>
-          </div>
-
-          <div
-            style="
-              margin-top: 20px;
-              padding: 20px;
-              background: rgba(30, 30, 40, 0.8);
-              border-radius: 15px;
-              text-align: center;
-            "
-          >
-            <h3 style="color: #ffd700; margin-bottom: 15px">Stat Summary</h3>
-            <div
-              style="
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 20px;
-              "
-            >
-              <div>
-                <div style="font-size: 0.9em; color: #aaa">
-                  Base Total (Unmasterworked)
-                </div>
-                <div
-                  style="font-size: 2em; font-weight: bold; color: #fff"
-                  id="baseTotalStats"
-                >
-                  0
-                </div>
-              </div>
-              <div>
-                <div style="font-size: 0.9em; color: #aaa">
-                  Masterworked Total
-                </div>
-                <div
-                  style="font-size: 2em; font-weight: bold; color: #ffd700"
-                  id="masterworkTotalStats"
-                >
-                  0
-                </div>
-              </div>
-              <div>
-                <div style="font-size: 0.9em; color: #aaa">
-                  With Artifice & Mods
-                </div>
-                <div
-                  style="font-size: 2em; font-weight: bold; color: #8a2be2"
-                  id="finalTotalStats"
-                >
-                  0
-                </div>
-              </div>
-            </div>
-            <div
-              id="fontSummary"
-              style="margin-top: 15px; font-size: 0.9em; color: #aaa"
-            ></div>
-          </div>
-        </div>
-
-        <div class="armor-section">
-          <h2>Loadout Management</h2>
-          <div class="loadout-section">
-            <div class="loadout-controls">
-              <button class="opt-button" onclick="saveLoadout()">
-                Save Current
-              </button>
-              <input
-                type="text"
-                id="loadoutName"
-                placeholder="Loadout Name"
-                class="stat-input"
-                style="width: 200px"
-              />
-            </div>
-            <div class="loadout-list" id="loadoutList"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Load API client -->
     <script src="/js/api.js"></script>
     <script src="/js/manifest.js"></script>
@@ -2403,115 +2247,6 @@
         },
       };
 
-      /* Armor-specific data */
-      const armorMods = {
-        // Major Stat mods (+10)
-        mobility: { name: "Mobility Mod", cost: 3, bonus: 10, type: "stat" },
-        resilience: {
-          name: "Resilience Mod",
-          cost: 4,
-          bonus: 10,
-          type: "stat",
-        },
-        recovery: { name: "Recovery Mod", cost: 4, bonus: 10, type: "stat" },
-        discipline: {
-          name: "Discipline Mod",
-          cost: 3,
-          bonus: 10,
-          type: "stat",
-        },
-        intellect: { name: "Intellect Mod", cost: 4, bonus: 10, type: "stat" },
-        strength: { name: "Strength Mod", cost: 3, bonus: 10, type: "stat" },
-
-        // Minor Stat mods (+5)
-        minorMobility: {
-          name: "Minor Mobility Mod",
-          cost: 1,
-          bonus: 5,
-          type: "stat",
-          target: "mobility",
-        },
-        minorResilience: {
-          name: "Minor Resilience Mod",
-          cost: 2,
-          bonus: 5,
-          type: "stat",
-          target: "resilience",
-        },
-        minorRecovery: {
-          name: "Minor Recovery Mod",
-          cost: 2,
-          bonus: 5,
-          type: "stat",
-          target: "recovery",
-        },
-        minorDiscipline: {
-          name: "Minor Discipline Mod",
-          cost: 1,
-          bonus: 5,
-          type: "stat",
-          target: "discipline",
-        },
-        minorIntellect: {
-          name: "Minor Intellect Mod",
-          cost: 2,
-          bonus: 5,
-          type: "stat",
-          target: "intellect",
-        },
-        minorStrength: {
-          name: "Minor Strength Mod",
-          cost: 1,
-          bonus: 5,
-          type: "stat",
-          target: "strength",
-        },
-
-        // Font mods (cost 3 energy each, stacking bonuses)
-        fontWisdom: {
-          name: "Font of Wisdom",
-          cost: 3,
-          stat: "intellect",
-          type: "font",
-          allowedPieces: ["helmet"],
-        },
-        fontVigor: {
-          name: "Font of Vigor",
-          cost: 3,
-          stat: "strength",
-          type: "font",
-          allowedPieces: ["arms"],
-        },
-        fontFocus: {
-          name: "Font of Focus",
-          cost: 3,
-          stat: "discipline",
-          type: "font",
-          allowedPieces: ["arms"],
-        },
-        fontEndurance: {
-          name: "Font of Endurance",
-          cost: 3,
-          stat: "resilience",
-          type: "font",
-          allowedPieces: ["chest"],
-        },
-        fontAgility: {
-          name: "Font of Agility",
-          cost: 3,
-          stat: "mobility",
-          type: "font",
-          allowedPieces: ["legs"],
-        },
-        fontRestoration: {
-          name: "Font of Restoration",
-          cost: 3,
-          stat: "recovery",
-          type: "font",
-          allowedPieces: ["classItem"],
-        },
-      };
-
       /* ------------------- GLOBAL STATE ------------------- */
       // Inventory/Auth State
       let isAuthenticated = false;
@@ -2536,71 +2271,9 @@
           Grenade: 10,
           Super: 10,
         },
-        // Armor Optimizer State
-        armorStats: {
-          helmet: {
-            mobility: 2,
-            resilience: 2,
-            recovery: 2,
-            discipline: 2,
-            intellect: 2,
-            strength: 2,
-          },
-          arms: {
-            mobility: 2,
-            resilience: 2,
-            recovery: 2,
-            discipline: 2,
-            intellect: 2,
-            strength: 2,
-          },
-          chest: {
-            mobility: 2,
-            resilience: 2,
-            recovery: 2,
-            discipline: 2,
-            intellect: 2,
-            strength: 2,
-          },
-          legs: {
-            mobility: 2,
-            resilience: 2,
-            recovery: 2,
-            discipline: 2,
-            intellect: 2,
-            strength: 2,
-          },
-          classItem: {
-            mobility: 0,
-            resilience: 0,
-            recovery: 0,
-            discipline: 0,
-            intellect: 0,
-            strength: 0,
-          },
-        },
-        armorMods: {
-          helmet: [null, null, null, null],
-          arms: [null, null, null, null],
-          chest: [null, null, null, null],
-          legs: [null, null, null, null],
-          classItem: [null, null, null, null],
-        },
-        artificeStats: {
-          helmet: null,
-          arms: null,
-          chest: null,
-          legs: null,
-          classItem: null,
-        },
-        isArtifice: {
-          helmet: false,
-          arms: false,
-          chest: false,
-          legs: false,
-          classItem: false,
-        },
       };
+
+      // Loadout State
       let savedLoadouts = [];
 
       window.addEventListener("DOMContentLoaded", async () => {
@@ -2608,9 +2281,9 @@
         initializeArtifact();
         initArmorSelectors();
         initStatAllocator();
-        initArmorTab();
         updateAllStatCalculations();
         selectClass("hunter");
+        loadSavedLoadouts();
       });
 
       /* -------- AUTH & INVENTORY FUNCTIONS -------- */
@@ -2682,7 +2355,7 @@
             await checkAuth();
             inventoryData = [];
             selectedInventoryItems = {};
-            updateInventoryDisplay();
+            updateArmorDisplay();
           } catch (error) {
             console.error("Logout error:", error);
             showNotification("Failed to disconnect", "error");
@@ -2701,6 +2374,8 @@
         try {
           const response = await window.d2Api.getInventory();
           let armorItems = [];
+
+          // Get vault armor
           if (response.profileInventory?.data?.items) {
             const vaultArmor = response.profileInventory.data.items.filter(
               (item) => isArmorItem(item)
@@ -2710,6 +2385,8 @@
               armorItems.push(item);
             });
           }
+
+          // Get character armor
           if (response.characterInventories?.data) {
             for (const [characterId, inventory] of Object.entries(
               response.characterInventories.data
@@ -2727,8 +2404,9 @@
               });
             }
           }
+
           inventoryData = await window.d2Api.processInventoryItems(armorItems);
-          updateInventoryDisplay();
+          updateArmorDisplay();
           showNotification(
             `Loaded ${inventoryData.length} armor pieces`,
             "success"
@@ -2755,13 +2433,13 @@
         return armorBuckets.includes(item.bucketHash);
       }
 
-      function updateInventoryDisplay() {
-        const container = document.getElementById("inventoryContainer");
+      function updateArmorDisplay() {
+        const container = document.getElementById("armorContainer");
         if (!container) return;
 
         if (!isAuthenticated) {
           container.innerHTML =
-            '<div class="empty-state">Connect to Bungie.net to load your armor inventory</div>';
+            '<div class="empty-state">Connect to Bungie.net to load your armor collection</div>';
           return;
         }
 
@@ -2771,74 +2449,99 @@
           return;
         }
 
-        const filtered = filterInventory();
+        const filtered = filterArmor();
 
         container.innerHTML = filtered
-          .map(
-            (item) => `
-                                <div class="inventory-item ${
-                                  selectedInventoryItems[item.itemInstanceId]
-                                    ? "selected"
-                                    : ""
-                                }" 
-                                         onclick="toggleInventoryItem('${
-                                           item.itemInstanceId
-                                         }')"
-                                         data-instance-id="${
-                                           item.itemInstanceId
-                                         }">
-                                        <div class="item-header">
-                                                <div class="item-name">${
-                                                  item.displayName
-                                                }</div>
-                                                <div class="item-power">${
-                                                  item.powerLevel || 0
-                                                }</div>
-                                        </div>
-                                        <div style="color: #aaa; font-size: 0.9em; margin-bottom: 10px;">
-                                                ${item.itemType} ${
-              item.location === "vault" ? "(Vault)" : ""
-            }
-                                        </div>
-                                        <div class="item-stats">
-                                                ${Object.entries(
-                                                  item.stats || {}
-                                                )
-                                                  .map(
-                                                    ([stat, value]) => `
-                                                        <div class="stat-item">
-                                                                <div class="stat-name">${stat
-                                                                  .substr(0, 3)
-                                                                  .toUpperCase()}</div>
-                                                                <div class="stat-value">${value}</div>
-                                                        </div>
-                                                `
-                                                  )
-                                                  .join("")}
-                                        </div>
-                                        ${
-                                          item.isArtifice
-                                            ? '<div style="text-align: center; color: #8a2be2; margin-top: 10px;">⬢ Artifice</div>'
-                                            : ""
-                                        }
-                                        ${
-                                          item.isExotic
-                                            ? '<div style="text-align: center; color: #ffd700; margin-top: 5px;">★ Exotic</div>'
-                                            : ""
-                                        }
+          .map((item) => {
+            const tierClass = item.isExotic ? "exotic" : "legendary";
+            const statNames = {
+              mobility: "MOBILITY",
+              resilience: "RESILIENCE",
+              recovery: "RECOVERY",
+              discipline: "DISCIPLINE",
+              intellect: "INTELLECT",
+              strength: "STRENGTH",
+            };
+
+            return `
+                <div class="armor-item ${tierClass} ${
+                  selectedInventoryItems[item.itemInstanceId] ? "selected" : ""
+                }" 
+                     onclick="toggleInventoryItem('${item.itemInstanceId}')"
+                     data-instance-id="${item.itemInstanceId}">
+                    <div class="armor-header">
+                        <div class="armor-icon">
+                            ${item.icon ? `<img src="${item.icon}" alt="${item.displayName}" />` : ""}
+                        </div>
+                        <div class="armor-info">
+                            <div class="armor-name">${item.displayName}</div>
+                            <div class="armor-type">${item.itemType} ${
+                              item.location === "vault" ? "(Vault)" : ""
+                            }</div>
+                        </div>
+                        <div class="armor-power">${item.powerLevel || 0}</div>
+                    </div>
+                    <div class="armor-stats">
+                        ${Object.entries(item.stats || {})
+                          .map(
+                            ([stat, value]) => `
+                                <div class="stat-item">
+                                    <div class="stat-name">${statNames[stat] || stat.toUpperCase()}</div>
+                                    <div class="stat-value">${value}</div>
                                 </div>
-                        `
-          )
+                            `
+                          )
+                          .join("")}
+                    </div>
+                    <div class="armor-tags">
+                        ${item.isArtifice ? '<div class="armor-tag artifice">⬢ Artifice</div>' : ""}
+                        ${item.isExotic ? '<div class="armor-tag exotic">★ Exotic</div>' : ""}
+                    </div>
+                </div>
+              `;
+          })
           .join("");
       }
 
-      function filterInventory() {
+      function filterArmor() {
         const typeFilter =
           document.getElementById("armorTypeFilter")?.value || "all";
+        const tierFilter =
+          document.getElementById("armorTierFilter")?.value || "all";
 
         return inventoryData.filter((item) => {
-          if (typeFilter === "all") return true;
+          // Type filter
+          if (typeFilter !== "all") {
+            const bucketToType = {
+              3448274439: "helmet",
+              3551918588: "gauntlets",
+              14239492: "chest",
+              20886954: "legs",
+              1585787867: "classItem",
+            };
+            if (bucketToType[item.bucketHash] !== typeFilter) return false;
+          }
 
+          // Tier filter
+          if (tierFilter !== "all") {
+            if (tierFilter === "exotic" && !item.isExotic) return false;
+            if (tierFilter === "legendary" && item.isExotic) return false;
+          }
+
+          return true;
+        });
+      }
+
+      function toggleInventoryItem(instanceId) {
+        const item = inventoryData.find(
+          (item) => item.itemInstanceId === instanceId
+        );
+        if (!item) return;
+
+        if (selectedInventoryItems[instanceId]) {
+          delete selectedInventoryItems[instanceId];
+        } else {
+          // Check if this is exotic and we already have an exotic selected
           const bucketToType = {
             3448274439: "helmet",
             3551918588: "gauntlets",
@@ -2846,20 +2549,58 @@
             20886954: "legs",
             1585787867: "classItem",
           };
+          const itemType = bucketToType[item.bucketHash];
 
-          return bucketToType[item.bucketHash] === typeFilter;
-        });
+          // Remove any existing item of the same type
+          Object.keys(selectedInventoryItems).forEach((id) => {
+            const existingItem = selectedInventoryItems[id];
+            if (bucketToType[existingItem.bucketHash] === itemType) {
+              delete selectedInventoryItems[id];
+            }
+          });
+
+          selectedInventoryItems[instanceId] = item;
+        }
+
+        updateArmorDisplay();
+        updateBuildSummary();
       }
 
-      function toggleInventoryItem(instanceId) {
-        if (selectedInventoryItems[instanceId]) {
-          delete selectedInventoryItems[instanceId];
-        } else {
-          selectedInventoryItems[instanceId] = inventoryData.find(
-            (item) => item.itemInstanceId === instanceId
-          );
-        }
-        updateInventoryDisplay();
+      function updateBuildSummary() {
+        // Calculate total stats from selected armor
+        const statTotals = {
+          mobility: 0,
+          resilience: 0,
+          recovery: 0,
+          discipline: 0,
+          intellect: 0,
+          strength: 0,
+        };
+
+        Object.values(selectedInventoryItems).forEach((item) => {
+          if (item.stats) {
+            Object.entries(item.stats).forEach(([stat, value]) => {
+              if (statTotals.hasOwnProperty(stat)) {
+                statTotals[stat] += value;
+              }
+            });
+          }
+        });
+
+        // Update display
+        Object.entries(statTotals).forEach(([stat, total]) => {
+          const capitalizedStat = stat.charAt(0).toUpperCase() + stat.slice(1);
+          const element = document.getElementById(`total${capitalizedStat}`);
+          if (element) {
+            element.textContent = total;
+            const tier = Math.floor(Math.min(total, 100) / 10);
+            const tierElement =
+              element.parentElement.querySelector(".stat-tier");
+            if (tierElement) {
+              tierElement.textContent = `Tier ${tier}`;
+            }
+          }
+        });
       }
 
       /* -------- GENERAL UI FUNCTIONS -------- */
@@ -3121,10 +2862,10 @@
           (selectedMods.has(t)
             ? (selectedMods.delete(t), columnCounts[e]--)
             : selectedMods.size >= 12
-            ? alert("Maximum 12 mods can be selected!")
-            : 4 === e && columnCounts[4] >= 2
-            ? alert("Maximum 2 mods can be selected in Column 5!")
-            : (selectedMods.add(t), columnCounts[e]++),
+              ? alert("Maximum 12 mods can be selected!")
+              : 4 === e && columnCounts[4] >= 2
+                ? alert("Maximum 2 mods can be selected in Column 5!")
+                : (selectedMods.add(t), columnCounts[e]++),
           updateUI(),
           updateArtifactBuffs());
       }
@@ -3442,536 +3183,217 @@
           recalculateAllDamage();
       }
 
-      /* ---- ARMOR TAB FUNCTIONS ---- */
-      function initArmorTab() {
-        initArmorGrid();
-        updateArmorTotals();
-        loadSavedLoadouts();
-      }
-
-      function initArmorGrid() {
-        const grid = document.getElementById("armorGrid");
-        const pieces = ["helmet", "arms", "chest", "legs", "classItem"];
-        const pieceNames = ["Helmet", "Arms", "Chest", "Legs", "Class Item"];
-
-        pieces.forEach((piece, index) => {
-          const card = document.createElement("div");
-          card.className = "armor-piece-card";
-          card.innerHTML = `
-                        <div class="armor-piece-header">
-                            <div class="armor-piece-name">${
-                              pieceNames[index]
-                            }</div>
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <label style="display: flex; align-items: center; gap: 5px; font-size: 0.9em; color: #8a2be2;">
-                                    <input type="checkbox" id="${piece}Artifice" onchange="toggleArtifice('${piece}')">
-                                    Artifice
-                                </label>
-                                <div class="energy-display">
-                                    ${createEnergyPips(piece)}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="stat-input-grid">
-                            ${createStatInputs(piece)}
-                        </div>
-                        <div id="${piece}ArtificeSelect" style="display: none; margin: 10px 0; padding: 10px; background: rgba(138, 43, 226, 0.2); border-radius: 8px;">
-                            <label style="font-size: 0.9em; color: #ffd700;">Artifice +3 Stat:</label>
-                            <select class="mod-select" onchange="setArtificeStat('${piece}', this.value)" style="margin-left: 10px;">
-                                <option value="">Select Stat</option>
-                                <option value="mobility">Mobility</option>
-                                <option value="resilience">Resilience</option>
-                                <option value="recovery">Recovery</option>
-                                <option value="discipline">Discipline</option>
-                                <option value="intellect">Intellect</option>
-                                <option value="strength">Strength</option>
-                            </select>
-                        </div>
-                        <div class="mod-slots" id="${piece}Mods">
-                            ${createModSlots(piece)}
-                        </div>
-                        <div id="${piece}Error" style="color: #ff4d4d; font-size: 0.9em; margin-top: 5px; display: none;"></div>
-                    `;
-          grid.appendChild(card);
-        });
-
-        // Add event listeners
-        grid.addEventListener("input", (e) => {
-          if (e.target.classList.contains("stat-input")) {
-            updateArmorStat(e.target);
-          }
-        });
-
-        grid.addEventListener("change", (e) => {
-          if (e.target.classList.contains("mod-select")) {
-            updateArmorMods(e.target);
-          }
-        });
-      }
-
-      function createEnergyPips(piece) {
-        const maxEnergy = 10; // All armor has 10 energy when masterworked
-        let pips = "";
-        for (let i = 0; i < maxEnergy; i++) {
-          pips += `<div class="energy-pip" id="${piece}Energy${i}"></div>`;
-        }
-        return pips;
-      }
-
-      function createStatInputs(piece) {
-        const stats = [
-          "mobility",
-          "resilience",
-          "recovery",
-          "discipline",
-          "intellect",
-          "strength",
-        ];
-        const statNames = ["MOB", "RES", "REC", "DIS", "INT", "STR"];
-        const isClassArmor = piece === "classItem";
-
-        return stats
-          .map(
-            (stat, index) => `
-                    <div class="stat-input-group">
-                        <label>${statNames[index]}</label>
-                        <input type="number" class="stat-input" 
-                            data-piece="${piece}" 
-                            data-stat="${stat}" 
-                            value="${state.armorStats[piece][stat]}" 
-                            min="${isClassArmor ? "0" : "2"}" max="30" step="1">
-                    </div>
-                `
-          )
-          .join("");
-      }
-
-      function createModSlots(piece) {
-        let slots = "";
-
-        // First slot - Stat mods only
-        slots += `
-                    <div class="mod-slot">
-                        <select class="mod-select" data-piece="${piece}" data-slot="0">
-                            <option value="">Empty Slot (Stat Mod)</option>
-                            <optgroup label="Major Stat Mods (+10)">
-                                <option value="mobility">Mobility Mod - 3 Energy</option>
-                                <option value="resilience">Resilience Mod - 4 Energy</option>
-                                <option value="recovery">Recovery Mod - 4 Energy</option>
-                                <option value="discipline">Discipline Mod - 3 Energy</option>
-                                <option value="intellect">Intellect Mod - 4 Energy</option>
-                                <option value="strength">Strength Mod - 3 Energy</option>
-                            </optgroup>
-                            <optgroup label="Minor Stat Mods (+5)">
-                                <option value="minorMobility">Minor Mobility - 1 Energy</option>
-                                <option value="minorResilience">Minor Resilience - 2 Energy</option>
-                                <option value="minorRecovery">Minor Recovery - 2 Energy</option>
-                                <option value="minorDiscipline">Minor Discipline - 1 Energy</option>
-                                <option value="minorIntellect">Minor Intellect - 2 Energy</option>
-                                <option value="minorStrength">Minor Strength - 1 Energy</option>
-                            </optgroup>
-                        </select>
-                        <span class="mod-cost">0 Energy</span>
-                    </div>
-                `;
-
-        // Other 3 slots - Font mods based on armor piece
-        const fontOptions = {
-          helmet:
-            '<option value="fontWisdom">Font of Wisdom (INT) - 3 Energy</option>',
-          arms: '<option value="fontVigor">Font of Vigor (STR) - 3 Energy</option><option value="fontFocus">Font of Focus (DIS) - 3 Energy</option>',
-          chest:
-            '<option value="fontEndurance">Font of Endurance (RES) - 3 Energy</option>',
-          legs: '<option value="fontAgility">Font of Agility (MOB) - 3 Energy</option>',
-          classItem:
-            '<option value="fontRestoration">Font of Restoration (REC) - 3 Energy</option>',
-        };
-
-        for (let i = 1; i < 4; i++) {
-          slots += `
-                        <div class="mod-slot">
-                            <select class="mod-select" data-piece="${piece}" data-slot="${i}">
-                                <option value="">Empty Slot</option>
-                                ${
-                                  fontOptions[piece]
-                                    ? `<optgroup label="Font Mods">${fontOptions[piece]}</optgroup>`
-                                    : ""
-                                }
-                            </select>
-                            <span class="mod-cost">0 Energy</span>
-                        </div>
-                    `;
-        }
-
-        return slots;
-      }
-
-      function updateArmorStat(input) {
-        const piece = input.dataset.piece;
-        const stat = input.dataset.stat;
-        const minValue = piece === "classItem" ? 0 : 2;
-        const value = Math.max(
-          minValue,
-          Math.min(30, parseInt(input.value) || minValue)
-        );
-
-        // Store the old value
-        const oldValue = state.armorStats[piece][stat];
-
-        // Temporarily update the value
-        state.armorStats[piece][stat] = value;
-
-        // Validate the new total
-        const validation = validateArmorStats(piece);
-
-        if (!validation.valid) {
-          // Revert the change
-          state.armorStats[piece][stat] = oldValue;
-          input.value = oldValue;
-
-          // Show error message
-          const errorDiv = document.getElementById(`${piece}Error`);
-          if (errorDiv) {
-            errorDiv.textContent = validation.error;
-            errorDiv.style.display = "block";
-            setTimeout(() => {
-              errorDiv.style.display = "none";
-            }, 3000);
-          }
-        } else {
-          input.value = value;
-          updateArmorTotals();
-        }
-      }
-
-      function validateArmorStats(piece) {
-        // Calculate totals for this piece
-        const stats = state.armorStats[piece];
-        const total = Object.values(stats).reduce((sum, val) => sum + val, 0);
-
-        // Check max total (68 for regular armor, 0 for class items)
-        const maxTotal = piece === "classItem" ? 0 : 68;
-        if (total > maxTotal) {
-          return {
-            valid: false,
-            error: `Total stats cannot exceed ${maxTotal} (current: ${total})`,
-          };
-        }
-
-        // For non-class items, check top/bottom stat groups
-        if (piece !== "classItem") {
-          const topStats = stats.mobility + stats.resilience + stats.recovery;
-          const bottomStats =
-            stats.discipline + stats.intellect + stats.strength;
-
-          if (topStats > 34) {
-            return {
-              valid: false,
-              error: `Top 3 stats (Mob/Res/Rec) cannot exceed 34 (current: ${topStats})`,
-            };
-          }
-
-          if (bottomStats > 34) {
-            return {
-              valid: false,
-              error: `Bottom 3 stats (Dis/Int/Str) cannot exceed 34 (current: ${bottomStats})`,
-            };
-          }
-        }
-
-        return { valid: true };
-      }
-
-      function toggleArtifice(piece) {
-        const checkbox = document.getElementById(`${piece}Artifice`);
-        const selectDiv = document.getElementById(`${piece}ArtificeSelect`);
-        const card = checkbox.closest(".armor-piece-card");
-
-        state.isArtifice[piece] = checkbox.checked;
-        selectDiv.style.display = checkbox.checked ? "block" : "none";
-
-        // Add/remove artifice class to highlight the card
-        if (checkbox.checked) {
-          card.classList.add("artifice");
-        } else {
-          card.classList.remove("artifice");
-        }
-
-        if (!checkbox.checked) {
-          state.artificeStats[piece] = null;
-          const select = selectDiv.querySelector("select");
-          if (select) select.value = "";
-        }
-
-        updateArmorTotals();
-      }
-
-      function setArtificeStat(piece, stat) {
-        state.artificeStats[piece] = stat || null;
-        updateArmorTotals();
-      }
-
-      function updateArmorMods(select) {
-        const piece = select.dataset.piece;
-        const slot = parseInt(select.dataset.slot);
-        const modKey = select.value;
-
-        // Store old value
-        const oldValue = state.armorMods[piece][slot];
-
-        // Update state
-        state.armorMods[piece][slot] = modKey || null;
-
-        // Calculate total energy
-        let totalEnergy = 0;
-        state.armorMods[piece].forEach((mod) => {
-          if (mod && armorMods[mod]) {
-            totalEnergy += armorMods[mod].cost;
-          }
-        });
-
-        // Check if energy limit exceeded
-        if (totalEnergy > 10) {
-          // Revert change
-          state.armorMods[piece][slot] = oldValue;
-          select.value = oldValue || "";
-
-          const errorDiv = document.getElementById(`${piece}Error`);
-          if (errorDiv) {
-            errorDiv.textContent = "Cannot exceed 10 energy!";
-            errorDiv.style.display = "block";
-            setTimeout(() => {
-              errorDiv.style.display = "none";
-            }, 3000);
-          }
+      /* -------- ARMOR OPTIMIZATION FUNCTIONS -------- */
+      function optimizeArmor() {
+        if (inventoryData.length === 0) {
+          showNotification("Please load your inventory first", "info");
           return;
         }
 
-        // Update cost display
-        const costSpan = select.nextElementSibling;
-        if (modKey && armorMods[modKey]) {
-          costSpan.textContent = `${armorMods[modKey].cost} Energy`;
-        } else {
-          costSpan.textContent = "0 Energy";
-        }
-
-        // Update energy pips
-        updateEnergyDisplay(piece);
-        updateArmorTotals();
-      }
-
-      function updateEnergyDisplay(piece) {
-        const mods = state.armorMods[piece] || [];
-        let totalEnergy = 0;
-
-        mods.forEach((modKey) => {
-          if (modKey && armorMods[modKey]) {
-            totalEnergy += armorMods[modKey].cost;
-          }
-        });
-
-        for (let i = 0; i < 10; i++) {
-          const pip = document.getElementById(`${piece}Energy${i}`);
-          if (pip) {
-            pip.classList.toggle("filled", i < totalEnergy);
-          }
-        }
-      }
-
-      function updateArmorTotals() {
-        const stats = [
-          "mobility",
-          "resilience",
-          "recovery",
-          "discipline",
-          "intellect",
-          "strength",
-        ];
-        const baseStats = {};
-        const masterworkBonus = {};
-        const modBonus = {};
-        const artificeBonus = {};
-        const fontBonus = {};
-
-        // Calculate base stats from armor
-        stats.forEach((stat) => {
-          baseStats[stat] = 0;
-          masterworkBonus[stat] = 0;
-          artificeBonus[stat] = 0;
-          modBonus[stat] = 0;
-          fontBonus[stat] = 0;
-
-          Object.keys(state.armorStats).forEach((piece) => {
-            baseStats[stat] += state.armorStats[piece][stat];
-            // Masterwork adds +2 to each stat (not for class items)
-            if (piece !== "classItem") {
-              masterworkBonus[stat] += 2;
-            }
-          });
-        });
-
-        // Add artifice bonuses
-        Object.keys(state.artificeStats).forEach((piece) => {
-          const stat = state.artificeStats[piece];
-          if (stat && state.isArtifice[piece]) {
-            artificeBonus[stat] += 3;
-          }
-        });
-
-        // Count fonts by type for stacking logic
-        const fontCounts = {
-          fontWisdom: 0,
-          fontVigor: 0,
-          fontFocus: 0,
-          fontEndurance: 0,
-          fontAgility: 0,
-          fontRestoration: 0,
+        // Get target stats from the stat selector
+        const targetStats = {
+          mobility: getTargetStatValue("Weapons"),
+          resilience: getTargetStatValue("Health"),
+          recovery: getTargetStatValue("Class"),
+          discipline: getTargetStatValue("Grenade"),
+          intellect: getTargetStatValue("Super"),
+          strength: getTargetStatValue("Melee"),
         };
 
-        // Add mod bonuses and count fonts
-        Object.keys(state.armorMods).forEach((piece) => {
-          const mods = state.armorMods[piece] || [];
-          mods.forEach((modKey) => {
-            if (modKey && armorMods[modKey]) {
-              const mod = armorMods[modKey];
-              if (mod.type === "stat") {
-                // Determine target stat for both major and minor mods
-                const targetStat = mod.target || modKey;
-                modBonus[targetStat] += mod.bonus;
-              } else if (mod.type === "font") {
-                // Count font for stacking calculation
-                fontCounts[modKey]++;
+        // Group armor by type
+        const armorByType = {
+          helmet: [],
+          gauntlets: [],
+          chest: [],
+          legs: [],
+          classItem: [],
+        };
+
+        const bucketToType = {
+          3448274439: "helmet",
+          3551918588: "gauntlets",
+          14239492: "chest",
+          20886954: "legs",
+          1585787867: "classItem",
+        };
+
+        inventoryData.forEach((item) => {
+          const type = bucketToType[item.bucketHash];
+          if (type) {
+            armorByType[type].push(item);
+          }
+        });
+
+        // Find best combination
+        let bestCombination = null;
+        let bestScore = -Infinity;
+
+        // Check all combinations (simplified - in reality you'd want a more sophisticated algorithm)
+        for (const helmet of armorByType.helmet) {
+          for (const gauntlets of armorByType.gauntlets) {
+            for (const chest of armorByType.chest) {
+              for (const legs of armorByType.legs) {
+                for (const classItem of armorByType.classItem) {
+                  // Check exotic constraint
+                  const exotics = [
+                    helmet,
+                    gauntlets,
+                    chest,
+                    legs,
+                    classItem,
+                  ].filter((item) => item.isExotic);
+                  if (exotics.length > 1) continue;
+
+                  // Calculate total stats
+                  const totalStats = calculateTotalStats([
+                    helmet,
+                    gauntlets,
+                    chest,
+                    legs,
+                    classItem,
+                  ]);
+
+                  // Calculate score based on how close we are to target stats
+                  const score = calculateOptimizationScore(
+                    totalStats,
+                    targetStats
+                  );
+
+                  if (score > bestScore) {
+                    bestScore = score;
+                    bestCombination = {
+                      helmet,
+                      gauntlets,
+                      chest,
+                      legs,
+                      classItem,
+                    };
+                  }
+                }
               }
             }
+          }
+        }
+
+        if (bestCombination) {
+          // Clear current selection
+          selectedInventoryItems = {};
+
+          // Select the optimized armor
+          Object.values(bestCombination).forEach((item) => {
+            if (item) {
+              selectedInventoryItems[item.itemInstanceId] = item;
+            }
           });
-        });
 
-        // Calculate font bonuses with stacking rules
-        Object.entries(fontCounts).forEach(([fontKey, count]) => {
-          if (count > 0 && armorMods[fontKey]) {
-            const targetStat = armorMods[fontKey].stat;
-            // 1 font = 30, 2+ fonts = 20 each
-            const bonusPerFont = count === 1 ? 30 : 20;
-            fontBonus[targetStat] += bonusPerFont * count;
-          }
-        });
+          updateArmorDisplay();
+          updateBuildSummary();
 
-        // Calculate and display totals
-        let baseTotalSum = 0;
-        let masterworkTotalSum = 0;
-        let finalTotalSum = 0;
+          // Show optimization message
+          const optimizationDiv = document.createElement("div");
+          optimizationDiv.className = "optimization-message";
+          optimizationDiv.innerHTML = `✨ Build optimized! Check your Current Build Summary below.`;
 
-        stats.forEach((stat) => {
-          // Base total (just armor stats)
-          const base = baseStats[stat];
-          baseTotalSum += base;
-
-          // Masterworked total (armor + masterwork)
-          const masterworked = base + masterworkBonus[stat];
-          masterworkTotalSum += masterworked;
-
-          // Final total (everything)
-          const final =
-            base +
-            masterworkBonus[stat] +
-            artificeBonus[stat] +
-            modBonus[stat] +
-            fontBonus[stat];
-          finalTotalSum += final;
-
-          // Update display
-          const tier = Math.floor(Math.min(final, 100) / 10);
-          const element = document.getElementById(
-            `total${stat.charAt(0).toUpperCase() + stat.slice(1)}`
+          const armorSection = document.querySelector(
+            ".armor-optimizer-section"
           );
-          if (element) {
-            element.textContent = final;
-            element.parentElement.querySelector(
-              ".stat-tier"
-            ).textContent = `Tier ${tier}`;
+          const existingMessage = armorSection.querySelector(
+            ".optimization-message"
+          );
+          if (existingMessage) {
+            existingMessage.remove();
           }
-        });
+          armorSection.insertBefore(
+            optimizationDiv,
+            armorSection.querySelector(".stat-totals")
+          );
 
-        // Update summary displays
-        document.getElementById("baseTotalStats").textContent = baseTotalSum;
-        document.getElementById("masterworkTotalStats").textContent =
-          masterworkTotalSum;
-        document.getElementById("finalTotalStats").textContent = finalTotalSum;
-
-        // Update font summary
-        const fontSummaryDiv = document.getElementById("fontSummary");
-        const activeFonts = Object.entries(fontCounts).filter(
-          ([_, count]) => count > 0
-        );
-        if (activeFonts.length > 0) {
-          const fontInfo = activeFonts
-            .map(([fontKey, count]) => {
-              const mod = armorMods[fontKey];
-              const bonusPerFont = count === 1 ? 30 : 20;
-              const totalBonus = bonusPerFont * count;
-              return `${
-                mod.name
-              } x${count} = +${totalBonus} ${mod.stat.toUpperCase()}`;
-            })
-            .join(" | ");
-          fontSummaryDiv.innerHTML = `<strong>Active Fonts:</strong> ${fontInfo}`;
-        } else {
-          fontSummaryDiv.innerHTML = "";
+          setTimeout(() => {
+            optimizationDiv.remove();
+          }, 5000);
         }
       }
 
-      function updateModRecommendations(totals) {
-        const recommendations = [];
-        const stats = [
-          "mobility",
-          "resilience",
-          "recovery",
-          "discipline",
-          "intellect",
-          "strength",
-        ];
+      function getTargetStatValue(statName) {
+        // Map the display stat names to actual stat names
+        const statMap = {
+          Weapons: "mobility",
+          Health: "resilience",
+          Class: "recovery",
+          Melee: "strength",
+          Grenade: "discipline",
+          Super: "intellect",
+        };
 
-        stats.forEach((stat) => {
-          const current = totals[stat];
-          const remainder = current % 10;
+        return state.statValues[statName] || 10;
+      }
 
-          if (remainder > 0 && remainder <= 8) {
-            const needed = 10 - remainder;
-            recommendations.push({
-              stat: stat.charAt(0).toUpperCase() + stat.slice(1),
-              message: `Add ${needed} ${stat} to reach next tier (currently ${current})`,
-            });
-          } else if (remainder === 9) {
-            recommendations.push({
-              stat: stat.charAt(0).toUpperCase() + stat.slice(1),
-              message: `Only 1 point away from Tier ${
-                Math.floor(current / 10) + 1
-              }!`,
-            });
-          }
-        });
+      function calculateTotalStats(armorPieces) {
+        const totals = {
+          mobility: 0,
+          resilience: 0,
+          recovery: 0,
+          discipline: 0,
+          intellect: 0,
+          strength: 0,
+        };
 
-        // Check for wasted stats
-        stats.forEach((stat) => {
-          const current = totals[stat];
-          if (current > 100) {
-            recommendations.push({
-              stat: stat.charAt(0).toUpperCase() + stat.slice(1),
-              message: `${current - 100} wasted points (over 100)`,
+        armorPieces.forEach((item) => {
+          if (item && item.stats) {
+            Object.entries(item.stats).forEach(([stat, value]) => {
+              if (totals.hasOwnProperty(stat)) {
+                totals[stat] += value;
+              }
             });
           }
         });
 
-        const container = document.getElementById("modRecommendations");
-        container.innerHTML =
-          recommendations.length > 0
-            ? recommendations
-                .map(
-                  (rec) =>
-                    `<div class="recommendation-item"><strong>${rec.stat}:</strong> ${rec.message}</div>`
-                )
-                .join("")
-            : '<div class="recommendation-item">Your stat distribution is optimized!</div>';
+        return totals;
+      }
+
+      function calculateOptimizationScore(actualStats, targetStats) {
+        let score = 0;
+
+        // Calculate score based on how close we are to target tiers
+        Object.entries(targetStats).forEach(([stat, target]) => {
+          const actual = actualStats[stat] || 0;
+          const targetTier = Math.floor(target / 10);
+          const actualTier = Math.floor(actual / 10);
+
+          // Penalize being under target more than being over
+          if (actualTier < targetTier) {
+            score -= (targetTier - actualTier) * 20;
+          } else if (actualTier > targetTier) {
+            score -= (actualTier - targetTier) * 5;
+          } else {
+            score += 10;
+          }
+
+          // Bonus for getting close to the next tier
+          const remainder = actual % 10;
+          if (remainder >= 8) {
+            score += 2;
+          }
+        });
+
+        return score;
+      }
+
+      function clearSelection() {
+        selectedInventoryItems = {};
+        updateArmorDisplay();
+        updateBuildSummary();
+        showNotification("Selection cleared", "info");
+      }
+
+      /* -------- LOADOUT MANAGEMENT FUNCTIONS -------- */
+      function showLoadoutModal() {
+        document.getElementById("loadoutModal").style.display = "block";
+        displayLoadouts();
+      }
+
+      function hideLoadoutModal() {
+        document.getElementById("loadoutModal").style.display = "none";
       }
 
       function saveLoadout() {
@@ -3979,13 +3401,16 @@
           document.getElementById("loadoutName").value ||
           `Loadout ${savedLoadouts.length + 1}`;
 
+        if (Object.keys(selectedInventoryItems).length === 0) {
+          showNotification("No armor selected to save", "error");
+          return;
+        }
+
         const loadout = {
           name: name,
           timestamp: new Date().toISOString(),
-          armorStats: JSON.parse(JSON.stringify(state.armorStats)),
-          armorMods: JSON.parse(JSON.stringify(state.armorMods)),
-          artificeStats: JSON.parse(JSON.stringify(state.artificeStats)),
-          isArtifice: JSON.parse(JSON.stringify(state.isArtifice)),
+          items: JSON.parse(JSON.stringify(selectedInventoryItems)),
+          targetStats: JSON.parse(JSON.stringify(state.statValues)),
         };
 
         savedLoadouts.push(loadout);
@@ -3993,15 +3418,13 @@
 
         document.getElementById("loadoutName").value = "";
         displayLoadouts();
-
-        alert(`Loadout "${name}" saved!`);
+        showNotification(`Loadout "${name}" saved!`, "success");
       }
 
       function loadSavedLoadouts() {
         const saved = localStorage.getItem("d2ArmorLoadouts");
         if (saved) {
           savedLoadouts = JSON.parse(saved);
-          displayLoadouts();
         }
       }
 
@@ -4010,29 +3433,27 @@
 
         if (savedLoadouts.length === 0) {
           container.innerHTML =
-            '<div class="loadout-item">No saved loadouts</div>';
+            '<div style="text-align: center; color: #aaa;">No saved loadouts</div>';
           return;
         }
 
         container.innerHTML = savedLoadouts
           .map(
             (loadout, index) => `
-                    <div class="loadout-item">
-                        <div>
-                            <strong>${loadout.name}</strong>
-                            <br>
-                            <small>${new Date(
-                              loadout.timestamp
-                            ).toLocaleDateString()}</small>
-                        </div>
-                        <div>
-                            <button class="opt-button" style="padding: 8px 16px; font-size: 0.9em;" 
-                                onclick="loadLoadout(${index})">Load</button>
-                            <button class="reset-button" style="padding: 8px 16px; font-size: 0.9em; margin-left: 10px;" 
-                                onclick="deleteLoadout(${index})">Delete</button>
-                        </div>
-                    </div>
-                `
+          <div class="loadout-item">
+            <div>
+              <strong style="color: #ffd700;">${loadout.name}</strong>
+              <br>
+              <small style="color: #aaa;">${new Date(loadout.timestamp).toLocaleDateString()}</small>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="auth-button-small" style="padding: 8px 16px; font-size: 0.9em;" 
+                onclick="loadLoadout(${index})">Load</button>
+              <button class="auth-button-small" style="padding: 8px 16px; font-size: 0.9em; background: linear-gradient(135deg, #dc3545, #c82333);" 
+                onclick="deleteLoadout(${index})">Delete</button>
+            </div>
+          </div>
+        `
           )
           .join("");
       }
@@ -4041,75 +3462,42 @@
         const loadout = savedLoadouts[index];
         if (!loadout) return;
 
-        // Load armor stats
-        state.armorStats = JSON.parse(JSON.stringify(loadout.armorStats));
-        state.armorMods = JSON.parse(JSON.stringify(loadout.armorMods));
-        state.artificeStats = JSON.parse(
-          JSON.stringify(loadout.artificeStats || {})
-        );
-        state.isArtifice = JSON.parse(JSON.stringify(loadout.isArtifice || {}));
+        // Clear current selection
+        selectedInventoryItems = {};
 
-        // Update UI
-        Object.keys(state.armorStats).forEach((piece) => {
-          // Update stat inputs
-          Object.keys(state.armorStats[piece]).forEach((stat) => {
-            const input = document.querySelector(
-              `[data-piece="${piece}"][data-stat="${stat}"]`
-            );
-            if (input) {
-              input.value = state.armorStats[piece][stat];
-            }
-          });
-
-          // Update artifice checkbox
-          const artificeCheckbox = document.getElementById(`${piece}Artifice`);
-          if (artificeCheckbox) {
-            artificeCheckbox.checked = state.isArtifice[piece] || false;
-            const card = artificeCheckbox.closest(".armor-piece-card");
-            if (state.isArtifice[piece]) {
-              card.classList.add("artifice");
-            } else {
-              card.classList.remove("artifice");
-            }
-            toggleArtifice(piece);
-          }
-
-          // Update artifice stat selection
-          if (state.isArtifice[piece] && state.artificeStats[piece]) {
-            const selectDiv = document.getElementById(`${piece}ArtificeSelect`);
-            const select = selectDiv?.querySelector("select");
-            if (select) {
-              select.value = state.artificeStats[piece];
-            }
+        // Load the saved items
+        Object.entries(loadout.items).forEach(([instanceId, item]) => {
+          // Find the item in current inventory
+          const currentItem = inventoryData.find(
+            (i) => i.itemInstanceId === instanceId
+          );
+          if (currentItem) {
+            selectedInventoryItems[instanceId] = currentItem;
           }
         });
 
-        // Update mods
-        Object.keys(state.armorMods).forEach((piece) => {
-          const mods = state.armorMods[piece] || [];
-          mods.forEach((modKey, slot) => {
-            const select = document.querySelector(
-              `[data-piece="${piece}"][data-slot="${slot}"]`
-            );
-            if (select) {
-              select.value = modKey || "";
-              updateArmorMods(select);
-            }
-          });
-        });
+        // Load target stats if saved
+        if (loadout.targetStats) {
+          state.statValues = JSON.parse(JSON.stringify(loadout.targetStats));
+          updateAllStatCalculations();
+        }
 
-        updateArmorTotals();
-        alert(`Loaded "${loadout.name}"`);
+        updateArmorDisplay();
+        updateBuildSummary();
+        hideLoadoutModal();
+        showNotification(`Loaded "${loadout.name}"`, "success");
       }
 
       function deleteLoadout(index) {
-        if (confirm(`Delete "${savedLoadouts[index].name}"?`)) {
+        const loadout = savedLoadouts[index];
+        if (confirm(`Delete "${loadout.name}"?`)) {
           savedLoadouts.splice(index, 1);
           localStorage.setItem(
             "d2ArmorLoadouts",
             JSON.stringify(savedLoadouts)
           );
           displayLoadouts();
+          showNotification(`Deleted "${loadout.name}"`, "info");
         }
       }
     </script>
