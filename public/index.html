@@ -276,8 +276,12 @@
       .armor-name {
         font-weight: bold;
         font-size: 1.1em;
-        color: #ffd700;
+        color: #fff;
         margin-bottom: 5px;
+      }
+
+      .legendary .armor-name {
+        color: #b78aff;
       }
 
       .exotic .armor-name {
@@ -295,9 +299,9 @@
         position: absolute;
         top: 15px;
         right: 15px;
-        font-size: 1.2em;
+        font-size: 0.9em;
         font-weight: bold;
-        color: #8a2be2;
+        color: #fff;
       }
 
       .armor-stats {
@@ -799,6 +803,13 @@
         border-color: #ffd700;
       }
 
+      .class-selector {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 15px;
+      }
+
       .exotic-group {
         margin-top: 10px;
       }
@@ -1234,8 +1245,11 @@
         <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
           Target Stat Distribution
         </h2>
-        <div class="armor-tier-selector" id="armorTierSelector"></div>
-        <div class="stat-point-summary" id="statPointSummary"></div>
+        <div class="class-selector" style="text-align:center;margin-bottom:20px">
+          <button class="class-button" id="topHunterClass" data-class="hunter" onclick="selectClass('hunter')">Hunter</button>
+          <button class="class-button" id="topTitanClass" data-class="titan" onclick="selectClass('titan')">Titan</button>
+          <button class="class-button" id="topWarlockClass" data-class="warlock" onclick="selectClass('warlock')">Warlock</button>
+        </div>
         <div class="stat-allocator" id="statAllocator"></div>
 
         <div style="margin-top: 20px; text-align: center">
@@ -1676,6 +1690,7 @@
                 <button
                   class="class-button"
                   id="hunterClass"
+                  data-class="hunter"
                   onclick="selectClass('hunter')"
                 >
                   Hunter
@@ -1683,6 +1698,7 @@
                 <button
                   class="class-button"
                   id="titanClass"
+                  data-class="titan"
                   onclick="selectClass('titan')"
                 >
                   Titan
@@ -1690,6 +1706,7 @@
                 <button
                   class="class-button"
                   id="warlockClass"
+                  data-class="warlock"
                   onclick="selectClass('warlock')"
                 >
                   Warlock
@@ -2284,7 +2301,6 @@
         ],
       ];
 
-      const armorTierStats = { 1: 67, 2: 73, 3: 79, 4: 85, 5: 95 };
       const statsArr = [
         "Weapons",
         "Health",
@@ -2381,10 +2397,10 @@
       window.addEventListener("DOMContentLoaded", async () => {
         await initializeApp();
         initializeArtifact();
-        initArmorSelectors();
         initStatAllocator();
         updateAllStatCalculations();
-        selectClass("hunter");
+        const savedClass = localStorage.getItem("d2SelectedClass") || "hunter";
+        selectClass(savedClass);
         loadSavedLoadouts();
 
         // Add event listener for instance component
@@ -2575,6 +2591,22 @@
 
         const filtered = filterArmor();
 
+        const bucketOrder = {
+          3448274439: 0,
+          3551918588: 1,
+          14239492: 2,
+          20886954: 3,
+          1585787867: 4,
+        };
+
+        filtered.sort((a, b) => {
+          if (a.isExotic !== b.isExotic) return a.isExotic ? -1 : 1;
+          const orderA = bucketOrder[a.bucketHash] ?? 5;
+          const orderB = bucketOrder[b.bucketHash] ?? 5;
+          if (orderA !== orderB) return orderA - orderB;
+          return b.powerLevel - a.powerLevel;
+        });
+
         container.innerHTML = filtered
           .map((item) => {
             const tierClass = item.isExotic ? "exotic" : "legendary";
@@ -2650,8 +2682,13 @@
           document.getElementById("armorTypeFilter")?.value || "all";
         const tierFilter =
           document.getElementById("armorTierFilter")?.value || "all";
+        const classMap = { titan: 0, hunter: 1, warlock: 2 };
+        const classId = classMap[currentClass];
 
         return inventoryData.filter((item) => {
+          if (item.classType !== undefined && item.classType !== 3 && item.classType !== classId) {
+            return false;
+          }
           // Type filter
           if (typeFilter !== "all") {
             const bucketToType = {
@@ -2775,19 +2812,6 @@
         }
       }
 
-      /* -------- Armor tier dropdowns -------- */
-      function initArmorSelectors() {
-        const cont = document.getElementById("armorTierSelector");
-        const pieces = ["Helmet", "Arms", "Chest", "Legs", "Class Item"];
-        pieces.forEach((p) => {
-          const div = document.createElement("div");
-          div.className = "armor-piece";
-          div.innerHTML = `<label>${p}</label><select class="armor-tier-select"><option value="1">T1</option><option value="2">T2</option><option value="3" selected>T3</option><option value="4">T4</option><option value="5">T5</option></select>`;
-          cont.appendChild(div);
-        });
-        cont.addEventListener("change", updateAllStatCalculations);
-      }
-
       /* ---------------- Stat allocator via BOXES ---------------- */
       function initStatAllocator() {
         const alloc = document.getElementById("statAllocator");
@@ -2832,19 +2856,15 @@
 
       /* ----------- Calculation & UI refresh ----------- */
       function updateAllStatCalculations() {
-        let avail = 0;
-        document
-          .querySelectorAll(".armor-tier-select")
-          .forEach((sel) => (avail += armorTierStats[sel.value]));
         const allocated = Object.values(state.statValues).reduce(
           (a, b) => a + b,
           0
         );
 
         const summary = document.getElementById("statPointSummary");
-        summary.innerHTML = `Available Points: <span style="color:#ffd700">${avail}</span> | Allocated: <span>${allocated}</span>${
-          allocated > avail ? " <span class='error'>OVERBUDGET!</span>" : ""
-        }`;
+        if (summary) {
+          summary.textContent = `Total Points: ${allocated}`;
+        }
 
         statsArr.forEach((stat) => {
           const cur = state.statValues[stat];
@@ -2853,11 +2873,7 @@
             .forEach((box) => {
               const value = Number(box.dataset.value);
               box.classList.toggle("selected", value === cur);
-              const prospective = allocated - cur + value;
-              box.classList.toggle(
-                "disabled",
-                prospective > avail && value > cur
-              );
+              box.classList.remove("disabled");
             });
         });
 
@@ -3204,23 +3220,27 @@
       }
 
       function selectClass(t) {
-        (currentClass = t),
-          document
-            .querySelectorAll(".class-button")
-            .forEach((t) => t.classList.remove("active")),
-          document.getElementById(t + "Class").classList.add("active"),
-          document
-            .querySelectorAll(".exotic-group")
-            .forEach((t) => (t.style.display = "none")),
-          (document.querySelector("." + t + "-exotics").style.display =
-            "block"),
-          selectedExotics.clear(),
-          document.querySelectorAll(".exotic-checkbox").forEach((t) => {
-            t.checked = !1;
-          }),
-          updateExoticRestrictions(),
-          updateMeleeClassRestrictions();
+        currentClass = t;
+        localStorage.setItem("d2SelectedClass", t);
+        document
+          .querySelectorAll(".class-button")
+          .forEach((b) => b.classList.remove("active"));
+        document
+          .querySelectorAll(`.class-button[data-class='${t}']`)
+          .forEach((b) => b.classList.add("active"));
+        document
+          .querySelectorAll(".exotic-group")
+          .forEach((el) => (el.style.display = "none"));
+        const group = document.querySelector("." + t + "-exotics");
+        if (group) group.style.display = "block";
+        selectedExotics.clear();
+        document.querySelectorAll(".exotic-checkbox").forEach((c) => {
+          c.checked = false;
+        });
+        updateExoticRestrictions();
+        updateMeleeClassRestrictions();
         updateExoticOptions();
+        updateArmorDisplay();
         findOptimalBuilds();
       }
 
