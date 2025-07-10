@@ -211,11 +211,12 @@ class D2ApiClient {
                 displayName: definition?.displayProperties?.name || 'Unknown Item',
                 itemType: definition?.itemTypeDisplayName || 'Unknown Type',
                 tierType: definition?.inventory?.tierTypeName || 'Unknown Tier',
-                icon: definition?.displayProperties?.icon ? 
+                icon: definition?.displayProperties?.icon ?
                     `https://www.bungie.net${definition.displayProperties.icon}` : null,
                 isExotic: this.isExotic(item),
                 isArtifice: this.isArtificeArmor(item),
                 powerLevel: this.getItemPowerLevel(item),
+                classType: definition?.classType,
                 stats: this.getItemStats(item, statDefinitions)
             };
         });
