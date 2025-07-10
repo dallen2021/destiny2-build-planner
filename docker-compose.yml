@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=mongodb://mongo:27017/d2-builder
+    env_file:
+      - .env
+    volumes:
+      - ./data:/usr/src/app/data
+      - ./public:/usr/src/app/public
+    depends_on:
+      - mongo
+    restart: unless-stopped
+    networks:
+      - d2-network
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=d2-builder
+    restart: unless-stopped
+    networks:
+      - d2-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./public:/usr/share/nginx/html:ro
+    depends_on:
+      - app
+    restart: unless-stopped
+    networks:
+      - d2-network
+
+volumes:
+  mongo-data:
+
+networks:
+  d2-network:
+    driver: bridge

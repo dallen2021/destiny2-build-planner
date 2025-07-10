@@ -1,0 +1,4117 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Destiny 2: Edge of Fate – Build Planner & Damage Calculator (Stat‑Box
+      Revamp)
+    </title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+        color: #fff;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+
+      .loading-content {
+        text-align: center;
+      }
+
+      .loading-spinner {
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top: 4px solid #8a2be2;
+        width: 60px;
+        height: 60px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .header {
+        text-align: center;
+        padding: 30px 20px;
+        background: rgba(20, 20, 30, 0.9);
+        border-bottom: 2px solid rgba(138, 43, 226, 0.5);
+        position: relative;
+      }
+
+      .header h1 {
+        font-size: 3em;
+        margin-bottom: 10px;
+        text-shadow: 0 0 30px rgba(138, 43, 226, 0.8);
+        background: linear-gradient(45deg, #8a2be2, #ffd700);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .header p {
+        font-size: 1.2em;
+        color: #aaa;
+      }
+
+      .auth-status-bar {
+        position: absolute;
+        top: 10px;
+        right: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 15px;
+        background: rgba(50, 50, 60, 0.8);
+        border-radius: 20px;
+        border: 1px solid #444;
+      }
+
+      .auth-button-small {
+        padding: 8px 20px;
+        background: linear-gradient(135deg, #8a2be2, #4b0082);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .auth-button-small:hover {
+        transform: scale(1.05);
+        box-shadow: 0 3px 15px rgba(138, 43, 226, 0.5);
+      }
+
+      .nav-tabs {
+        display: flex;
+        justify-content: center;
+        background: rgba(30, 30, 40, 0.8);
+        padding: 10px;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .nav-tab {
+        padding: 12px 24px;
+        background: rgba(50, 50, 60, 0.8);
+        border: 2px solid #444;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 1.1em;
+      }
+
+      .nav-tab:hover {
+        background: rgba(138, 43, 226, 0.3);
+        border-color: #8a2be2;
+        transform: translateY(-2px);
+      }
+
+      .nav-tab.active {
+        background: linear-gradient(
+          135deg,
+          rgba(138, 43, 226, 0.5),
+          rgba(75, 0, 130, 0.5)
+        );
+        border-color: #ffd700;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+      }
+
+      .content-section {
+        display: none;
+        padding: 30px 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+      }
+
+      .content-section.active {
+        display: block;
+      }
+
+      /* Inventory styles */
+      .inventory-section {
+        background: rgba(30, 30, 40, 0.8);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
+      }
+
+      .filter-controls {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .filter-select {
+        padding: 10px 15px;
+        background: rgba(50, 50, 60, 0.8);
+        border: 2px solid #444;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 1em;
+      }
+
+      .inventory-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .inventory-item {
+        background: rgba(50, 50, 60, 0.8);
+        border: 2px solid #444;
+        border-radius: 15px;
+        padding: 15px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      .inventory-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(138, 43, 226, 0.5);
+        border-color: #8a2be2;
+      }
+
+      .inventory-item.selected {
+        background: linear-gradient(
+          135deg,
+          rgba(138, 43, 226, 0.5),
+          rgba(75, 0, 130, 0.5)
+        );
+        border-color: #ffd700;
+      }
+
+      .item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .item-name {
+        font-weight: bold;
+        font-size: 1.1em;
+        color: #ffd700;
+      }
+
+      .item-power {
+        font-size: 1.2em;
+        color: #8a2be2;
+      }
+
+      .item-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .stat-item {
+        text-align: center;
+        padding: 5px;
+        background: rgba(40, 40, 50, 0.8);
+        border-radius: 5px;
+      }
+
+      .stat-item .stat-name {
+        font-size: 0.8em;
+        color: #aaa;
+      }
+
+      .stat-item .stat-value {
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #fff;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #aaa;
+        font-size: 1.2em;
+      }
+
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 25px;
+        border-radius: 10px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        animation: slideIn 0.3s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+        }
+        to {
+          transform: translateX(0);
+        }
+      }
+
+      .notification.success {
+        background: rgba(76, 175, 80, 0.9);
+        border: 2px solid #4caf50;
+      }
+
+      .notification.error {
+        background: rgba(244, 67, 54, 0.9);
+        border: 2px solid #f44336;
+      }
+
+      .notification.info {
+        background: rgba(33, 150, 243, 0.9);
+        border: 2px solid #2196f3;
+      }
+
+      /* Armor Optimization Styles */
+      .armor-container {
+        display: grid;
+        gap: 30px;
+      }
+
+      .armor-section {
+        background: rgba(30, 30, 40, 0.8);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
+      }
+
+      .armor-section h2 {
+        color: #ffd700;
+        margin-bottom: 20px;
+        font-size: 1.8em;
+        text-align: center;
+      }
+
+      .armor-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+      }
+
+      .armor-piece-card {
+        background: rgba(50, 50, 60, 0.8);
+        border: 2px solid #444;
+        border-radius: 15px;
+        padding: 20px;
+        transition: all 0.3s ease;
+      }
+
+      .armor-piece-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(138, 43, 226, 0.5);
+        border-color: #8a2be2;
+      }
+
+      .armor-piece-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .armor-piece-name {
+        font-weight: bold;
+        font-size: 1.2em;
+        color: #ffd700;
+      }
+
+      .energy-display {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+
+      .energy-pip {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #333;
+        border: 1px solid #666;
+      }
+
+      .energy-pip.filled {
+        background: #ffd700;
+        box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+      }
+
+      .energy-pip.overfilled {
+        background: #ff4d4d;
+        box-shadow: 0 0 5px rgba(255, 77, 77, 0.5);
+      }
+
+      .stat-input-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .stat-input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .stat-input-group label {
+        font-size: 0.9em;
+        color: #aaa;
+      }
+
+      .stat-input {
+        width: 100%;
+        padding: 8px;
+        background: rgba(40, 40, 50, 0.8);
+        border: 1px solid #555;
+        border-radius: 5px;
+        color: #fff;
+        text-align: center;
+        font-size: 1em;
+      }
+
+      .stat-input:focus {
+        outline: none;
+        border-color: #8a2be2;
+        box-shadow: 0 0 5px rgba(138, 43, 226, 0.5);
+      }
+
+      .mod-slots {
+        margin-top: 15px;
+      }
+
+      .mod-slot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: rgba(40, 40, 50, 0.8);
+        border-radius: 8px;
+      }
+
+      .mod-select {
+        flex: 1;
+        padding: 8px;
+        background: #333;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 5px;
+      }
+
+      .mod-cost {
+        font-weight: bold;
+        color: #ffd700;
+        min-width: 60px;
+        text-align: center;
+      }
+
+      .stat-totals {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 15px;
+        margin-top: 20px;
+        padding: 20px;
+        background: rgba(40, 40, 50, 0.8);
+        border-radius: 10px;
+      }
+
+      .stat-total-item {
+        text-align: center;
+      }
+
+      .stat-name {
+        font-size: 0.9em;
+        color: #aaa;
+        margin-bottom: 5px;
+      }
+
+      .stat-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #fff;
+      }
+
+      .stat-tier {
+        font-size: 0.8em;
+        color: #8a2be2;
+      }
+
+      .optimization-controls {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+      }
+
+      .opt-button {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #8a2be2, #4b0082);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1.1em;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .opt-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 20px rgba(138, 43, 226, 0.5);
+      }
+
+      .target-stats {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      .target-stat-input {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .loadout-section {
+        margin-top: 20px;
+      }
+
+      .loadout-controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .loadout-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .loadout-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        background: rgba(50, 50, 60, 0.8);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .loadout-item:hover {
+        background: rgba(138, 43, 226, 0.3);
+        transform: translateX(5px);
+      }
+
+      .mod-recommendations {
+        margin-top: 20px;
+        padding: 20px;
+        background: rgba(138, 43, 226, 0.2);
+        border-radius: 10px;
+        border: 2px solid rgba(138, 43, 226, 0.5);
+      }
+
+      .recommendation-item {
+        margin-bottom: 10px;
+        padding: 10px;
+        background: rgba(40, 40, 50, 0.8);
+        border-radius: 5px;
+      }
+
+      /* Keep all existing styles from the original file */
+      .artifact-container {
+        background: rgba(30, 30, 40, 0.8);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 0 50px rgba(138, 43, 226, 0.3);
+      }
+
+      .artifact-filters {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+      }
+
+      .element-filter-btn {
+        padding: 10px 20px;
+        font-size: 1em;
+        cursor: pointer;
+        border-radius: 8px;
+        border: 2px solid #555;
+        background: rgba(50, 50, 60, 0.8);
+        color: #fff;
+        transition: all 0.3s ease;
+      }
+
+      .element-filter-btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .element-filter-btn.active {
+        box-shadow: 0 0 15px;
+      }
+
+      .element-filter-btn[data-element="solar"] {
+        border-color: #ef642d;
+      }
+      .element-filter-btn[data-element="solar"].active {
+        background-color: #ef642d;
+        color: #fff;
+      }
+      .element-filter-btn[data-element="arc"] {
+        border-color: #86b1f3;
+      }
+      .element-filter-btn[data-element="arc"].active {
+        background-color: #86b1f3;
+        color: #000;
+      }
+      .element-filter-btn[data-element="void"] {
+        border-color: #b18ee9;
+      }
+      .element-filter-btn[data-element="void"].active {
+        background-color: #b18ee9;
+        color: #fff;
+      }
+      .element-filter-btn[data-element="stasis"] {
+        border-color: #4b88b2;
+      }
+      .element-filter-btn[data-element="stasis"].active {
+        background-color: #4b88b2;
+        color: #fff;
+      }
+      .element-filter-btn[data-element="strand"] {
+        border-color: #55a84e;
+      }
+      .element-filter-btn[data-element="strand"].active {
+        background-color: #55a84e;
+        color: #fff;
+      }
+
+      .counter {
+        font-size: 1.2em;
+        color: #ffd700;
+        margin-bottom: 20px;
+        text-align: center;
+      }
+
+      .columns-wrapper {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 20px;
+      }
+
+      .column {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .column-header {
+        text-align: center;
+        padding: 10px;
+        background: rgba(138, 43, 226, 0.3);
+        border-radius: 10px;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+
+      .mod-card {
+        background: rgba(50, 50, 60, 0.8);
+        border: 2px solid #444;
+        border-radius: 15px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        min-height: 120px;
+      }
+
+      .mod-card.highlighted {
+        border-color: #ffd700;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+      }
+
+      .mod-card.dimmed {
+        opacity: 0.4;
+      }
+
+      .mod-card:hover:not(.locked) {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 20px rgba(138, 43, 226, 0.5);
+        border-color: #8a2be2;
+      }
+
+      .mod-card.selected {
+        background: linear-gradient(
+          135deg,
+          rgba(138, 43, 226, 0.5),
+          rgba(75, 0, 130, 0.5)
+        );
+        border-color: #ffd700;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+      }
+
+      .mod-card.locked {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: rgba(30, 30, 30, 0.8);
+      }
+
+      .mod-card.locked::after {
+        content: "🔒";
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 1.2em;
+      }
+
+      .mod-type {
+        font-size: 0.9em;
+        color: #aaa;
+        margin-bottom: 8px;
+        font-style: italic;
+      }
+
+      .mod-name {
+        font-weight: bold;
+        font-size: 1.1em;
+        margin-bottom: 8px;
+        color: #ffd700;
+      }
+
+      .mod-description {
+        font-size: 0.85em;
+        line-height: 1.4;
+        color: #ccc;
+      }
+
+      .class-button {
+        padding: 8px 20px;
+        background: rgba(50, 50, 60, 0.8);
+        border: 2px solid #444;
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .class-button:hover {
+        background: rgba(138, 43, 226, 0.3);
+        border-color: #8a2be2;
+      }
+
+      .class-button.active {
+        background: linear-gradient(
+          135deg,
+          rgba(138, 43, 226, 0.5),
+          rgba(75, 0, 130, 0.5)
+        );
+        border-color: #ffd700;
+      }
+
+      .exotic-group {
+        margin-top: 10px;
+      }
+
+      .buff-item.disabled {
+        opacity: 0.3;
+        pointer-events: none;
+      }
+
+      .buff-item.disabled .buff-label {
+        text-decoration: line-through;
+      }
+
+      .calc-container {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+
+      .calc-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+      }
+
+      .calc-section {
+        background: rgba(30, 30, 40, 0.8);
+        border-radius: 20px;
+        padding: 25px;
+        box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
+      }
+
+      .calc-section h2 {
+        color: #ffd700;
+        margin-bottom: 20px;
+        font-size: 1.8em;
+        text-align: center;
+      }
+
+      .buff-category {
+        margin-bottom: 25px;
+        padding: 15px;
+        background: rgba(50, 50, 60, 0.5);
+        border-radius: 10px;
+      }
+
+      .buff-category h3 {
+        color: #8a2be2;
+        margin-bottom: 15px;
+        font-size: 1.3em;
+      }
+
+      .buff-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: rgba(40, 40, 50, 0.8);
+        border-radius: 8px;
+        transition: all 0.3s ease;
+      }
+
+      .buff-item:hover {
+        background: rgba(60, 60, 70, 0.8);
+      }
+
+      .buff-checkbox {
+        width: 20px;
+        height: 20px;
+        margin-right: 15px;
+        cursor: pointer;
+      }
+
+      .buff-label {
+        flex: 1;
+        cursor: pointer;
+      }
+
+      .buff-value {
+        color: #ffd700;
+        font-weight: bold;
+        margin-left: 10px;
+      }
+
+      .damage-output {
+        background: linear-gradient(
+          135deg,
+          rgba(138, 43, 226, 0.3),
+          rgba(75, 0, 130, 0.3)
+        );
+        border-radius: 15px;
+        padding: 20px;
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      .damage-output h3 {
+        font-size: 1.5em;
+        margin-bottom: 15px;
+        color: #ffd700;
+      }
+
+      .damage-result {
+        font-size: 2.5em;
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+      }
+
+      .damage-breakdown {
+        margin-top: 15px;
+        font-size: 0.9em;
+        color: #ccc;
+      }
+
+      /* Enhanced Stat UI Styles */
+      .armor-tier-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .armor-piece {
+        background: linear-gradient(
+          135deg,
+          rgba(50, 50, 60, 0.8),
+          rgba(40, 40, 50, 0.8)
+        );
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        border: 2px solid rgba(138, 43, 226, 0.3);
+        transition: all 0.3s ease;
+      }
+
+      .armor-piece:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
+      }
+
+      .armor-piece label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #ffd700;
+        font-size: 1.1em;
+      }
+
+      .armor-piece select {
+        width: 100%;
+        padding: 8px;
+        border-radius: 8px;
+        background: #333;
+        color: #fff;
+        border: 1px solid #555;
+        font-size: 1em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .armor-piece select:hover {
+        border-color: #8a2be2;
+      }
+
+      .stat-point-summary {
+        text-align: center;
+        font-size: 1.3em;
+        margin-bottom: 25px;
+        padding: 15px;
+        background: linear-gradient(
+          135deg,
+          rgba(138, 43, 226, 0.3),
+          rgba(75, 0, 130, 0.3)
+        );
+        border-radius: 15px;
+        border: 2px solid rgba(255, 215, 0, 0.4);
+        font-weight: bold;
+      }
+
+      .stat-point-summary .error {
+        color: #ff4d4d;
+        font-weight: bold;
+        animation: pulse 1s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+
+      .stat-allocator {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+
+      .stat-row {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        align-items: start;
+        gap: 20px;
+        padding: 15px;
+        background: linear-gradient(
+          135deg,
+          rgba(40, 40, 50, 0.8),
+          rgba(30, 30, 40, 0.8)
+        );
+        border-radius: 12px;
+        border: 1px solid rgba(138, 43, 226, 0.2);
+        transition: all 0.3s ease;
+      }
+
+      .stat-row:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(50, 50, 60, 0.8),
+          rgba(40, 40, 50, 0.8)
+        );
+        box-shadow: 0 0 20px rgba(138, 43, 226, 0.2);
+      }
+
+      .stat-row label {
+        font-weight: bold;
+        font-size: 1.2em;
+        color: #ffd700;
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        display: flex;
+        align-items: center;
+        height: 32px;
+      }
+
+      .stat-row-data {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .stat-bonuses {
+        font-size: 0.9em;
+        color: #ccc;
+        line-height: 1.6;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        margin-top: 5px;
+      }
+
+      .stat-box-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .stat-box {
+        display: inline-block;
+        width: 36px;
+        height: 32px;
+        line-height: 32px;
+        text-align: center;
+        font-size: 0.8em;
+        font-weight: bold;
+        background: linear-gradient(135deg, #333, #2a2a2a);
+        border: 2px solid #555;
+        border-radius: 6px;
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.15s;
+      }
+
+      .stat-box:hover:not(.disabled) {
+        border-color: #8a2be2;
+        background: linear-gradient(135deg, #444, #3a3a3a);
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(138, 43, 226, 0.4);
+      }
+
+      .stat-box.selected {
+        background: linear-gradient(135deg, #ffd700, #ffed4e);
+        color: #000;
+        border-color: #ffd700;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+        transform: scale(1.1);
+      }
+
+      .stat-box.disabled {
+        background: linear-gradient(135deg, #222, #1a1a1a);
+        color: #444;
+        border-color: #333;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 20px;
+      }
+
+      .info-card {
+        background: rgba(30, 30, 40, 0.8);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 0 20px rgba(138, 43, 226, 0.3);
+      }
+
+      .info-card h3 {
+        color: #ffd700;
+        margin-bottom: 15px;
+        font-size: 1.4em;
+      }
+
+      .info-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .info-table th,
+      .info-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .info-table th {
+        color: #8a2be2;
+        font-weight: bold;
+      }
+
+      .info-table tr:hover {
+        background: rgba(138, 43, 226, 0.1);
+      }
+
+      .info-table .sub-item {
+        font-size: 0.9em;
+        color: #ccc;
+        padding-left: 20px;
+      }
+
+      .reset-button {
+        background: linear-gradient(135deg, #dc3545, #c82333);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        font-size: 1.1em;
+        border-radius: 10px;
+        cursor: pointer;
+        margin-top: 20px;
+        transition: all 0.3s ease;
+      }
+
+      .reset-button:hover {
+        transform: scale(1.05);
+        box-shadow: 0 5px 20px rgba(220, 53, 69, 0.5);
+      }
+
+      .unlock-info {
+        text-align: center;
+        margin-top: 20px;
+        padding: 15px;
+        background: rgba(138, 43, 226, 0.2);
+        border-radius: 10px;
+        font-size: 0.9em;
+      }
+
+      .tag {
+        display: inline-block;
+        padding: 4px 8px;
+        background: rgba(138, 43, 226, 0.3);
+        border-radius: 5px;
+        font-size: 0.85em;
+        margin: 2px;
+      }
+
+      .armor-piece-card.artifice {
+        background: linear-gradient(
+          135deg,
+          rgba(138, 43, 226, 0.3),
+          rgba(75, 0, 130, 0.3)
+        );
+        border-color: #8a2be2;
+      }
+
+      @media (max-width: 1200px) {
+        .calc-row {
+          grid-template-columns: 1fr;
+        }
+        .columns-wrapper {
+          grid-template-columns: repeat(3, 1fr);
+          overflow-x: auto;
+          padding-bottom: 20px;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .header h1 {
+          font-size: 2em;
+        }
+
+        .columns-wrapper {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .nav-tab {
+          font-size: 1em;
+          padding: 10px 20px;
+        }
+
+        .info-grid {
+          grid-template-columns: 1fr;
+        }
+        .stat-row {
+          grid-template-columns: 1fr;
+          text-align: center;
+        }
+      }
+
+      @media (max-width: 500px) {
+        .columns-wrapper {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <p>Loading Destiny 2 Build Planner...</p>
+      </div>
+    </div>
+
+    <div class="header">
+      <h1>Edge of Fate Build Planner</h1>
+      <p>Comprehensive Damage Calculator & Build Optimization Tool</p>
+      <div class="auth-status-bar">
+        <div id="userInfo" class="user-info" style="display: none">
+          <span id="userName">Guardian</span>
+        </div>
+        <button
+          id="authButton"
+          class="auth-button-small"
+          onclick="handleAuth()"
+        >
+          Connect to Bungie.net
+        </button>
+      </div>
+    </div>
+
+    <div class="nav-tabs">
+      <div class="nav-tab active" onclick="switchTab('inventory')">
+        My Armor
+      </div>
+      <div class="nav-tab" onclick="switchTab('artifact')">Artifact</div>
+      <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
+      <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
+      <div class="nav-tab" onclick="switchTab('armor')">Armor Optimizer</div>
+    </div>
+
+    <!-- My Armor Tab -->
+    <div id="inventory" class="content-section">
+      <div class="inventory-section">
+        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+          My Armor Collection
+        </h2>
+
+        <div class="filter-controls">
+          <select
+            class="filter-select"
+            id="armorTypeFilter"
+            onchange="updateInventoryDisplay()"
+          >
+            <option value="all">All Armor</option>
+            <option value="helmet">Helmets</option>
+            <option value="gauntlets">Gauntlets</option>
+            <option value="chest">Chest Armor</option>
+            <option value="legs">Leg Armor</option>
+            <option value="classItem">Class Items</option>
+          </select>
+
+          <button class="auth-button-small" onclick="loadInventory()">
+            Refresh Inventory
+          </button>
+        </div>
+
+        <div id="inventoryContainer" class="inventory-grid">
+          <div class="empty-state">
+            Connect to Bungie.net to load your armor inventory
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="artifact" class="content-section active">
+      <div class="artifact-container">
+        <div class="artifact-filters" id="artifactFilters">
+          <button class="element-filter-btn" data-element="solar">Solar</button>
+          <button class="element-filter-btn" data-element="arc">Arc</button>
+          <button class="element-filter-btn" data-element="void">Void</button>
+          <button class="element-filter-btn" data-element="stasis">
+            Stasis
+          </button>
+          <button class="element-filter-btn" data-element="strand">
+            Strand
+          </button>
+        </div>
+        <div class="counter">
+          Selected Mods: <span id="modCount">0</span> / 12
+        </div>
+        <div class="columns-wrapper" id="columnsWrapper"></div>
+        <div class="unlock-info">
+          <p><strong>Unlock Requirements:</strong></p>
+          <p>
+            Column 2: 3 mods in Column 1 | Column 3: 5 total mods | Column 4: 8
+            total mods | Column 5: 10 total mods (max 2 selections)
+          </p>
+        </div>
+        <center>
+          <button class="reset-button" onclick="resetSelection()">
+            Reset Selection
+          </button>
+        </center>
+      </div>
+    </div>
+    <div id="damage" class="content-section">
+      <div class="calc-container">
+        <div class="calc-section">
+          <h2>Armor & Stat Bonuses</h2>
+          <div class="armor-tier-selector" id="armorTierSelector"></div>
+          <div class="stat-point-summary" id="statPointSummary"></div>
+          <div class="stat-allocator" id="statAllocator"></div>
+        </div>
+        <div class="calc-row">
+          <div class="calc-section">
+            <h2>Damage Buffs & Multipliers</h2>
+
+            <div class="buff-category">
+              <h3>Global Buffs</h3>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="newGearWeapon"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="newGearWeapon"
+                  >New Gear Weapon Bonus (Artifact)</label
+                >
+                <span class="buff-value">+10%</span>
+              </div>
+              <div class="buff-item disabled" id="theoreticalWellBuffContainer">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="theoreticalWellBuff"
+                  onchange="recalculateAllDamage()"
+                  disabled
+                />
+                <label class="buff-label" for="theoreticalWellBuff"
+                  >Theoretical Well User Buff (Super >= 110)</label
+                >
+                <span class="buff-value">+15%</span>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: rgba(138, 43, 226, 0.2);
+                  border-radius: 8px;
+                  font-size: 0.9em;
+                  color: #ffd700;
+                "
+              >
+                ⚠️ Empowering Buffs (only highest applies):
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="radiant"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="radiant">Radiant</label>
+                <span class="buff-value">+25%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="wellOfRadiance"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="wellOfRadiance"
+                  >Well of Radiance</label
+                >
+                <span class="buff-value">+25%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="nobleRounds"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="nobleRounds">Noble Rounds</label>
+                <span class="buff-value">+35%</span>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: rgba(138, 43, 226, 0.2);
+                  border-radius: 8px;
+                  font-size: 0.9em;
+                  color: #ffd700;
+                "
+              >
+                ⚠️ Weapon Damage Buffs (only highest applies):
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="weaponSurge3x"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="weaponSurge3x"
+                  >Weapon Surge (3x)</label
+                >
+                <span class="buff-value">+22%</span>
+              </div>
+            </div>
+
+            <div class="buff-category">
+              <h3>Weapon Perks (All Stack Multiplicatively)</h3>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="elementalOverdrive"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="elementalOverdrive"
+                  >Elemental Overdrive (Artifact)</label
+                >
+                <span class="buff-value">+25%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="killClip"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="killClip">Kill Clip</label>
+                <span class="buff-value">+25%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="vorpalWeapon"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="vorpalWeapon"
+                  >Vorpal Weapon</label
+                >
+                <span class="buff-value">+15%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="frenzy"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="frenzy">Frenzy</label>
+                <span class="buff-value">+15%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="baitSwitch"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="baitSwitch"
+                  >Bait and Switch</label
+                >
+                <span class="buff-value">+30%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="radiantShrapnel"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="radiantShrapnel"
+                  >Radiant Shrapnel (Artifact)</label
+                >
+                <span class="buff-value">+15%</span>
+              </div>
+            </div>
+
+            <div class="buff-category">
+              <h3>Debuffs (Enemy)</h3>
+              <div
+                style="
+                  margin: 0 0 10px 0;
+                  padding: 10px;
+                  background: rgba(220, 53, 69, 0.2);
+                  border-radius: 8px;
+                  font-size: 0.9em;
+                  color: #ffd700;
+                "
+              >
+                ⚠️ Only highest "Weaken" debuff applies:
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="weakenDebuff"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="weakenDebuff"
+                  >Weaken (Void)</label
+                >
+                <span class="buff-value">+15%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="tetherDebuff"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="tetherDebuff"
+                  >Shadowshot Tether</label
+                >
+                <span class="buff-value">+30%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="divinityDebuff"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="divinityDebuff">Divinity</label>
+                <span class="buff-value">+15%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="tractorCannon"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="tractorCannon"
+                  >Tractor Cannon</label
+                >
+                <span class="buff-value">+30%</span>
+              </div>
+            </div>
+
+            <div class="damage-output">
+              <h3>Total Weapon Damage</h3>
+              <div class="damage-result" id="weaponDamageResult">100%</div>
+              <div class="damage-breakdown" id="weaponBreakdown">
+                Base damage
+              </div>
+            </div>
+          </div>
+          <div class="calc-section">
+            <h2>Melee & Ability Damage</h2>
+
+            <div class="buff-category">
+              <h3>Class Selection</h3>
+              <div style="display: flex; gap: 10px; margin-bottom: 15px">
+                <button
+                  class="class-button"
+                  id="hunterClass"
+                  onclick="selectClass('hunter')"
+                >
+                  Hunter
+                </button>
+                <button
+                  class="class-button"
+                  id="titanClass"
+                  onclick="selectClass('titan')"
+                >
+                  Titan
+                </button>
+                <button
+                  class="class-button"
+                  id="warlockClass"
+                  onclick="selectClass('warlock')"
+                >
+                  Warlock
+                </button>
+              </div>
+            </div>
+
+            <div class="buff-category">
+              <h3>Melee Buffs (Additive)</h3>
+              <div class="buff-item" data-melee-classes="all">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="onetwoPunch"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="onetwoPunch"
+                  >One-Two Punch</label
+                >
+                <span class="buff-value">+300%</span>
+              </div>
+              <div class="buff-item" data-melee-classes="titan">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="roaringFlames"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="roaringFlames"
+                  >Roaring Flames (3×)</label
+                >
+                <span class="buff-value">+200%</span>
+              </div>
+              <div class="buff-item" data-melee-classes="titan">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="bannerOfWar"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="bannerOfWar"
+                  >Banner of War</label
+                >
+                <span class="buff-value">+100%</span>
+              </div>
+              <div class="buff-item" data-melee-classes="hunter">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="combinationBlow"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="combinationBlow"
+                  >Combination Blow (3×)</label
+                >
+                <span class="buff-value">+165%</span>
+              </div>
+            </div>
+
+            <div class="buff-category">
+              <h3>Exotic Armor Buffs</h3>
+              <div
+                style="
+                  margin: 0 0 10px 0;
+                  padding: 10px;
+                  background: rgba(138, 43, 226, 0.2);
+                  border-radius: 8px;
+                  font-size: 0.9em;
+                "
+              >
+                <label for="exoticClassItem" style="cursor: pointer">
+                  <input
+                    type="checkbox"
+                    id="exoticClassItem"
+                    onchange="updateExoticRestrictions()"
+                  />
+                  Using Exotic Class Item (allows 2 exotic perks)
+                </label>
+              </div>
+
+              <div class="exotic-group hunter-exotics" style="display: none">
+                <div
+                  class="buff-item"
+                  data-exotic="liarsHandshake"
+                  data-column="2"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="liarsHandshake"
+                    onchange="handleExoticSelection('liarsHandshake')"
+                  /><label class="buff-label" for="liarsHandshake"
+                    >Liar's Handshake</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="assassinsCowl"
+                  data-column="1"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="assassinsCowl"
+                    onchange="handleExoticSelection('assassinsCowl')"
+                  /><label class="buff-label" for="assassinsCowl"
+                    >Assassin's Cowl</label
+                  ><span class="buff-value">+150%</span>
+                </div>
+                <div class="buff-item" data-exotic="caliban" data-column="1">
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="caliban"
+                    onchange="handleExoticSelection('caliban')"
+                  /><label class="buff-label" for="caliban"
+                    >Caliban's Hand</label
+                  ><span class="buff-value">+100%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="synthocepsHunter"
+                  data-column="2"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="synthocepsHunter"
+                    onchange="handleExoticSelection('synthocepsHunter')"
+                  /><label class="buff-label" for="synthocepsHunter"
+                    >Synthoceps (Class Item)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+              </div>
+
+              <div class="exotic-group titan-exotics" style="display: none">
+                <div
+                  class="buff-item"
+                  data-exotic="synthocepsTitan"
+                  data-column="2"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="synthocepsTitan"
+                    onchange="handleExoticSelection('synthocepsTitan')"
+                  /><label class="buff-label" for="synthocepsTitan"
+                    >Synthoceps (Surrounded)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="wormgodCaress"
+                  data-column="0"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="wormgodCaress"
+                    onchange="handleExoticSelection('wormgodCaress')"
+                  /><label class="buff-label" for="wormgodCaress"
+                    >Wormgod Caress (5×)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="severanceEnclosure"
+                  data-column="1"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="severanceEnclosure"
+                    onchange="handleExoticSelection('severanceEnclosure')"
+                  /><label class="buff-label" for="severanceEnclosure"
+                    >Severance Enclosure</label
+                  ><span class="buff-value">+200%</span>
+                </div>
+              </div>
+
+              <div class="exotic-group warlock-exotics" style="display: none">
+                <div
+                  class="buff-item"
+                  data-exotic="wintersGuile"
+                  data-column="0"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="wintersGuile"
+                    onchange="handleExoticSelection('wintersGuile')"
+                  /><label class="buff-label" for="wintersGuile"
+                    >Winter's Guile (5×)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="necroticGrip"
+                  data-column="1"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="necroticGrip"
+                    onchange="handleExoticSelection('necroticGrip')"
+                  /><label class="buff-label" for="necroticGrip"
+                    >Necrotic Grip</label
+                  ><span class="buff-value">+100%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="synthocepsWarlock"
+                  data-column="2"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="synthocepsWarlock"
+                    onchange="handleExoticSelection('synthocepsWarlock')"
+                  /><label class="buff-label" for="synthocepsWarlock"
+                    >Synthoceps (Class Item)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="damage-output" style="margin-top: 20px">
+              <h3>Total Melee Damage</h3>
+              <div class="damage-result" id="meleeDamageResult">100%</div>
+              <div class="damage-breakdown" id="meleeBreakdown">
+                Base damage (additive)
+              </div>
+            </div>
+            <div class="damage-output" style="margin-top: 20px">
+              <h3>Total Grenade Damage</h3>
+              <div class="damage-result" id="grenadeDamageResult">100%</div>
+              <div class="damage-breakdown" id="grenadeBreakdown">
+                Base damage
+              </div>
+            </div>
+            <div class="damage-output" style="margin-top: 20px">
+              <h3>Total Super Damage</h3>
+              <div class="damage-result" id="superDamageResult">100%</div>
+              <div class="damage-breakdown" id="superBreakdown">
+                Base damage
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="build" class="content-section">
+      <div class="info-grid">
+        <div class="info-card">
+          <h3>Damage Stacking Rules</h3>
+          <table class="info-table">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Stacking Rule</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Empowering Buffs</td>
+                <td>Only highest applies (Radiant, Well, Noble Rounds)</td>
+              </tr>
+              <tr>
+                <td>Weapon Damage Buffs</td>
+                <td>Only highest applies (e.g., Surge mods)</td>
+              </tr>
+              <tr>
+                <td>Weapon Perks & Artifact Buffs</td>
+                <td>All stack multiplicatively (e.g., Kill Clip, Overdrive)</td>
+              </tr>
+              <tr>
+                <td>Enemy Debuffs</td>
+                <td>Only highest "Weaken" effect applies</td>
+              </tr>
+              <tr>
+                <td>Melee Buffs</td>
+                <td>Most stack additively (except some exotics)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-card">
+          <h3>Stat Tier Breakpoints</h3>
+          <table class="info-table">
+            <thead>
+              <tr>
+                <th>Stat Value</th>
+                <th>Key Benefits</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>10</td>
+                <td>Minimum stat level, initial bonus scaling begins</td>
+              </tr>
+              <tr>
+                <td>50</td>
+                <td>
+                  First major bonus threshold, significant cooldown reduction
+                </td>
+              </tr>
+              <tr>
+                <td>100</td>
+                <td>
+                  Maximum base cooldown reduction, unlocks secondary benefits
+                </td>
+              </tr>
+              <tr>
+                <td>110</td>
+                <td>First threshold for enhanced super/ability damage</td>
+              </tr>
+              <tr>
+                <td>150</td>
+                <td>Additional passive benefits (ammo chance, etc.)</td>
+              </tr>
+              <tr>
+                <td>200</td>
+                <td>Maximum damage bonuses and secondary effects</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-card">
+          <h3>Exotic Class Item Combinations</h3>
+          <table class="info-table">
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Popular Combinations</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td rowspan="2"><strong>Hunter</strong></td>
+                <td class="sub-item">Assassin's Cowl + Synthoceps</td>
+              </tr>
+              <tr>
+                <td class="sub-item">Caliban's Hand + Liar's Handshake</td>
+              </tr>
+              <tr>
+                <td rowspan="2"><strong>Titan</strong></td>
+                <td class="sub-item">Severance Enclosure + Synthoceps</td>
+              </tr>
+              <tr>
+                <td class="sub-item">
+                  Severance Enclosure + Synthoceps (PvE melee)
+                </td>
+              </tr>
+              <tr>
+                <td rowspan="2"><strong>Warlock</strong></td>
+                <td class="sub-item">Necrotic Grip + Synthoceps</td>
+              </tr>
+              <tr>
+                <td class="sub-item">
+                  Necrotic Grip + Synthoceps (melee builds)
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="info-card">
+          <h3>Artifact Mod Synergies</h3>
+          <table class="info-table">
+            <thead>
+              <tr>
+                <th>Mod Combination</th>
+                <th>Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Elemental Overdrive + Surge Mods</strong></td>
+                <td>Stacks for a significant (25% + 22%) damage boost</td>
+              </tr>
+              <tr>
+                <td><strong>Radiant Shrapnel + Solar Weapons</strong></td>
+                <td>Chain explosions while Radiant for add clear</td>
+              </tr>
+              <tr>
+                <td><strong>Shieldcrush + Tank Builds</strong></td>
+                <td>Faster ability regen while maintaining defensive buffs</td>
+              </tr>
+              <tr>
+                <td><strong>Frost Renewal + Stasis Builds</strong></td>
+                <td>Team-wide frost armor generation on critical damage</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="armor" class="content-section">
+      <div class="armor-container">
+        <div class="armor-section">
+          <h2>Armor Stat Rules</h2>
+          <div
+            class="info-card"
+            style="
+              background: rgba(138, 43, 226, 0.2);
+              border: 2px solid rgba(138, 43, 226, 0.5);
+            "
+          >
+            <h3 style="margin-bottom: 15px">Important Rules:</h3>
+            <ul style="list-style-position: inside; line-height: 1.8">
+              <li>
+                Maximum base stat total (unmasterworked):
+                <strong style="color: #ffd700">68 points</strong>
+              </li>
+              <li>
+                Minimum per individual stat (non-class item):
+                <strong style="color: #ffd700">2 points</strong>
+              </li>
+              <li>
+                Maximum per individual stat:
+                <strong style="color: #ffd700">30 points</strong>
+              </li>
+              <li>
+                Top 3 stats (Mobility, Resilience, Recovery) combined maximum:
+                <strong style="color: #ffd700">34 points</strong>
+              </li>
+              <li>
+                Bottom 3 stats (Discipline, Intellect, Strength) combined
+                maximum: <strong style="color: #ffd700">34 points</strong>
+              </li>
+              <li>
+                Masterworking adds <strong style="color: #ffd700">+2</strong> to
+                each stat (<strong style="color: #ffd700">+12 total</strong>)
+              </li>
+              <li>
+                Artifice armor allows
+                <strong style="color: #ffd700">+3</strong> to one chosen stat
+                per piece
+              </li>
+              <li>
+                Each armor piece has
+                <strong style="color: #ffd700">10 energy</strong> when
+                masterworked
+              </li>
+              <li>
+                Stat mods cost
+                <strong style="color: #ffd700">1-4 energy</strong> and provide
+                <strong style="color: #ffd700">+5 or +10</strong> to a stat
+              </li>
+              <li>
+                Font mods cost
+                <strong style="color: #ffd700">3 energy</strong> each:
+                <ul style="margin-left: 20px; margin-top: 5px">
+                  <li>
+                    1 font of a type =
+                    <strong style="color: #ffd700">+30</strong> to stat
+                  </li>
+                  <li>
+                    2+ fonts of same type =
+                    <strong style="color: #ffd700">+20 each</strong> (2 fonts =
+                    +40, 3 fonts = +60)
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="armor-section">
+          <h2>Current Armor Setup</h2>
+          <div class="armor-grid" id="armorGrid"></div>
+
+          <div class="stat-totals" id="statTotals">
+            <div class="stat-total-item">
+              <div class="stat-name">Mobility</div>
+              <div class="stat-value" id="totalMobility">0</div>
+              <div class="stat-tier">Tier 0</div>
+            </div>
+            <div class="stat-total-item">
+              <div class="stat-name">Resilience</div>
+              <div class="stat-value" id="totalResilience">0</div>
+              <div class="stat-tier">Tier 0</div>
+            </div>
+            <div class="stat-total-item">
+              <div class="stat-name">Recovery</div>
+              <div class="stat-value" id="totalRecovery">0</div>
+              <div class="stat-tier">Tier 0</div>
+            </div>
+            <div class="stat-total-item">
+              <div class="stat-name">Discipline</div>
+              <div class="stat-value" id="totalDiscipline">0</div>
+              <div class="stat-tier">Tier 0</div>
+            </div>
+            <div class="stat-total-item">
+              <div class="stat-name">Intellect</div>
+              <div class="stat-value" id="totalIntellect">0</div>
+              <div class="stat-tier">Tier 0</div>
+            </div>
+            <div class="stat-total-item">
+              <div class="stat-name">Strength</div>
+              <div class="stat-value" id="totalStrength">0</div>
+              <div class="stat-tier">Tier 0</div>
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top: 20px;
+              padding: 20px;
+              background: rgba(30, 30, 40, 0.8);
+              border-radius: 15px;
+              text-align: center;
+            "
+          >
+            <h3 style="color: #ffd700; margin-bottom: 15px">Stat Summary</h3>
+            <div
+              style="
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 20px;
+              "
+            >
+              <div>
+                <div style="font-size: 0.9em; color: #aaa">
+                  Base Total (Unmasterworked)
+                </div>
+                <div
+                  style="font-size: 2em; font-weight: bold; color: #fff"
+                  id="baseTotalStats"
+                >
+                  0
+                </div>
+              </div>
+              <div>
+                <div style="font-size: 0.9em; color: #aaa">
+                  Masterworked Total
+                </div>
+                <div
+                  style="font-size: 2em; font-weight: bold; color: #ffd700"
+                  id="masterworkTotalStats"
+                >
+                  0
+                </div>
+              </div>
+              <div>
+                <div style="font-size: 0.9em; color: #aaa">
+                  With Artifice & Mods
+                </div>
+                <div
+                  style="font-size: 2em; font-weight: bold; color: #8a2be2"
+                  id="finalTotalStats"
+                >
+                  0
+                </div>
+              </div>
+            </div>
+            <div
+              id="fontSummary"
+              style="margin-top: 15px; font-size: 0.9em; color: #aaa"
+            ></div>
+          </div>
+        </div>
+
+        <div class="armor-section">
+          <h2>Loadout Management</h2>
+          <div class="loadout-section">
+            <div class="loadout-controls">
+              <button class="opt-button" onclick="saveLoadout()">
+                Save Current
+              </button>
+              <input
+                type="text"
+                id="loadoutName"
+                placeholder="Loadout Name"
+                class="stat-input"
+                style="width: 200px"
+              />
+            </div>
+            <div class="loadout-list" id="loadoutList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Load API client -->
+    <script src="/js/api.js"></script>
+    <script src="/js/manifest.js"></script>
+
+    <script>
+      /* ---------------- CONSTANTS (unchanged artifact + bonus objects) ------------- */
+      const artifactMods = [
+        [
+          {
+            type: "Champion Mod",
+            name: "Anti-Barrier Scout and Pulse",
+            description:
+              "Your equipped Scout Rifles and Pulse Rifles fire shield-piercing rounds and stun Barrier Champions",
+            elements: [],
+          },
+          {
+            type: "Champion Mod",
+            name: "Unstoppable Sidearm and Hand Cannon",
+            description:
+              "Aiming down the sights of a Hand Cannon or Sidearm for a short time loads a powerful payload that stuns unshielded combatants. Strong against Unstoppable champions",
+            elements: [],
+          },
+          {
+            type: "Champion Mod",
+            name: "Unstoppable Sniper Rifle",
+            description:
+              "Aiming down the sights of a Sniper Rifle for a short time loads a powerful payload that stuns unshielded combatants. Strong against Unstoppable champions",
+            elements: [],
+          },
+          {
+            type: "Champion Mod",
+            name: "Overload Shotgun",
+            description:
+              "Your equipped shotguns fire disrupting rounds which stun the target, delaying ability regeneration and lowering combatant damage output. Strong against Overload champions",
+            elements: [],
+          },
+          {
+            type: "Champion Mod",
+            name: "Overload Rapid Fire",
+            description:
+              "Uninterrupted fire from your equipped Auto Rifles and Submachine Guns grants bullets that stun combatants, delaying ability regeneration and lowering combatant damage output",
+            elements: [],
+          },
+        ],
+        [
+          {
+            type: "Elemental Mod",
+            name: "Flame, Fiber, and Freeze",
+            description:
+              "Combines the Solar/Strand and Solar/Stasis siphon mods into one",
+            elements: ["solar", "strand", "stasis"],
+          },
+          {
+            type: "Economy Mod",
+            name: "Diviner's Discount",
+            description: "All Scavenger mods are discounted",
+            elements: [],
+          },
+          {
+            type: "Armor Mod",
+            name: "One With Frost",
+            description:
+              "While Frost Armor is active, Stasis weapons gain increased reload speed and stability. Stasis Swords gain increased guard resistance",
+            elements: ["stasis"],
+          },
+          {
+            type: "Armor Mod",
+            name: "Tightly Woven",
+            description:
+              "While Woven Mail is active, gain increased Super and Grenade stats",
+            elements: ["strand"],
+          },
+          {
+            type: "Weapon Mod",
+            name: "Rapid Precision Rifling",
+            description:
+              "Rapid precision hits or final blows with Scout Rifles grant them increased reload and reduced incoming flinch",
+            elements: [],
+          },
+        ],
+        [
+          {
+            type: "Combat Mod",
+            name: "Fever and Chill",
+            description:
+              "Rapid Precision hits with Solar weapons grant Radiant. Rapid precision hits with Stasis weapons grant Frost Armor",
+            elements: ["solar", "stasis"],
+          },
+          {
+            type: "Support Mod",
+            name: "Elemental Benevolence",
+            description:
+              "Granting allies an elemental buff gives Class ability energy",
+            elements: ["solar", "arc", "void", "stasis", "strand"],
+          },
+          {
+            type: "Armor Mod",
+            name: "Frost Renewal",
+            description:
+              "While you have Frost Armor, taking critical damage releases a burst that freezes nearby combatants and grants Frost Armor to you and nearby allies",
+            elements: ["stasis"],
+          },
+          {
+            type: "Weapon Mod",
+            name: "Reciprocal Draw",
+            description:
+              "Rapid non-Sidearm final blows grant Sidearms a period of increased damage for a short time upon next draw",
+            elements: [],
+          },
+          {
+            type: "Ability Mod",
+            name: "Refresh Threads",
+            description:
+              "Picking up an elemental pickup matching your subclass element or Tangle while you have a Strand Super grants energy to your least charged ability",
+            elements: ["strand"],
+          },
+        ],
+        [
+          {
+            type: "Damage Mod",
+            name: "Threaded Blast",
+            description:
+              "Destroying a Tangle with Strand damage increases the radius of the explosion and its damage",
+            elements: ["strand"],
+          },
+          {
+            type: "Elemental Mod",
+            name: "Cauterized Darkness",
+            description:
+              "Stasis or Strand debuffed non-boss combatants take increased Solar damage from all sources",
+            elements: ["solar", "stasis", "strand"],
+          },
+          {
+            type: "Champion Mod",
+            name: "Elemental Daze",
+            description:
+              "Stunning a Champion with an elemental weapon creates an elementally aligned explosion, applying a matching elemental debuff to them and nearby targets",
+            elements: ["solar", "arc", "void", "stasis", "strand"],
+          },
+          {
+            type: "Support Mod",
+            name: "Shoulder to Shoulder",
+            description:
+              "Dealing sustained precision damage against combatants while near two or more allies grants you damage resistance",
+            elements: [],
+          },
+          {
+            type: "Elemental Mod",
+            name: "Elemental Coalescence",
+            description:
+              "Defeating targets has the chance to create an elemental pickup matching your equipped Super element",
+            elements: ["solar", "arc", "void", "stasis", "strand"],
+          },
+        ],
+        [
+          {
+            type: "Ultimate Mod",
+            name: "Radiant Shrapnel",
+            description:
+              "Dealing sustained weapon damage while Radiant or defeating a scorched combatant with a weapon causes the target to release Solar projectiles that deal damage and scorch on impact",
+            elements: ["solar"],
+          },
+          {
+            type: "Ultimate Mod",
+            name: "Shieldcrush",
+            description:
+              "While you have Woven Mail, Frost Armor, or a Void overshield, your melee recharges faster and deals increased damage. While you are Amplified or Radiant, your grenade recharges faster and deals increased damage",
+            elements: ["strand", "stasis", "void", "arc", "solar"],
+          },
+          {
+            type: "Ultimate Mod",
+            name: "Elemental Overdrive",
+            description:
+              "Picking up an elemental pickup or Tangle grants increased damage to weapons of the same element",
+            elements: ["solar", "arc", "void", "stasis", "strand"],
+          },
+          {
+            type: "Ultimate Mod",
+            name: "Tangled Web",
+            description:
+              "Creating a Tangle by defeating a Strand debuffed target suspends nearby combatants",
+            elements: ["strand"],
+          },
+          {
+            type: "Ultimate Mod",
+            name: "Frigid Glare",
+            description:
+              "While Frost Armor is active, Stasis precision final blows cause combatants to release a freezing burst",
+            elements: ["stasis"],
+          },
+        ],
+      ];
+
+      const armorTierStats = { 1: 67, 2: 73, 3: 79, 4: 85, 5: 95 };
+      const statsArr = [
+        "Weapons",
+        "Health",
+        "Class",
+        "Melee",
+        "Grenade",
+        "Super",
+      ];
+      const statBonusData = {
+        weapons: {
+          reload_handling_speed: { 10: 1, 50: 5, 100: 10, 150: 10, 200: 10 },
+          minor_major_damage: { 10: 1.5, 50: 7.5, 100: 15, 150: 15, 200: 15 },
+          additional_ammo_chance: { 150: 49, 200: 100 },
+          primary_special_boss_damage: { 100: 0, 200: 15 },
+          primary_special_guardian_damage: { 100: 0, 200: 6 },
+          heavy_boss_damage: { 100: 0, 200: 10 },
+          heavy_guardian_damage: { 100: 0, 200: 6 },
+        },
+        health: {
+          health_per_orb: { 10: 7, 50: 35, 100: 70, 150: 70, 200: 70 },
+          flinch_resistance: { 10: 1, 50: 5, 100: 10, 150: 10, 200: 10 },
+          shield_recharge_rate: { 100: 0, 200: 45 },
+          shield_health: { 100: 0, 200: 20 },
+        },
+        class: {
+          cooldown: { 10: -7, 50: -35, 100: -65, 150: -65, 200: -65 },
+          energy_gained: { 10: 14, 50: 56, 100: 190, 150: 190, 200: 190 },
+          overshield_health: { 100: 0, 200: 40 },
+        },
+        grenade: {
+          cooldown: { 10: -7, 50: -35, 100: -65, 150: -65, 200: -65 },
+          energy_gained: { 10: 14, 50: 56, 100: 190, 150: 190, 200: 190 },
+          damage_increase_pve: { 100: 0, 200: 65 },
+          damage_increase_pvp: { 100: 0, 200: 20 },
+        },
+        melee: {
+          cooldown: { 10: -7, 50: -35, 100: -65, 150: -65, 200: -65 },
+          energy_gained: { 10: 14, 50: 56, 100: 190, 150: 190, 200: 190 },
+          damage_increase_pve: { 100: 0, 200: 30 },
+          damage_increase_pvp: { 100: 0, 200: 20 },
+        },
+        super: {
+          energy_gained: { 10: 14, 50: 56, 100: 190, 150: 190, 200: 190 },
+          damage_increase_pve: { 100: 0, 200: 45 },
+          damage_increase_pvp: { 100: 0, 200: 15 },
+        },
+      };
+
+      /* Define exotic class item combinations for each class */
+      const exoticClassItemCombinations = {
+        hunter: {
+          column1: ["assassinsCowl", "caliban"],
+          column2: ["liarsHandshake", "synthocepsHunter"],
+        },
+        titan: {
+          column1: ["severanceEnclosure"],
+          column2: ["synthocepsTitan"],
+        },
+        warlock: {
+          column1: ["necroticGrip"],
+          column2: ["synthocepsWarlock"],
+        },
+      };
+
+      /* Armor-specific data */
+      const armorMods = {
+        // Major Stat mods (+10)
+        mobility: { name: "Mobility Mod", cost: 3, bonus: 10, type: "stat" },
+        resilience: {
+          name: "Resilience Mod",
+          cost: 4,
+          bonus: 10,
+          type: "stat",
+        },
+        recovery: { name: "Recovery Mod", cost: 4, bonus: 10, type: "stat" },
+        discipline: {
+          name: "Discipline Mod",
+          cost: 3,
+          bonus: 10,
+          type: "stat",
+        },
+        intellect: { name: "Intellect Mod", cost: 4, bonus: 10, type: "stat" },
+        strength: { name: "Strength Mod", cost: 3, bonus: 10, type: "stat" },
+
+        // Minor Stat mods (+5)
+        minorMobility: {
+          name: "Minor Mobility Mod",
+          cost: 1,
+          bonus: 5,
+          type: "stat",
+          target: "mobility",
+        },
+        minorResilience: {
+          name: "Minor Resilience Mod",
+          cost: 2,
+          bonus: 5,
+          type: "stat",
+          target: "resilience",
+        },
+        minorRecovery: {
+          name: "Minor Recovery Mod",
+          cost: 2,
+          bonus: 5,
+          type: "stat",
+          target: "recovery",
+        },
+        minorDiscipline: {
+          name: "Minor Discipline Mod",
+          cost: 1,
+          bonus: 5,
+          type: "stat",
+          target: "discipline",
+        },
+        minorIntellect: {
+          name: "Minor Intellect Mod",
+          cost: 2,
+          bonus: 5,
+          type: "stat",
+          target: "intellect",
+        },
+        minorStrength: {
+          name: "Minor Strength Mod",
+          cost: 1,
+          bonus: 5,
+          type: "stat",
+          target: "strength",
+        },
+
+        // Font mods (cost 3 energy each, stacking bonuses)
+        fontWisdom: {
+          name: "Font of Wisdom",
+          cost: 3,
+          stat: "intellect",
+          type: "font",
+          allowedPieces: ["helmet"],
+        },
+        fontVigor: {
+          name: "Font of Vigor",
+          cost: 3,
+          stat: "strength",
+          type: "font",
+          allowedPieces: ["arms"],
+        },
+        fontFocus: {
+          name: "Font of Focus",
+          cost: 3,
+          stat: "discipline",
+          type: "font",
+          allowedPieces: ["arms"],
+        },
+        fontEndurance: {
+          name: "Font of Endurance",
+          cost: 3,
+          stat: "resilience",
+          type: "font",
+          allowedPieces: ["chest"],
+        },
+        fontAgility: {
+          name: "Font of Agility",
+          cost: 3,
+          stat: "mobility",
+          type: "font",
+          allowedPieces: ["legs"],
+        },
+        fontRestoration: {
+          name: "Font of Restoration",
+          cost: 3,
+          stat: "recovery",
+          type: "font",
+          allowedPieces: ["classItem"],
+        },
+      };
+
+      /* ------------------- GLOBAL STATE ------------------- */
+      // Inventory/Auth State
+      let isAuthenticated = false;
+      let selectedInventoryItems = {};
+      let inventoryData = [];
+
+      // Artifact State
+      let selectedMods = new Set();
+      let columnCounts = [0, 0, 0, 0, 0];
+      let activeElementFilters = new Set();
+
+      // Damage Calc State
+      let currentClass = "hunter";
+      let selectedExotics = new Set();
+      window.calculatedStatBonuses = {};
+      const state = {
+        statValues: {
+          Weapons: 10,
+          Health: 10,
+          Class: 10,
+          Melee: 10,
+          Grenade: 10,
+          Super: 10,
+        },
+        // Armor Optimizer State
+        armorStats: {
+          helmet: {
+            mobility: 2,
+            resilience: 2,
+            recovery: 2,
+            discipline: 2,
+            intellect: 2,
+            strength: 2,
+          },
+          arms: {
+            mobility: 2,
+            resilience: 2,
+            recovery: 2,
+            discipline: 2,
+            intellect: 2,
+            strength: 2,
+          },
+          chest: {
+            mobility: 2,
+            resilience: 2,
+            recovery: 2,
+            discipline: 2,
+            intellect: 2,
+            strength: 2,
+          },
+          legs: {
+            mobility: 2,
+            resilience: 2,
+            recovery: 2,
+            discipline: 2,
+            intellect: 2,
+            strength: 2,
+          },
+          classItem: {
+            mobility: 0,
+            resilience: 0,
+            recovery: 0,
+            discipline: 0,
+            intellect: 0,
+            strength: 0,
+          },
+        },
+        armorMods: {
+          helmet: [null, null, null, null],
+          arms: [null, null, null, null],
+          chest: [null, null, null, null],
+          legs: [null, null, null, null],
+          classItem: [null, null, null, null],
+        },
+        artificeStats: {
+          helmet: null,
+          arms: null,
+          chest: null,
+          legs: null,
+          classItem: null,
+        },
+        isArtifice: {
+          helmet: false,
+          arms: false,
+          chest: false,
+          legs: false,
+          classItem: false,
+        },
+      };
+      let savedLoadouts = [];
+
+      window.addEventListener("DOMContentLoaded", async () => {
+        await initializeApp();
+        initializeArtifact();
+        initArmorSelectors();
+        initStatAllocator();
+        initArmorTab();
+        updateAllStatCalculations();
+        selectClass("hunter");
+      });
+
+      /* -------- AUTH & INVENTORY FUNCTIONS -------- */
+      async function initializeApp() {
+        try {
+          await checkAuth();
+          const urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get("auth") === "success") {
+            showNotification(
+              "Successfully connected to Bungie.net!",
+              "success"
+            );
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
+            await checkAuth();
+            await loadInventory();
+          } else if (urlParams.get("auth") === "error") {
+            showNotification("Failed to connect to Bungie.net", "error");
+            window.history.replaceState(
+              {},
+              document.title,
+              window.location.pathname
+            );
+          }
+        } catch (error) {
+          console.error("Initialization error:", error);
+          showNotification("Failed to initialize application", "error");
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      async function checkAuth() {
+        try {
+          const status = await window.d2Api.checkAuthStatus();
+          isAuthenticated = status.authenticated;
+          updateAuthUI();
+        } catch (error) {
+          console.error("Auth check failed:", error);
+          isAuthenticated = false;
+          updateAuthUI();
+        }
+      }
+
+      function updateAuthUI() {
+        const authButton = document.getElementById("authButton");
+        const userInfo = document.getElementById("userInfo");
+        const userName = document.getElementById("userName");
+
+        if (isAuthenticated && window.d2Api.destinyMembership) {
+          authButton.textContent = "Disconnect";
+          userInfo.style.display = "flex";
+          userName.textContent =
+            window.d2Api.destinyMembership.displayName || "Guardian";
+        } else {
+          authButton.textContent = "Connect to Bungie.net";
+          userInfo.style.display = "none";
+        }
+      }
+
+      async function handleAuth() {
+        if (isAuthenticated) {
+          try {
+            await window.d2Api.logout();
+            showNotification("Disconnected from Bungie.net", "info");
+            await checkAuth();
+            inventoryData = [];
+            selectedInventoryItems = {};
+            updateInventoryDisplay();
+          } catch (error) {
+            console.error("Logout error:", error);
+            showNotification("Failed to disconnect", "error");
+          }
+        } else {
+          window.d2Api.login();
+        }
+      }
+
+      async function loadInventory() {
+        if (!isAuthenticated) {
+          showNotification("Please connect to Bungie.net first", "info");
+          return;
+        }
+        showLoading(true);
+        try {
+          const response = await window.d2Api.getInventory();
+          let armorItems = [];
+          if (response.profileInventory?.data?.items) {
+            const vaultArmor = response.profileInventory.data.items.filter(
+              (item) => isArmorItem(item)
+            );
+            vaultArmor.forEach((item) => {
+              item.location = "vault";
+              armorItems.push(item);
+            });
+          }
+          if (response.characterInventories?.data) {
+            for (const [characterId, inventory] of Object.entries(
+              response.characterInventories.data
+            )) {
+              const charArmor = inventory.items.filter((item) =>
+                isArmorItem(item)
+              );
+              charArmor.forEach((item) => {
+                item.location = characterId;
+                item.stats =
+                  response.itemComponents?.stats?.data?.[item.itemInstanceId];
+                item.sockets =
+                  response.itemComponents?.sockets?.data?.[item.itemInstanceId];
+                armorItems.push(item);
+              });
+            }
+          }
+          inventoryData = await window.d2Api.processInventoryItems(armorItems);
+          updateInventoryDisplay();
+          showNotification(
+            `Loaded ${inventoryData.length} armor pieces`,
+            "success"
+          );
+        } catch (error) {
+          console.error("Failed to load inventory:", error);
+          showNotification(
+            "Failed to load inventory: " + error.message,
+            "error"
+          );
+        } finally {
+          showLoading(false);
+        }
+      }
+
+      function isArmorItem(item) {
+        const armorBuckets = [
+          3448274439, // Helmet
+          3551918588, // Gauntlets
+          14239492, // Chest
+          20886954, // Legs
+          1585787867, // Class item
+        ];
+        return armorBuckets.includes(item.bucketHash);
+      }
+
+      function updateInventoryDisplay() {
+        const container = document.getElementById("inventoryContainer");
+        if (!container) return;
+
+        if (!isAuthenticated) {
+          container.innerHTML =
+            '<div class="empty-state">Connect to Bungie.net to load your armor inventory</div>';
+          return;
+        }
+
+        if (inventoryData.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state">No armor found. Try refreshing your inventory.</div>';
+          return;
+        }
+
+        const filtered = filterInventory();
+
+        container.innerHTML = filtered
+          .map(
+            (item) => `
+                                <div class="inventory-item ${
+                                  selectedInventoryItems[item.itemInstanceId]
+                                    ? "selected"
+                                    : ""
+                                }" 
+                                         onclick="toggleInventoryItem('${
+                                           item.itemInstanceId
+                                         }')"
+                                         data-instance-id="${
+                                           item.itemInstanceId
+                                         }">
+                                        <div class="item-header">
+                                                <div class="item-name">${
+                                                  item.displayName
+                                                }</div>
+                                                <div class="item-power">${
+                                                  item.powerLevel || 0
+                                                }</div>
+                                        </div>
+                                        <div style="color: #aaa; font-size: 0.9em; margin-bottom: 10px;">
+                                                ${item.itemType} ${
+              item.location === "vault" ? "(Vault)" : ""
+            }
+                                        </div>
+                                        <div class="item-stats">
+                                                ${Object.entries(
+                                                  item.stats || {}
+                                                )
+                                                  .map(
+                                                    ([stat, value]) => `
+                                                        <div class="stat-item">
+                                                                <div class="stat-name">${stat
+                                                                  .substr(0, 3)
+                                                                  .toUpperCase()}</div>
+                                                                <div class="stat-value">${value}</div>
+                                                        </div>
+                                                `
+                                                  )
+                                                  .join("")}
+                                        </div>
+                                        ${
+                                          item.isArtifice
+                                            ? '<div style="text-align: center; color: #8a2be2; margin-top: 10px;">⬢ Artifice</div>'
+                                            : ""
+                                        }
+                                        ${
+                                          item.isExotic
+                                            ? '<div style="text-align: center; color: #ffd700; margin-top: 5px;">★ Exotic</div>'
+                                            : ""
+                                        }
+                                </div>
+                        `
+          )
+          .join("");
+      }
+
+      function filterInventory() {
+        const typeFilter =
+          document.getElementById("armorTypeFilter")?.value || "all";
+
+        return inventoryData.filter((item) => {
+          if (typeFilter === "all") return true;
+
+          const bucketToType = {
+            3448274439: "helmet",
+            3551918588: "gauntlets",
+            14239492: "chest",
+            20886954: "legs",
+            1585787867: "classItem",
+          };
+
+          return bucketToType[item.bucketHash] === typeFilter;
+        });
+      }
+
+      function toggleInventoryItem(instanceId) {
+        if (selectedInventoryItems[instanceId]) {
+          delete selectedInventoryItems[instanceId];
+        } else {
+          selectedInventoryItems[instanceId] = inventoryData.find(
+            (item) => item.itemInstanceId === instanceId
+          );
+        }
+        updateInventoryDisplay();
+      }
+
+      /* -------- GENERAL UI FUNCTIONS -------- */
+      function switchTab(tabName) {
+        document
+          .querySelectorAll(".nav-tab")
+          .forEach((tab) => tab.classList.remove("active"));
+        document
+          .querySelectorAll(".content-section")
+          .forEach((section) => section.classList.remove("active"));
+        event.currentTarget.classList.add("active");
+        document.getElementById(tabName).classList.add("active");
+      }
+
+      function showNotification(message, type = "info") {
+        const notification = document.createElement("div");
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+          notification.remove();
+        }, 5000);
+      }
+
+      function showLoading(show) {
+        const overlay = document.getElementById("loadingOverlay");
+        if (overlay) {
+          overlay.style.display = show ? "flex" : "none";
+        }
+      }
+
+      /* -------- Armor tier dropdowns -------- */
+      function initArmorSelectors() {
+        const cont = document.getElementById("armorTierSelector");
+        const pieces = ["Helmet", "Arms", "Chest", "Legs", "Class Item"];
+        pieces.forEach((p) => {
+          const div = document.createElement("div");
+          div.className = "armor-piece";
+          div.innerHTML = `<label>${p}</label><select class="armor-tier-select"><option value="1">T1</option><option value="2">T2</option><option value="3" selected>T3</option><option value="4">T4</option><option value="5">T5</option></select>`;
+          cont.appendChild(div);
+        });
+        cont.addEventListener("change", updateAllStatCalculations);
+      }
+
+      /* ---------------- Stat allocator via BOXES ---------------- */
+      function initStatAllocator() {
+        const alloc = document.getElementById("statAllocator");
+        statsArr.forEach((stat) => {
+          const row = document.createElement("div");
+          row.className = "stat-row";
+          row.innerHTML = `<label>${stat}</label><div id="${stat.toLowerCase()}Row" class="stat-row-data"></div>`;
+          alloc.appendChild(row);
+          buildStatBoxes(stat);
+        });
+      }
+
+      function buildStatBoxes(stat) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "stat-box-wrapper";
+        for (let val = 10; val <= 200; val += 10) {
+          const box = document.createElement("div");
+          box.className = "stat-box";
+          box.dataset.stat = stat;
+          box.dataset.value = val;
+          box.textContent = val;
+          box.addEventListener("click", onStatBoxClick);
+          wrapper.appendChild(box);
+        }
+        document
+          .getElementById(stat.toLowerCase() + "Row")
+          .appendChild(wrapper);
+        const bonusDiv = document.createElement("div");
+        bonusDiv.className = "stat-bonuses";
+        bonusDiv.id = `${stat.toLowerCase()}Bonuses`;
+        document
+          .getElementById(stat.toLowerCase() + "Row")
+          .appendChild(bonusDiv);
+      }
+
+      function onStatBoxClick(e) {
+        const stat = e.currentTarget.dataset.stat;
+        const val = Number(e.currentTarget.dataset.value);
+        state.statValues[stat] = val;
+        updateAllStatCalculations();
+      }
+
+      /* ----------- Calculation & UI refresh ----------- */
+      function updateAllStatCalculations() {
+        let avail = 0;
+        document
+          .querySelectorAll(".armor-tier-select")
+          .forEach((sel) => (avail += armorTierStats[sel.value]));
+        const allocated = Object.values(state.statValues).reduce(
+          (a, b) => a + b,
+          0
+        );
+
+        const summary = document.getElementById("statPointSummary");
+        summary.innerHTML = `Available Points: <span style="color:#ffd700">${avail}</span> | Allocated: <span>${allocated}</span>${
+          allocated > avail ? " <span class='error'>OVERBUDGET!</span>" : ""
+        }`;
+
+        statsArr.forEach((stat) => {
+          const cur = state.statValues[stat];
+          document
+            .querySelectorAll(`.stat-box[data-stat='${stat}']`)
+            .forEach((box) => {
+              const value = Number(box.dataset.value);
+              box.classList.toggle("selected", value === cur);
+              const prospective = allocated - cur + value;
+              box.classList.toggle(
+                "disabled",
+                prospective > avail && value > cur
+              );
+            });
+        });
+
+        applyStatBonuses();
+      }
+
+      function interpolate(points, x) {
+        const ks = Object.keys(points)
+          .map(Number)
+          .sort((a, b) => a - b);
+        let lower = ks[0];
+        for (const k of ks) {
+          if (x >= k) lower = k;
+          else break;
+        }
+        if (x < ks[0]) return 0;
+        const upper = ks[ks.indexOf(lower) + 1];
+        if (upper == undefined) return points[lower] || 0;
+        const v1 = points[lower] || 0,
+          v2 = points[upper] || 0;
+        return v1 + ((v2 - v1) * (x - lower)) / (upper - lower);
+      }
+
+      function applyStatBonuses() {
+        window.calculatedStatBonuses = {};
+        statsArr.forEach((stat) => {
+          const val = state.statValues[stat];
+          const bonuses = statBonusData[stat.toLowerCase()];
+          const display = document.getElementById(
+            `${stat.toLowerCase()}Bonuses`
+          );
+          let parts = [];
+          window.calculatedStatBonuses[stat.toLowerCase()] = {};
+          for (const [k, pts] of Object.entries(bonuses)) {
+            const num = interpolate(pts, val);
+            if (num !== 0) {
+              const text = k
+                .replace(/_/g, " ")
+                .replace(/\b\w/g, (l) => l.toUpperCase());
+              parts.push(
+                `${text}: <span style='color:#8af295;'>${
+                  num > 0 ? "+" : ""
+                }${num.toFixed(1)}%</span>`
+              );
+              window.calculatedStatBonuses[stat.toLowerCase()][k] = num / 100;
+            }
+          }
+          display.innerHTML = parts.join(" | ");
+        });
+
+        updateTheoreticalBuffState();
+        recalculateAllDamage();
+      }
+
+      function updateTheoreticalBuffState() {
+        const superStat = state.statValues.Super;
+        const container = document.getElementById(
+          "theoreticalWellBuffContainer"
+        );
+        const checkbox = document.getElementById("theoreticalWellBuff");
+
+        if (superStat >= 110) {
+          container.classList.remove("disabled");
+          checkbox.disabled = false;
+        } else {
+          container.classList.add("disabled");
+          checkbox.disabled = true;
+          checkbox.checked = false;
+        }
+      }
+
+      /* ---- ARTIFACT / DAMAGE / CLASS functions ---- */
+      function initializeArtifact() {
+        const t = document.getElementById("columnsWrapper");
+        (t.innerHTML = ""),
+          artifactMods.forEach((e, n) => {
+            const o = document.createElement("div");
+            o.className = "column";
+            const l = document.createElement("div");
+            (l.className = "column-header"),
+              (l.textContent = `Column ${n + 1}`),
+              o.appendChild(l),
+              e.forEach((e, l) => {
+                o.appendChild(createModCard(e, n, l));
+              }),
+              t.appendChild(o);
+          }),
+          document
+            .getElementById("artifactFilters")
+            .addEventListener("click", (t) => {
+              if (t.target.classList.contains("element-filter-btn")) {
+                const e = t.target.dataset.element;
+                t.target.classList.toggle("active"),
+                  activeElementFilters.has(e)
+                    ? activeElementFilters.delete(e)
+                    : activeElementFilters.add(e),
+                  applyArtifactFilters();
+              }
+            }),
+          updateUI();
+      }
+
+      function createModCard(t, e, n) {
+        const o = document.createElement("div");
+        (o.className = "mod-card"),
+          (o.dataset.column = e),
+          (o.dataset.index = n);
+        const l = document.createElement("div");
+        (l.className = "mod-type"), (l.textContent = t.type);
+        const d = document.createElement("div");
+        (d.className = "mod-name"), (d.textContent = t.name);
+        const a = document.createElement("div");
+        return (
+          (a.className = "mod-description"),
+          (a.textContent = t.description),
+          o.appendChild(l),
+          o.appendChild(d),
+          o.appendChild(a),
+          o.addEventListener("click", () => toggleMod(`${e}-${n}`, e)),
+          o
+        );
+      }
+
+      function applyArtifactFilters() {
+        const t = document.querySelectorAll(".mod-card");
+        if (0 === activeElementFilters.size)
+          return void t.forEach((t) =>
+            t.classList.remove("highlighted", "dimmed")
+          );
+        t.forEach((t) => {
+          const e = artifactMods[t.dataset.column][
+            t.dataset.index
+          ].elements.some((t) => activeElementFilters.has(t));
+          t.classList.toggle("highlighted", e),
+            t.classList.toggle("dimmed", !e);
+        });
+      }
+
+      function toggleMod(t, e) {
+        const n = document.querySelector(
+          `[data-column='${e}'][data-index='${t.split("-")[1]}']`
+        );
+        n.classList.contains("locked") ||
+          (selectedMods.has(t)
+            ? (selectedMods.delete(t), columnCounts[e]--)
+            : selectedMods.size >= 12
+            ? alert("Maximum 12 mods can be selected!")
+            : 4 === e && columnCounts[4] >= 2
+            ? alert("Maximum 2 mods can be selected in Column 5!")
+            : (selectedMods.add(t), columnCounts[e]++),
+          updateUI(),
+          updateArtifactBuffs());
+      }
+
+      function updateUI() {
+        (document.getElementById("modCount").textContent = selectedMods.size),
+          document.querySelectorAll(".mod-card").forEach((t) => {
+            const e = parseInt(t.dataset.column),
+              n = parseInt(t.dataset.index),
+              o = `${e}-${n}`;
+            t.classList.remove("selected", "locked"),
+              selectedMods.has(o) && t.classList.add("selected"),
+              isColumnLocked(e) && t.classList.add("locked");
+          });
+      }
+
+      function isColumnLocked(t) {
+        const e = selectedMods.size;
+        switch (t) {
+          case 1:
+            return columnCounts[0] < 3;
+          case 2:
+            return e < 5;
+          case 3:
+            return e < 8;
+          case 4:
+            return e < 10;
+          default:
+            return !1;
+        }
+      }
+
+      function resetSelection() {
+        selectedMods.clear(),
+          (columnCounts = [0, 0, 0, 0, 0]),
+          updateUI(),
+          updateArtifactBuffs();
+      }
+
+      function updateArtifactBuffs() {
+        (document.getElementById("elementalOverdrive").checked =
+          selectedMods.has("4-2")),
+          (document.getElementById("radiantShrapnel").checked =
+            selectedMods.has("4-0")),
+          recalculateAllDamage();
+      }
+
+      function recalculateAllDamage() {
+        calculateWeaponDamage(),
+          calculateMeleeDamage(),
+          calculateGrenadeDamage(),
+          calculateSuperDamage();
+      }
+
+      function calculateWeaponDamage() {
+        let t = 1,
+          e = [];
+        const n = window.calculatedStatBonuses.weapons || {};
+
+        // Stat Bonus Damage
+        n.heavy_boss_damage &&
+          ((t *= 1 + n.heavy_boss_damage), e.push("Heavy Boss Dmg"));
+
+        // Global Stacking Buffs
+        document.getElementById("newGearWeapon").checked &&
+          ((t *= 1.1), e.push("New Gear (Art.)"));
+
+        const theoreticalBuffCheckbox = document.getElementById(
+          "theoreticalWellBuff"
+        );
+        if (
+          theoreticalBuffCheckbox.checked &&
+          !theoreticalBuffCheckbox.disabled
+        ) {
+          t *= 1.15;
+          e.push("Theo. Well User");
+        }
+
+        // Empowering Buffs (Highest Applies)
+        let o = { value: 1 };
+        [
+          { id: "radiant", value: 1.25, name: "Radiant" },
+          { id: "wellOfRadiance", value: 1.25, name: "Well" },
+          { id: "nobleRounds", value: 1.35, name: "Noble Rds" },
+        ].forEach((t) => {
+          document.getElementById(t.id).checked && t.value > o.value && (o = t);
+        });
+        o.value > 1 && ((t *= o.value), e.push(o.name));
+
+        // Weapon Damage Buffs (Highest Applies)
+        let l = { value: 1 };
+        [{ id: "weaponSurge3x", value: 1.22, name: "Surge x3" }].forEach(
+          (t) => {
+            document.getElementById(t.id).checked &&
+              t.value > l.value &&
+              (l = t);
+          }
+        );
+        l.value > 1 && ((t *= l.value), e.push(l.name));
+
+        // Weapon Perks (All Stack Multiplicatively)
+        [
+          { id: "elementalOverdrive", value: 1.25, name: "Overdrive" },
+          { id: "killClip", value: 1.25, name: "Kill Clip" },
+          { id: "vorpalWeapon", value: 1.15, name: "Vorpal" },
+          { id: "frenzy", value: 1.15, name: "Frenzy" },
+          { id: "baitSwitch", value: 1.3, name: "B&S" },
+          { id: "radiantShrapnel", value: 1.15, name: "Shrapnel" },
+        ].forEach((n) => {
+          document.getElementById(n.id).checked &&
+            ((t *= n.value), e.push(n.name));
+        });
+
+        // Debuffs (Highest Applies)
+        let d = { value: 1 };
+        [
+          { id: "weakenDebuff", value: 1.15, name: "Weaken" },
+          { id: "tetherDebuff", value: 1.3, name: "Tether" },
+          { id: "divinityDebuff", value: 1.15, name: "Divinity" },
+          { id: "tractorCannon", value: 1.3, name: "Tractor" },
+        ].forEach((t) => {
+          document.getElementById(t.id).checked && t.value > d.value && (d = t);
+        });
+        d.value > 1 && ((t *= d.value), e.push(d.name));
+
+        // Update UI
+        (document.getElementById("weaponDamageResult").textContent =
+          Math.round(100 * (t - 1) + 100) + "%"),
+          (document.getElementById("weaponBreakdown").textContent =
+            e.length > 0 ? "Active: " + e.join(" + ") : "Base damage");
+      }
+
+      function calculateMeleeDamage() {
+        let t = 0,
+          e = [];
+        const n = {
+          onetwoPunch: { v: 300, n: "1-2 Punch" },
+          roaringFlames: { v: 200, n: "Roaring Flames" },
+          bannerOfWar: { v: 100, n: "Banner" },
+          combinationBlow: { v: 165, n: "Combo Blow" },
+          liarsHandshake: { v: 400, n: "Liar's" },
+          assassinsCowl: { v: 150, n: "Assassin's" },
+          caliban: { v: 100, n: "Caliban's" },
+          synthocepsHunter: { v: 400, n: "Syntho (CI)" },
+          synthocepsTitan: { v: 400, n: "Syntho" },
+          wormgodCaress: { v: 400, n: "Wormgod" },
+          severanceEnclosure: { v: 200, n: "Severance" },
+          wintersGuile: { v: 400, n: "Winter's" },
+          necroticGrip: { v: 100, n: "Necrotic" },
+          synthocepsWarlock: { v: 400, n: "Syntho (CI)" },
+        };
+        window.calculatedStatBonuses.melee &&
+          window.calculatedStatBonuses.melee.damage_increase_pve &&
+          ((t += 100 * window.calculatedStatBonuses.melee.damage_increase_pve),
+          e.push("Stat Bonus"));
+        for (const o in n) {
+          const l = document.getElementById(o);
+          l && l.checked && !l.disabled && ((t += n[o].v), e.push(n[o].n));
+        }
+        (document.getElementById("meleeDamageResult").textContent =
+          (100 + t).toFixed(0) + "%"),
+          (document.getElementById("meleeBreakdown").textContent = e.length
+            ? "Active: " + e.join(" + ")
+            : "Base damage (additive)");
+      }
+
+      function calculateGrenadeDamage() {
+        let t = 1,
+          e = [];
+        window.calculatedStatBonuses.grenade &&
+          window.calculatedStatBonuses.grenade.damage_increase_pve &&
+          ((t *= 1 + window.calculatedStatBonuses.grenade.damage_increase_pve),
+          e.push("Stat Bonus")),
+          (document.getElementById("grenadeDamageResult").textContent =
+            Math.round(100 * t) + "%"),
+          (document.getElementById("grenadeBreakdown").textContent = e.length
+            ? "Active: " + e.join(" + ")
+            : "Base damage");
+      }
+
+      function calculateSuperDamage() {
+        let t = 1,
+          e = [];
+        window.calculatedStatBonuses.super &&
+          window.calculatedStatBonuses.super.damage_increase_pve &&
+          ((t *= 1 + window.calculatedStatBonuses.super.damage_increase_pve),
+          e.push("Stat Bonus")),
+          (document.getElementById("superDamageResult").textContent =
+            Math.round(100 * t) + "%"),
+          (document.getElementById("superBreakdown").textContent = e.length
+            ? "Active: " + e.join(" + ")
+            : "Base damage");
+      }
+
+      function selectClass(t) {
+        (currentClass = t),
+          document
+            .querySelectorAll(".class-button")
+            .forEach((t) => t.classList.remove("active")),
+          document.getElementById(t + "Class").classList.add("active"),
+          document
+            .querySelectorAll(".exotic-group")
+            .forEach((t) => (t.style.display = "none")),
+          (document.querySelector("." + t + "-exotics").style.display =
+            "block"),
+          selectedExotics.clear(),
+          document.querySelectorAll(".exotic-checkbox").forEach((t) => {
+            t.checked = !1;
+          }),
+          updateExoticRestrictions(),
+          updateMeleeClassRestrictions();
+      }
+
+      function handleExoticSelection(t) {
+        const e = document.getElementById(t);
+        e.checked ? selectedExotics.add(t) : selectedExotics.delete(t),
+          updateExoticRestrictions();
+      }
+
+      function updateExoticRestrictions() {
+        const isClassItem = document.getElementById("exoticClassItem").checked;
+
+        // Reset all disabled states
+        document.querySelectorAll(".buff-item[data-exotic]").forEach((item) => {
+          item.classList.remove("disabled");
+        });
+
+        if (isClassItem) {
+          // Disable column 0 items
+          document.querySelectorAll('[data-column="0"]').forEach((item) => {
+            item.classList.add("disabled");
+            const checkbox = item.querySelector("input");
+            if (checkbox && checkbox.checked) {
+              checkbox.checked = false;
+              selectedExotics.delete(checkbox.id);
+            }
+          });
+
+          // Get class item combinations for current class
+          const combos = exoticClassItemCombinations[currentClass];
+
+          // Check column 1 selections
+          const selectedColumn1 = [...selectedExotics].filter((id) =>
+            combos.column1.includes(id)
+          );
+
+          // Check column 2 selections
+          const selectedColumn2 = [...selectedExotics].filter((id) =>
+            combos.column2.includes(id)
+          );
+
+          // If one from column 1 is selected, disable others from column 1
+          if (selectedColumn1.length > 0) {
+            combos.column1.forEach((exoticId) => {
+              if (!selectedColumn1.includes(exoticId)) {
+                const item = document.querySelector(
+                  `[data-exotic="${exoticId}"]`
+                );
+                if (item) item.classList.add("disabled");
+              }
+            });
+          }
+
+          // If one from column 2 is selected, disable others from column 2
+          if (selectedColumn2.length > 0) {
+            combos.column2.forEach((exoticId) => {
+              if (!selectedColumn2.includes(exoticId)) {
+                const item = document.querySelector(
+                  `[data-exotic="${exoticId}"]`
+                );
+                if (item) item.classList.add("disabled");
+              }
+            });
+          }
+
+          // If 2 exotics are selected (one from each column), disable all others
+          if (selectedExotics.size >= 2) {
+            document
+              .querySelectorAll(
+                '.buff-item[data-exotic]:not([data-column="0"])'
+              )
+              .forEach((item) => {
+                const checkbox = item.querySelector(".exotic-checkbox");
+                if (checkbox && !checkbox.checked) {
+                  item.classList.add("disabled");
+                }
+              });
+          }
+        } else {
+          // Regular exotic armor rules - only one exotic allowed
+          if (selectedExotics.size >= 1) {
+            document
+              .querySelectorAll(".buff-item[data-exotic]")
+              .forEach((item) => {
+                const checkbox = item.querySelector(".exotic-checkbox");
+                if (checkbox && !checkbox.checked) {
+                  item.classList.add("disabled");
+                }
+              });
+          }
+        }
+
+        recalculateAllDamage();
+      }
+
+      function updateMeleeClassRestrictions() {
+        document.querySelectorAll("[data-melee-classes]").forEach((t) => {
+          const e = t.dataset.meleeClasses.split(" "),
+            n = t.querySelector("input"),
+            o = !e.includes("all") && !e.includes(currentClass);
+          t.classList.toggle("disabled", o),
+            o && (n.checked = !1),
+            (n.disabled = o);
+        }),
+          recalculateAllDamage();
+      }
+
+      /* ---- ARMOR TAB FUNCTIONS ---- */
+      function initArmorTab() {
+        initArmorGrid();
+        updateArmorTotals();
+        loadSavedLoadouts();
+      }
+
+      function initArmorGrid() {
+        const grid = document.getElementById("armorGrid");
+        const pieces = ["helmet", "arms", "chest", "legs", "classItem"];
+        const pieceNames = ["Helmet", "Arms", "Chest", "Legs", "Class Item"];
+
+        pieces.forEach((piece, index) => {
+          const card = document.createElement("div");
+          card.className = "armor-piece-card";
+          card.innerHTML = `
+                        <div class="armor-piece-header">
+                            <div class="armor-piece-name">${
+                              pieceNames[index]
+                            }</div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <label style="display: flex; align-items: center; gap: 5px; font-size: 0.9em; color: #8a2be2;">
+                                    <input type="checkbox" id="${piece}Artifice" onchange="toggleArtifice('${piece}')">
+                                    Artifice
+                                </label>
+                                <div class="energy-display">
+                                    ${createEnergyPips(piece)}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="stat-input-grid">
+                            ${createStatInputs(piece)}
+                        </div>
+                        <div id="${piece}ArtificeSelect" style="display: none; margin: 10px 0; padding: 10px; background: rgba(138, 43, 226, 0.2); border-radius: 8px;">
+                            <label style="font-size: 0.9em; color: #ffd700;">Artifice +3 Stat:</label>
+                            <select class="mod-select" onchange="setArtificeStat('${piece}', this.value)" style="margin-left: 10px;">
+                                <option value="">Select Stat</option>
+                                <option value="mobility">Mobility</option>
+                                <option value="resilience">Resilience</option>
+                                <option value="recovery">Recovery</option>
+                                <option value="discipline">Discipline</option>
+                                <option value="intellect">Intellect</option>
+                                <option value="strength">Strength</option>
+                            </select>
+                        </div>
+                        <div class="mod-slots" id="${piece}Mods">
+                            ${createModSlots(piece)}
+                        </div>
+                        <div id="${piece}Error" style="color: #ff4d4d; font-size: 0.9em; margin-top: 5px; display: none;"></div>
+                    `;
+          grid.appendChild(card);
+        });
+
+        // Add event listeners
+        grid.addEventListener("input", (e) => {
+          if (e.target.classList.contains("stat-input")) {
+            updateArmorStat(e.target);
+          }
+        });
+
+        grid.addEventListener("change", (e) => {
+          if (e.target.classList.contains("mod-select")) {
+            updateArmorMods(e.target);
+          }
+        });
+      }
+
+      function createEnergyPips(piece) {
+        const maxEnergy = 10; // All armor has 10 energy when masterworked
+        let pips = "";
+        for (let i = 0; i < maxEnergy; i++) {
+          pips += `<div class="energy-pip" id="${piece}Energy${i}"></div>`;
+        }
+        return pips;
+      }
+
+      function createStatInputs(piece) {
+        const stats = [
+          "mobility",
+          "resilience",
+          "recovery",
+          "discipline",
+          "intellect",
+          "strength",
+        ];
+        const statNames = ["MOB", "RES", "REC", "DIS", "INT", "STR"];
+        const isClassArmor = piece === "classItem";
+
+        return stats
+          .map(
+            (stat, index) => `
+                    <div class="stat-input-group">
+                        <label>${statNames[index]}</label>
+                        <input type="number" class="stat-input" 
+                            data-piece="${piece}" 
+                            data-stat="${stat}" 
+                            value="${state.armorStats[piece][stat]}" 
+                            min="${isClassArmor ? "0" : "2"}" max="30" step="1">
+                    </div>
+                `
+          )
+          .join("");
+      }
+
+      function createModSlots(piece) {
+        let slots = "";
+
+        // First slot - Stat mods only
+        slots += `
+                    <div class="mod-slot">
+                        <select class="mod-select" data-piece="${piece}" data-slot="0">
+                            <option value="">Empty Slot (Stat Mod)</option>
+                            <optgroup label="Major Stat Mods (+10)">
+                                <option value="mobility">Mobility Mod - 3 Energy</option>
+                                <option value="resilience">Resilience Mod - 4 Energy</option>
+                                <option value="recovery">Recovery Mod - 4 Energy</option>
+                                <option value="discipline">Discipline Mod - 3 Energy</option>
+                                <option value="intellect">Intellect Mod - 4 Energy</option>
+                                <option value="strength">Strength Mod - 3 Energy</option>
+                            </optgroup>
+                            <optgroup label="Minor Stat Mods (+5)">
+                                <option value="minorMobility">Minor Mobility - 1 Energy</option>
+                                <option value="minorResilience">Minor Resilience - 2 Energy</option>
+                                <option value="minorRecovery">Minor Recovery - 2 Energy</option>
+                                <option value="minorDiscipline">Minor Discipline - 1 Energy</option>
+                                <option value="minorIntellect">Minor Intellect - 2 Energy</option>
+                                <option value="minorStrength">Minor Strength - 1 Energy</option>
+                            </optgroup>
+                        </select>
+                        <span class="mod-cost">0 Energy</span>
+                    </div>
+                `;
+
+        // Other 3 slots - Font mods based on armor piece
+        const fontOptions = {
+          helmet:
+            '<option value="fontWisdom">Font of Wisdom (INT) - 3 Energy</option>',
+          arms: '<option value="fontVigor">Font of Vigor (STR) - 3 Energy</option><option value="fontFocus">Font of Focus (DIS) - 3 Energy</option>',
+          chest:
+            '<option value="fontEndurance">Font of Endurance (RES) - 3 Energy</option>',
+          legs: '<option value="fontAgility">Font of Agility (MOB) - 3 Energy</option>',
+          classItem:
+            '<option value="fontRestoration">Font of Restoration (REC) - 3 Energy</option>',
+        };
+
+        for (let i = 1; i < 4; i++) {
+          slots += `
+                        <div class="mod-slot">
+                            <select class="mod-select" data-piece="${piece}" data-slot="${i}">
+                                <option value="">Empty Slot</option>
+                                ${
+                                  fontOptions[piece]
+                                    ? `<optgroup label="Font Mods">${fontOptions[piece]}</optgroup>`
+                                    : ""
+                                }
+                            </select>
+                            <span class="mod-cost">0 Energy</span>
+                        </div>
+                    `;
+        }
+
+        return slots;
+      }
+
+      function updateArmorStat(input) {
+        const piece = input.dataset.piece;
+        const stat = input.dataset.stat;
+        const minValue = piece === "classItem" ? 0 : 2;
+        const value = Math.max(
+          minValue,
+          Math.min(30, parseInt(input.value) || minValue)
+        );
+
+        // Store the old value
+        const oldValue = state.armorStats[piece][stat];
+
+        // Temporarily update the value
+        state.armorStats[piece][stat] = value;
+
+        // Validate the new total
+        const validation = validateArmorStats(piece);
+
+        if (!validation.valid) {
+          // Revert the change
+          state.armorStats[piece][stat] = oldValue;
+          input.value = oldValue;
+
+          // Show error message
+          const errorDiv = document.getElementById(`${piece}Error`);
+          if (errorDiv) {
+            errorDiv.textContent = validation.error;
+            errorDiv.style.display = "block";
+            setTimeout(() => {
+              errorDiv.style.display = "none";
+            }, 3000);
+          }
+        } else {
+          input.value = value;
+          updateArmorTotals();
+        }
+      }
+
+      function validateArmorStats(piece) {
+        // Calculate totals for this piece
+        const stats = state.armorStats[piece];
+        const total = Object.values(stats).reduce((sum, val) => sum + val, 0);
+
+        // Check max total (68 for regular armor, 0 for class items)
+        const maxTotal = piece === "classItem" ? 0 : 68;
+        if (total > maxTotal) {
+          return {
+            valid: false,
+            error: `Total stats cannot exceed ${maxTotal} (current: ${total})`,
+          };
+        }
+
+        // For non-class items, check top/bottom stat groups
+        if (piece !== "classItem") {
+          const topStats = stats.mobility + stats.resilience + stats.recovery;
+          const bottomStats =
+            stats.discipline + stats.intellect + stats.strength;
+
+          if (topStats > 34) {
+            return {
+              valid: false,
+              error: `Top 3 stats (Mob/Res/Rec) cannot exceed 34 (current: ${topStats})`,
+            };
+          }
+
+          if (bottomStats > 34) {
+            return {
+              valid: false,
+              error: `Bottom 3 stats (Dis/Int/Str) cannot exceed 34 (current: ${bottomStats})`,
+            };
+          }
+        }
+
+        return { valid: true };
+      }
+
+      function toggleArtifice(piece) {
+        const checkbox = document.getElementById(`${piece}Artifice`);
+        const selectDiv = document.getElementById(`${piece}ArtificeSelect`);
+        const card = checkbox.closest(".armor-piece-card");
+
+        state.isArtifice[piece] = checkbox.checked;
+        selectDiv.style.display = checkbox.checked ? "block" : "none";
+
+        // Add/remove artifice class to highlight the card
+        if (checkbox.checked) {
+          card.classList.add("artifice");
+        } else {
+          card.classList.remove("artifice");
+        }
+
+        if (!checkbox.checked) {
+          state.artificeStats[piece] = null;
+          const select = selectDiv.querySelector("select");
+          if (select) select.value = "";
+        }
+
+        updateArmorTotals();
+      }
+
+      function setArtificeStat(piece, stat) {
+        state.artificeStats[piece] = stat || null;
+        updateArmorTotals();
+      }
+
+      function updateArmorMods(select) {
+        const piece = select.dataset.piece;
+        const slot = parseInt(select.dataset.slot);
+        const modKey = select.value;
+
+        // Store old value
+        const oldValue = state.armorMods[piece][slot];
+
+        // Update state
+        state.armorMods[piece][slot] = modKey || null;
+
+        // Calculate total energy
+        let totalEnergy = 0;
+        state.armorMods[piece].forEach((mod) => {
+          if (mod && armorMods[mod]) {
+            totalEnergy += armorMods[mod].cost;
+          }
+        });
+
+        // Check if energy limit exceeded
+        if (totalEnergy > 10) {
+          // Revert change
+          state.armorMods[piece][slot] = oldValue;
+          select.value = oldValue || "";
+
+          const errorDiv = document.getElementById(`${piece}Error`);
+          if (errorDiv) {
+            errorDiv.textContent = "Cannot exceed 10 energy!";
+            errorDiv.style.display = "block";
+            setTimeout(() => {
+              errorDiv.style.display = "none";
+            }, 3000);
+          }
+          return;
+        }
+
+        // Update cost display
+        const costSpan = select.nextElementSibling;
+        if (modKey && armorMods[modKey]) {
+          costSpan.textContent = `${armorMods[modKey].cost} Energy`;
+        } else {
+          costSpan.textContent = "0 Energy";
+        }
+
+        // Update energy pips
+        updateEnergyDisplay(piece);
+        updateArmorTotals();
+      }
+
+      function updateEnergyDisplay(piece) {
+        const mods = state.armorMods[piece] || [];
+        let totalEnergy = 0;
+
+        mods.forEach((modKey) => {
+          if (modKey && armorMods[modKey]) {
+            totalEnergy += armorMods[modKey].cost;
+          }
+        });
+
+        for (let i = 0; i < 10; i++) {
+          const pip = document.getElementById(`${piece}Energy${i}`);
+          if (pip) {
+            pip.classList.toggle("filled", i < totalEnergy);
+          }
+        }
+      }
+
+      function updateArmorTotals() {
+        const stats = [
+          "mobility",
+          "resilience",
+          "recovery",
+          "discipline",
+          "intellect",
+          "strength",
+        ];
+        const baseStats = {};
+        const masterworkBonus = {};
+        const modBonus = {};
+        const artificeBonus = {};
+        const fontBonus = {};
+
+        // Calculate base stats from armor
+        stats.forEach((stat) => {
+          baseStats[stat] = 0;
+          masterworkBonus[stat] = 0;
+          artificeBonus[stat] = 0;
+          modBonus[stat] = 0;
+          fontBonus[stat] = 0;
+
+          Object.keys(state.armorStats).forEach((piece) => {
+            baseStats[stat] += state.armorStats[piece][stat];
+            // Masterwork adds +2 to each stat (not for class items)
+            if (piece !== "classItem") {
+              masterworkBonus[stat] += 2;
+            }
+          });
+        });
+
+        // Add artifice bonuses
+        Object.keys(state.artificeStats).forEach((piece) => {
+          const stat = state.artificeStats[piece];
+          if (stat && state.isArtifice[piece]) {
+            artificeBonus[stat] += 3;
+          }
+        });
+
+        // Count fonts by type for stacking logic
+        const fontCounts = {
+          fontWisdom: 0,
+          fontVigor: 0,
+          fontFocus: 0,
+          fontEndurance: 0,
+          fontAgility: 0,
+          fontRestoration: 0,
+        };
+
+        // Add mod bonuses and count fonts
+        Object.keys(state.armorMods).forEach((piece) => {
+          const mods = state.armorMods[piece] || [];
+          mods.forEach((modKey) => {
+            if (modKey && armorMods[modKey]) {
+              const mod = armorMods[modKey];
+              if (mod.type === "stat") {
+                // Determine target stat for both major and minor mods
+                const targetStat = mod.target || modKey;
+                modBonus[targetStat] += mod.bonus;
+              } else if (mod.type === "font") {
+                // Count font for stacking calculation
+                fontCounts[modKey]++;
+              }
+            }
+          });
+        });
+
+        // Calculate font bonuses with stacking rules
+        Object.entries(fontCounts).forEach(([fontKey, count]) => {
+          if (count > 0 && armorMods[fontKey]) {
+            const targetStat = armorMods[fontKey].stat;
+            // 1 font = 30, 2+ fonts = 20 each
+            const bonusPerFont = count === 1 ? 30 : 20;
+            fontBonus[targetStat] += bonusPerFont * count;
+          }
+        });
+
+        // Calculate and display totals
+        let baseTotalSum = 0;
+        let masterworkTotalSum = 0;
+        let finalTotalSum = 0;
+
+        stats.forEach((stat) => {
+          // Base total (just armor stats)
+          const base = baseStats[stat];
+          baseTotalSum += base;
+
+          // Masterworked total (armor + masterwork)
+          const masterworked = base + masterworkBonus[stat];
+          masterworkTotalSum += masterworked;
+
+          // Final total (everything)
+          const final =
+            base +
+            masterworkBonus[stat] +
+            artificeBonus[stat] +
+            modBonus[stat] +
+            fontBonus[stat];
+          finalTotalSum += final;
+
+          // Update display
+          const tier = Math.floor(Math.min(final, 100) / 10);
+          const element = document.getElementById(
+            `total${stat.charAt(0).toUpperCase() + stat.slice(1)}`
+          );
+          if (element) {
+            element.textContent = final;
+            element.parentElement.querySelector(
+              ".stat-tier"
+            ).textContent = `Tier ${tier}`;
+          }
+        });
+
+        // Update summary displays
+        document.getElementById("baseTotalStats").textContent = baseTotalSum;
+        document.getElementById("masterworkTotalStats").textContent =
+          masterworkTotalSum;
+        document.getElementById("finalTotalStats").textContent = finalTotalSum;
+
+        // Update font summary
+        const fontSummaryDiv = document.getElementById("fontSummary");
+        const activeFonts = Object.entries(fontCounts).filter(
+          ([_, count]) => count > 0
+        );
+        if (activeFonts.length > 0) {
+          const fontInfo = activeFonts
+            .map(([fontKey, count]) => {
+              const mod = armorMods[fontKey];
+              const bonusPerFont = count === 1 ? 30 : 20;
+              const totalBonus = bonusPerFont * count;
+              return `${
+                mod.name
+              } x${count} = +${totalBonus} ${mod.stat.toUpperCase()}`;
+            })
+            .join(" | ");
+          fontSummaryDiv.innerHTML = `<strong>Active Fonts:</strong> ${fontInfo}`;
+        } else {
+          fontSummaryDiv.innerHTML = "";
+        }
+      }
+
+      function updateModRecommendations(totals) {
+        const recommendations = [];
+        const stats = [
+          "mobility",
+          "resilience",
+          "recovery",
+          "discipline",
+          "intellect",
+          "strength",
+        ];
+
+        stats.forEach((stat) => {
+          const current = totals[stat];
+          const remainder = current % 10;
+
+          if (remainder > 0 && remainder <= 8) {
+            const needed = 10 - remainder;
+            recommendations.push({
+              stat: stat.charAt(0).toUpperCase() + stat.slice(1),
+              message: `Add ${needed} ${stat} to reach next tier (currently ${current})`,
+            });
+          } else if (remainder === 9) {
+            recommendations.push({
+              stat: stat.charAt(0).toUpperCase() + stat.slice(1),
+              message: `Only 1 point away from Tier ${
+                Math.floor(current / 10) + 1
+              }!`,
+            });
+          }
+        });
+
+        // Check for wasted stats
+        stats.forEach((stat) => {
+          const current = totals[stat];
+          if (current > 100) {
+            recommendations.push({
+              stat: stat.charAt(0).toUpperCase() + stat.slice(1),
+              message: `${current - 100} wasted points (over 100)`,
+            });
+          }
+        });
+
+        const container = document.getElementById("modRecommendations");
+        container.innerHTML =
+          recommendations.length > 0
+            ? recommendations
+                .map(
+                  (rec) =>
+                    `<div class="recommendation-item"><strong>${rec.stat}:</strong> ${rec.message}</div>`
+                )
+                .join("")
+            : '<div class="recommendation-item">Your stat distribution is optimized!</div>';
+      }
+
+      function saveLoadout() {
+        const name =
+          document.getElementById("loadoutName").value ||
+          `Loadout ${savedLoadouts.length + 1}`;
+
+        const loadout = {
+          name: name,
+          timestamp: new Date().toISOString(),
+          armorStats: JSON.parse(JSON.stringify(state.armorStats)),
+          armorMods: JSON.parse(JSON.stringify(state.armorMods)),
+          artificeStats: JSON.parse(JSON.stringify(state.artificeStats)),
+          isArtifice: JSON.parse(JSON.stringify(state.isArtifice)),
+        };
+
+        savedLoadouts.push(loadout);
+        localStorage.setItem("d2ArmorLoadouts", JSON.stringify(savedLoadouts));
+
+        document.getElementById("loadoutName").value = "";
+        displayLoadouts();
+
+        alert(`Loadout "${name}" saved!`);
+      }
+
+      function loadSavedLoadouts() {
+        const saved = localStorage.getItem("d2ArmorLoadouts");
+        if (saved) {
+          savedLoadouts = JSON.parse(saved);
+          displayLoadouts();
+        }
+      }
+
+      function displayLoadouts() {
+        const container = document.getElementById("loadoutList");
+
+        if (savedLoadouts.length === 0) {
+          container.innerHTML =
+            '<div class="loadout-item">No saved loadouts</div>';
+          return;
+        }
+
+        container.innerHTML = savedLoadouts
+          .map(
+            (loadout, index) => `
+                    <div class="loadout-item">
+                        <div>
+                            <strong>${loadout.name}</strong>
+                            <br>
+                            <small>${new Date(
+                              loadout.timestamp
+                            ).toLocaleDateString()}</small>
+                        </div>
+                        <div>
+                            <button class="opt-button" style="padding: 8px 16px; font-size: 0.9em;" 
+                                onclick="loadLoadout(${index})">Load</button>
+                            <button class="reset-button" style="padding: 8px 16px; font-size: 0.9em; margin-left: 10px;" 
+                                onclick="deleteLoadout(${index})">Delete</button>
+                        </div>
+                    </div>
+                `
+          )
+          .join("");
+      }
+
+      function loadLoadout(index) {
+        const loadout = savedLoadouts[index];
+        if (!loadout) return;
+
+        // Load armor stats
+        state.armorStats = JSON.parse(JSON.stringify(loadout.armorStats));
+        state.armorMods = JSON.parse(JSON.stringify(loadout.armorMods));
+        state.artificeStats = JSON.parse(
+          JSON.stringify(loadout.artificeStats || {})
+        );
+        state.isArtifice = JSON.parse(JSON.stringify(loadout.isArtifice || {}));
+
+        // Update UI
+        Object.keys(state.armorStats).forEach((piece) => {
+          // Update stat inputs
+          Object.keys(state.armorStats[piece]).forEach((stat) => {
+            const input = document.querySelector(
+              `[data-piece="${piece}"][data-stat="${stat}"]`
+            );
+            if (input) {
+              input.value = state.armorStats[piece][stat];
+            }
+          });
+
+          // Update artifice checkbox
+          const artificeCheckbox = document.getElementById(`${piece}Artifice`);
+          if (artificeCheckbox) {
+            artificeCheckbox.checked = state.isArtifice[piece] || false;
+            const card = artificeCheckbox.closest(".armor-piece-card");
+            if (state.isArtifice[piece]) {
+              card.classList.add("artifice");
+            } else {
+              card.classList.remove("artifice");
+            }
+            toggleArtifice(piece);
+          }
+
+          // Update artifice stat selection
+          if (state.isArtifice[piece] && state.artificeStats[piece]) {
+            const selectDiv = document.getElementById(`${piece}ArtificeSelect`);
+            const select = selectDiv?.querySelector("select");
+            if (select) {
+              select.value = state.artificeStats[piece];
+            }
+          }
+        });
+
+        // Update mods
+        Object.keys(state.armorMods).forEach((piece) => {
+          const mods = state.armorMods[piece] || [];
+          mods.forEach((modKey, slot) => {
+            const select = document.querySelector(
+              `[data-piece="${piece}"][data-slot="${slot}"]`
+            );
+            if (select) {
+              select.value = modKey || "";
+              updateArmorMods(select);
+            }
+          });
+        });
+
+        updateArmorTotals();
+        alert(`Loaded "${loadout.name}"`);
+      }
+
+      function deleteLoadout(index) {
+        if (confirm(`Delete "${savedLoadouts[index].name}"?`)) {
+          savedLoadouts.splice(index, 1);
+          localStorage.setItem(
+            "d2ArmorLoadouts",
+            JSON.stringify(savedLoadouts)
+          );
+          displayLoadouts();
+        }
+      }
+    </script>
+  </body>
+</html>
