@@ -159,6 +159,43 @@
         box-shadow: 0 0 30px rgba(138, 43, 226, 0.3);
       }
 
+      .optimizer-layout {
+        display: flex;
+        gap: 20px;
+        align-items: flex-start;
+      }
+
+      .optimizer-layout .stat-selector-section {
+        width: 300px;
+        flex-shrink: 0;
+      }
+
+      .build-results {
+        flex: 1;
+      }
+
+      .pagination-controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .pagination-controls button {
+        padding: 6px 12px;
+        background: rgba(50, 50, 60, 0.8);
+        border: 1px solid #444;
+        border-radius: 6px;
+        color: #fff;
+        cursor: pointer;
+      }
+
+      .pagination-controls button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
       .stat-selector-section {
         background: rgba(30, 30, 40, 0.8);
         border-radius: 20px;
@@ -1022,7 +1059,7 @@
         box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
       }
 
-      .optimization-results {
+      .build-results {
         margin-top: 30px;
       }
 
