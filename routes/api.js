@@ -1,6 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const { makeApiRequest, ensureAuthenticated } = require("../middleware/bungie");
+const {
+  makeApiRequest,
+  ensureAuthenticated,
+  getCharacter,
+} = require("../middleware/bungie");
 const { getDefinition } = require("../services/manifestService");
 
 // Get character inventory
@@ -8,10 +12,12 @@ router.get("/inventory", ensureAuthenticated, async (req, res) => {
   try {
     const { membershipType, membershipId } = req.session.destinyMembership;
 
-    // Components: 102=Inventory, 201=Character inventories, 205=Equipment, 300=Item instances, 304=Item stats, 305=Item sockets
+    // Components: 102=Inventory, 201=Character inventories, 205=Equipment,
+    // 300=Item instances, 304=Item stats, 305=Item sockets
     const components = "102,201,205,300,304,305";
 
-    const data = await makeApiRequest(
+    // Fetch profile data (character inventories, profile inventory)
+    const profileData = await makeApiRequest(
       `/Destiny2/${membershipType}/Profile/${membershipId}/`,
       {
         params: { components },
@@ -19,7 +25,39 @@ router.get("/inventory", ensureAuthenticated, async (req, res) => {
       }
     );
 
-    res.json(data);
+    // Fetch vault inventory (characterId 0)
+    const vaultData = await getCharacter(
+      membershipType,
+      membershipId,
+      0,
+      "201,205,300,304,305",
+      req.session
+    );
+
+    // Merge vault items into profile inventory
+    if (vaultData.inventory?.data?.items) {
+      if (!profileData.profileInventory) {
+        profileData.profileInventory = { data: { items: [] } };
+      }
+      profileData.profileInventory.data.items =
+        profileData.profileInventory.data.items.concat(
+          vaultData.inventory.data.items
+        );
+    }
+
+    // Merge item components
+    const mergeComponents = (target, source) => {
+      if (!source) return;
+      Object.entries(source).forEach(([key, val]) => {
+        if (!val?.data) return;
+        if (!target[key]) target[key] = { data: {} };
+        target[key].data = { ...target[key].data, ...val.data };
+      });
+    };
+
+    mergeComponents(profileData.itemComponents, vaultData.itemComponents);
+
+    res.json(profileData);
   } catch (error) {
     console.error("Inventory fetch error:", error);
     res.status(error.response?.status || 500).json({
@@ -151,9 +189,9 @@ router.get("/search", ensureAuthenticated, async (req, res) => {
     const { query, type = "armor" } = req.query;
     const { membershipType, membershipId } = req.session.destinyMembership;
 
-    // Get all items
+    // Get profile and vault inventories
     const components = "102,201,300,304,305";
-    const data = await makeApiRequest(
+    const profileData = await makeApiRequest(
       `/Destiny2/${membershipType}/Profile/${membershipId}/`,
       {
         params: { components },
@@ -161,19 +199,45 @@ router.get("/search", ensureAuthenticated, async (req, res) => {
       }
     );
 
+    const vaultData = await getCharacter(
+      membershipType,
+      membershipId,
+      0,
+      "201,205,300,304,305",
+      req.session
+    );
+
+    // Merge item components for unified lookup
+    const mergeComponents = (target, source) => {
+      if (!source) return;
+      Object.entries(source).forEach(([key, val]) => {
+        if (!val?.data) return;
+        if (!target[key]) target[key] = { data: {} };
+        target[key].data = { ...target[key].data, ...val.data };
+      });
+    };
+
+    mergeComponents(profileData.itemComponents, vaultData.itemComponents);
+
     // Filter items based on search criteria
     let allItems = [];
 
     // Add vault items
-    if (data.profileInventory?.data?.items) {
-      allItems = allItems.concat(data.profileInventory.data.items);
+    if (vaultData.inventory?.data?.items) {
+      allItems = allItems.concat(vaultData.inventory.data.items);
     }
 
     // Add character items
-    if (data.characterInventories?.data) {
-      Object.values(data.characterInventories.data).forEach((charInventory) => {
-        allItems = allItems.concat(charInventory.items);
-      });
+    if (profileData.profileInventory?.data?.items) {
+      allItems = allItems.concat(profileData.profileInventory.data.items);
+    }
+
+    if (profileData.characterInventories?.data) {
+      Object.values(profileData.characterInventories.data).forEach(
+        (charInventory) => {
+          allItems = allItems.concat(charInventory.items);
+        }
+      );
     }
 
     // Filter by type if needed
@@ -203,10 +267,11 @@ router.get("/search", ensureAuthenticated, async (req, res) => {
               }
             : null,
           stats:
-            data.itemComponents?.stats?.data?.[item.itemInstanceId]?.stats ||
-            null,
+            profileData.itemComponents?.stats?.data?.[item.itemInstanceId]
+              ?.stats || null,
           sockets:
-            data.itemComponents?.sockets?.data?.[item.itemInstanceId] || null,
+            profileData.itemComponents?.sockets?.data?.[item.itemInstanceId] ||
+            null,
         };
       })
     );
