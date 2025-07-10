@@ -1325,7 +1325,6 @@
                   );
                   if (meets) {
                     results.push({ pieces, totals });
-                    if (results.length >= 20) break;
                   }
                 }
               }
@@ -1333,10 +1332,13 @@
           }
         }
 
-        displayBuildResults(results);
+        displayBuildResults(results, 1);
       }
 
-      function displayBuildResults(results) {
+      const buildsPerPage = 25;
+      let currentPage = 1;
+
+      function displayBuildResults(results, page = 1) {
         const container = document.getElementById("resultsContainer");
         if (!container) return;
         const resultsDiv = document.getElementById("optimizationResults");
@@ -1347,8 +1349,14 @@
           return;
         }
 
-        container.innerHTML = results
+        currentPage = page;
+        const totalPages = Math.ceil(results.length / buildsPerPage);
+        const start = (page - 1) * buildsPerPage;
+        const pageResults = results.slice(start, start + buildsPerPage);
+
+        container.innerHTML = pageResults
           .map((res, idx) => {
+            const buildNumber = start + idx + 1;
             const statHtml = Object.entries(res.totals)
               .map(
                 ([k, v]) =>
@@ -1371,17 +1379,36 @@
             return `
               <div class="result-item">
                 <div class="result-header">
-                  <div class="result-title">Build ${idx + 1}</div>
+                  <div class="result-title">Build ${buildNumber}</div>
                 </div>
                 <div class="result-stats">${statHtml}</div>
                 <div class="result-armor-grid">${pieceHtml}</div>
-                <button class="load-result-button" onclick="loadGeneratedBuild(${idx})">Load This Build</button>
+                <button class="load-result-button" onclick="loadGeneratedBuild(${buildNumber - 1})">Load This Build</button>
               </div>`;
           })
           .join("");
 
+        updatePaginationControls(totalPages);
         resultsDiv.style.display = "block";
         window.generatedBuilds = results;
+      }
+
+      function updatePaginationControls(totalPages) {
+        const controls = document.getElementById("paginationControls");
+        if (!controls) return;
+        if (totalPages <= 1) {
+          controls.innerHTML = "";
+          return;
+        }
+        controls.innerHTML = `
+          <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? "disabled" : ""}>Prev</button>
+          <span>Page ${currentPage} / ${totalPages}</span>
+          <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? "disabled" : ""}>Next</button>
+        `;
+      }
+
+      function changePage(p) {
+        displayBuildResults(window.generatedBuilds, p);
       }
 
       function loadGeneratedBuild(index) {
@@ -1466,7 +1493,7 @@
           if (item && item.stats) {
             Object.entries(item.stats).forEach(([stat, value]) => {
               if (totals.hasOwnProperty(stat)) {
-                totals[stat] += value + 2; // assume masterworked
+                totals[stat] += value;
               }
             });
           }
