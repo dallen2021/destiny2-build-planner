@@ -42,31 +42,60 @@
       <div class="nav-tab active" onclick="switchTab('armor')">
         Armor Optimizer
       </div>
-      <div class="nav-tab" onclick="switchTab('artifact')">Artifact</div>
-      <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
-      <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
-    </div>
+      </div>
 
-    <!-- Armor Optimizer Tab -->
     <div id="armor" class="content-section active">
       <div id="optimizerLayout" class="optimizer-layout">
         <div class="stat-selector-section">
           <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
             Target Stat Distribution
           </h2>
-        <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 20px">
-          <div class="class-selector">
-            <button class="class-button" id="topHunterClass" data-class="hunter" onclick="selectClass('hunter')">Hunter</button>
-            <button class="class-button" id="topTitanClass" data-class="titan" onclick="selectClass('titan')">Titan</button>
-            <button class="class-button" id="topWarlockClass" data-class="warlock" onclick="selectClass('warlock')">Warlock</button>
+          <div
+            style="
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              gap: 20px;
+              margin-bottom: 20px;
+            "
+          >
+            <div class="class-selector">
+              <button
+                class="class-button"
+                id="topHunterClass"
+                data-class="hunter"
+                onclick="selectClass('hunter')"
+              >
+                Hunter
+              </button>
+              <button
+                class="class-button"
+                id="topTitanClass"
+                data-class="titan"
+                onclick="selectClass('titan')"
+              >
+                Titan
+              </button>
+              <button
+                class="class-button"
+                id="topWarlockClass"
+                data-class="warlock"
+                onclick="selectClass('warlock')"
+              >
+                Warlock
+              </button>
+            </div>
+            <div>
+              <select
+                id="exoticSelect"
+                class="filter-select"
+                onchange="updateAllStatCalculations()"
+              >
+                <option value="">Any Exotic</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <select id="exoticSelect" class="filter-select" onchange="updateAllStatCalculations()">
-              <option value="">Any Exotic</option>
-            </select>
-          </div>
-        </div>
-        <div class="stat-allocator" id="statAllocator"></div>
+          <div class="stat-allocator" id="statAllocator"></div>
           <div style="margin-top: 20px; text-align: center">
             <button
               class="auth-button-small"
@@ -82,7 +111,11 @@
           </div>
         </div>
 
-        <div id="optimizationResults" class="build-results" style="display: none">
+        <div
+          id="optimizationResults"
+          class="build-results"
+          style="display: none"
+        >
           <div class="armor-optimizer-section">
             <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
               Optimization Results
@@ -92,6 +125,10 @@
           </div>
         </div>
       </div>
+
+      <div class="armor-optimizer-section" style="margin-top: 30px">
+        </div>
+    </div>
 
       <!-- Armor Collection Section -->
       <div class="armor-optimizer-section" style="margin-top: 30px">

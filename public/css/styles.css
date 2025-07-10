@@ -161,17 +161,17 @@
 
       .optimizer-layout {
         display: flex;
-        gap: 20px;
+        gap: 30px;
         align-items: flex-start;
       }
 
-      .optimizer-layout .stat-selector-section {
-        width: 300px;
+      .stat-selector-section {
+        width: 400px; /* Adjust as needed */
         flex-shrink: 0;
       }
 
       .build-results {
-        flex: 1;
+        flex-grow: 1;
       }
 
       .pagination-controls {
@@ -179,14 +179,14 @@
         justify-content: center;
         align-items: center;
         gap: 10px;
-        margin-top: 10px;
+        margin-top: 20px;
       }
 
       .pagination-controls button {
-        padding: 6px 12px;
+        padding: 8px 16px;
         background: rgba(50, 50, 60, 0.8);
         border: 1px solid #444;
-        border-radius: 6px;
+        border-radius: 8px;
         color: #fff;
         cursor: pointer;
       }
