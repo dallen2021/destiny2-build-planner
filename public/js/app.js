@@ -244,18 +244,16 @@ const exoticClassItemCombinations = {
 };
 
 /* ------------------- GLOBAL STATE ------------------- */
-// Inventory/Auth State
 let isAuthenticated = false;
 let selectedInventoryItems = {};
 let inventoryData = [];
 let generatedBuilds = [];
+let currentPage = 1;
+const buildsPerPage = 25;
 
-// Artifact State
 let selectedMods = new Set();
 let columnCounts = [0, 0, 0, 0, 0];
 let activeElementFilters = new Set();
-
-// Damage Calc State
 let currentClass = "hunter";
 let selectedExotics = new Set();
 window.calculatedStatBonuses = {};
@@ -270,7 +268,6 @@ const state = {
   },
 };
 
-// Loadout State
 let savedLoadouts = [];
 
 window.addEventListener("DOMContentLoaded", async () => {
@@ -1353,9 +1350,6 @@ function findOptimalBuilds() {
 
   displayBuildResults(results, 1);
 }
-
-const buildsPerPage = 25;
-let currentPage = 1;
 
 function displayBuildResults(results, page = 1) {
   generatedBuilds = results;
