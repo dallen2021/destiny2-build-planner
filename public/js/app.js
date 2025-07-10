@@ -248,6 +248,7 @@ const exoticClassItemCombinations = {
 let isAuthenticated = false;
 let selectedInventoryItems = {};
 let inventoryData = [];
+let generatedBuilds = [];
 
 // Artifact State
 let selectedMods = new Set();
@@ -280,16 +281,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   const savedClass = localStorage.getItem("d2SelectedClass") || "hunter";
   selectClass(savedClass);
   loadSavedLoadouts();
-
-  // Add event listener for instance component
-  const instanceCheckbox = document.getElementById("includeInstances");
-  if (instanceCheckbox) {
-    instanceCheckbox.addEventListener("change", (e) => {
-      if (e.target.checked && inventoryData.length > 0) {
-        loadInventory();
-      }
-    });
-  }
 });
 
 /* -------- AUTH & INVENTORY FUNCTIONS -------- */
@@ -449,18 +440,16 @@ function updateArmorDisplay() {
   const filtered = filterArmor();
 
   const bucketOrder = {
-    3448274439: 0, // Helmet
-    3551918588: 1, // Gauntlets
-    14239492: 2, // Chest
-    20886954: 3, // Legs
-    1585787867: 4, // Class item
+    3448274439: 0,
+    3551918588: 1,
+    14239492: 2,
+    20886954: 3,
+    1585787867: 4,
   };
 
-  // Group by armor type, with exotics first in each group
   filtered.sort((a, b) => {
     const orderA = bucketOrder[a.bucketHash] ?? 5;
     const orderB = bucketOrder[b.bucketHash] ?? 5;
-
     if (orderA !== orderB) return orderA - orderB;
     if (a.isExotic !== b.isExotic) return a.isExotic ? -1 : 1;
     return b.powerLevel - a.powerLevel;
@@ -468,7 +457,6 @@ function updateArmorDisplay() {
 
   container.innerHTML = filtered
     .map((item) => {
-      // ... (rest of the mapping function is unchanged)
       const tierClass = item.isExotic ? "exotic" : "legendary";
       const masterworkClass = item.isMasterworked ? "masterworked" : "";
       const statNames = {
@@ -497,60 +485,60 @@ function updateArmorDisplay() {
       });
 
       return `
-                <div class="armor-item ${tierClass} ${masterworkClass} ${
-                  selectedInventoryItems[item.itemInstanceId] ? "selected" : ""
-                }" 
-                     onclick="toggleInventoryItem('${item.itemInstanceId}')"
-                     data-instance-id="${item.itemInstanceId}">
-                    <div class="armor-header">
-                        <div class="armor-icon ${masterworkClass}">
-                            ${
-                              item.icon
-                                ? `<img src="${item.icon}" alt="${item.displayName}" />`
-                                : ""
-                            }
-                        </div>
-                        <div class="armor-info">
-                            <div class="armor-name">${item.displayName}</div>
-                            <div class="armor-type">${item.itemType} ${
-                              item.location === "vault" ? "(Vault)" : ""
-                            }</div>
-                        </div>
-                        <div class="armor-power">${item.powerLevel || 0}</div>
-                    </div>
-                    <div class="armor-stats">
-                        ${Object.entries(orderedStats)
-                          .map(
-                            ([stat, value]) => `
-                                <div class="stat-item">
-                                    <div class="stat-name">${
-                                      statNames[stat] || stat.toUpperCase()
-                                    }</div>
-                                    <div class="stat-value">${value}</div>
-                                </div>
-                            `
-                          )
-                          .join("")}
-                    </div>
-                    <div class="armor-tags">
-                        ${
-                          item.isArtifice
-                            ? '<div class="armor-tag artifice">⬢ Artifice</div>'
-                            : ""
-                        }
-                        ${
-                          item.isExotic
-                            ? '<div class="armor-tag exotic">★ Exotic</div>'
-                            : ""
-                        }
-                        ${
-                          item.isMasterworked
-                            ? '<div class="armor-tag">✦ Masterworked</div>'
-                            : ""
-                        }
-                    </div>
-                </div>
-              `;
+              <div class="armor-item ${tierClass} ${masterworkClass} ${
+                selectedInventoryItems[item.itemInstanceId] ? "selected" : ""
+              }" 
+                   onclick="toggleInventoryItem('${item.itemInstanceId}')"
+                   data-instance-id="${item.itemInstanceId}">
+                  <div class="armor-header">
+                      <div class="armor-icon ${masterworkClass}">
+                          ${
+                            item.icon
+                              ? `<img src="${item.icon}" alt="${item.displayName}" />`
+                              : ""
+                          }
+                      </div>
+                      <div class="armor-info">
+                          <div class="armor-name">${item.displayName}</div>
+                          <div class="armor-type">${item.itemType} ${
+                            item.location === "vault" ? "(Vault)" : ""
+                          }</div>
+                      </div>
+                      <div class="armor-power">${item.powerLevel || 0}</div>
+                  </div>
+                  <div class="armor-stats">
+                      ${Object.entries(orderedStats)
+                        .map(
+                          ([stat, value]) => `
+                              <div class="stat-item">
+                                  <div class="stat-name">${
+                                    statNames[stat] || stat.toUpperCase()
+                                  }</div>
+                                  <div class="stat-value">${value}</div>
+                              </div>
+                          `
+                        )
+                        .join("")}
+                  </div>
+                  <div class="armor-tags">
+                      ${
+                        item.isArtifice
+                          ? '<div class="armor-tag artifice">⬢ Artifice</div>'
+                          : ""
+                      }
+                      ${
+                        item.isExotic
+                          ? '<div class="armor-tag exotic">★ Exotic</div>'
+                          : ""
+                      }
+                      ${
+                        item.isMasterworked
+                          ? '<div class="armor-tag">✦ Masterworked</div>'
+                          : ""
+                      }
+                  </div>
+              </div>
+            `;
     })
     .join("");
 }
@@ -667,7 +655,9 @@ function switchTab(tabName) {
   document
     .querySelectorAll(".content-section")
     .forEach((section) => section.classList.remove("active"));
-  event.currentTarget.classList.add("active");
+  document
+    .querySelector(`.nav-tab[onclick="switchTab('${tabName}')"]`)
+    .classList.add("active");
   document.getElementById(tabName).classList.add("active");
 }
 
@@ -748,7 +738,6 @@ function updateAllStatCalculations() {
   });
 
   applyStatBonuses();
-  findOptimalBuilds();
 }
 
 function interpolate(points, x) {
@@ -790,7 +779,9 @@ function applyStatBonuses() {
         window.calculatedStatBonuses[stat.toLowerCase()][k] = num / 100;
       }
     }
-    display.innerHTML = parts.join(" | ");
+    if (display) {
+      display.innerHTML = parts.join(" | ");
+    }
   });
 
   updateTheoreticalBuffState();
@@ -803,63 +794,69 @@ function updateTheoreticalBuffState() {
   const checkbox = document.getElementById("theoreticalWellBuff");
 
   if (superStat >= 110) {
-    container.classList.remove("disabled");
-    checkbox.disabled = false;
+    if (container) container.classList.remove("disabled");
+    if (checkbox) checkbox.disabled = false;
   } else {
-    container.classList.add("disabled");
-    checkbox.disabled = true;
-    checkbox.checked = false;
+    if (container) container.classList.add("disabled");
+    if (checkbox) {
+      checkbox.disabled = true;
+      checkbox.checked = false;
+    }
   }
 }
 
 /* ---- ARTIFACT / DAMAGE / CLASS functions ---- */
 function initializeArtifact() {
   const t = document.getElementById("columnsWrapper");
-  (t.innerHTML = ""),
-    artifactMods.forEach((e, n) => {
-      const o = document.createElement("div");
-      o.className = "column";
-      const l = document.createElement("div");
-      (l.className = "column-header"),
-        (l.textContent = `Column ${n + 1}`),
-        o.appendChild(l),
-        e.forEach((e, l) => {
-          o.appendChild(createModCard(e, n, l));
-        }),
-        t.appendChild(o);
-    }),
-    document
-      .getElementById("artifactFilters")
-      .addEventListener("click", (t) => {
-        if (t.target.classList.contains("element-filter-btn")) {
-          const e = t.target.dataset.element;
-          t.target.classList.toggle("active"),
-            activeElementFilters.has(e)
-              ? activeElementFilters.delete(e)
-              : activeElementFilters.add(e),
-            applyArtifactFilters();
-        }
-      }),
-    updateUI();
+  if (!t) return;
+  t.innerHTML = "";
+  artifactMods.forEach((e, n) => {
+    const o = document.createElement("div");
+    o.className = "column";
+    const l = document.createElement("div");
+    l.className = "column-header";
+    l.textContent = `Column ${n + 1}`;
+    o.appendChild(l);
+    e.forEach((e, l) => {
+      o.appendChild(createModCard(e, n, l));
+    });
+    t.appendChild(o);
+  });
+  const artifactFilters = document.getElementById("artifactFilters");
+  if (artifactFilters) {
+    artifactFilters.addEventListener("click", (t) => {
+      if (t.target.classList.contains("element-filter-btn")) {
+        const e = t.target.dataset.element;
+        t.target.classList.toggle("active");
+        activeElementFilters.has(e)
+          ? activeElementFilters.delete(e)
+          : activeElementFilters.add(e);
+        applyArtifactFilters();
+      }
+    });
+  }
+  updateUI();
 }
 
 function createModCard(t, e, n) {
   const o = document.createElement("div");
-  (o.className = "mod-card"), (o.dataset.column = e), (o.dataset.index = n);
+  o.className = "mod-card";
+  o.dataset.column = e;
+  o.dataset.index = n;
   const l = document.createElement("div");
-  (l.className = "mod-type"), (l.textContent = t.type);
+  l.className = "mod-type";
+  l.textContent = t.type;
   const d = document.createElement("div");
-  (d.className = "mod-name"), (d.textContent = t.name);
+  d.className = "mod-name";
+  d.textContent = t.name;
   const a = document.createElement("div");
-  return (
-    (a.className = "mod-description"),
-    (a.textContent = t.description),
-    o.appendChild(l),
-    o.appendChild(d),
-    o.appendChild(a),
-    o.addEventListener("click", () => toggleMod(`${e}-${n}`, e)),
-    o
-  );
+  a.className = "mod-description";
+  a.textContent = t.description;
+  o.appendChild(l);
+  o.appendChild(d);
+  o.appendChild(a);
+  o.addEventListener("click", () => toggleMod(`${e}-${n}`, e));
+  return o;
 }
 
 function applyArtifactFilters() {
@@ -870,7 +867,8 @@ function applyArtifactFilters() {
     const e = artifactMods[t.dataset.column][t.dataset.index].elements.some(
       (t) => activeElementFilters.has(t)
     );
-    t.classList.toggle("highlighted", e), t.classList.toggle("dimmed", !e);
+    t.classList.toggle("highlighted", e);
+    t.classList.toggle("dimmed", !e);
   });
 }
 
@@ -878,28 +876,36 @@ function toggleMod(t, e) {
   const n = document.querySelector(
     `[data-column='${e}'][data-index='${t.split("-")[1]}']`
   );
-  n.classList.contains("locked") ||
-    (selectedMods.has(t)
-      ? (selectedMods.delete(t), columnCounts[e]--)
-      : selectedMods.size >= 12
-        ? alert("Maximum 12 mods can be selected!")
-        : 4 === e && columnCounts[4] >= 2
-          ? alert("Maximum 2 mods can be selected in Column 5!")
-          : (selectedMods.add(t), columnCounts[e]++),
-    updateUI(),
-    updateArtifactBuffs());
+  if (n && !n.classList.contains("locked")) {
+    if (selectedMods.has(t)) {
+      selectedMods.delete(t);
+      columnCounts[e]--;
+    } else if (selectedMods.size >= 12) {
+      alert("Maximum 12 mods can be selected!");
+    } else if (4 === e && columnCounts[4] >= 2) {
+      alert("Maximum 2 mods can be selected in Column 5!");
+    } else {
+      selectedMods.add(t);
+      columnCounts[e]++;
+    }
+    updateUI();
+    updateArtifactBuffs();
+  }
 }
 
 function updateUI() {
-  (document.getElementById("modCount").textContent = selectedMods.size),
-    document.querySelectorAll(".mod-card").forEach((t) => {
-      const e = parseInt(t.dataset.column),
-        n = parseInt(t.dataset.index),
-        o = `${e}-${n}`;
-      t.classList.remove("selected", "locked"),
-        selectedMods.has(o) && t.classList.add("selected"),
-        isColumnLocked(e) && t.classList.add("locked");
-    });
+  const modCount = document.getElementById("modCount");
+  if (modCount) {
+    modCount.textContent = selectedMods.size;
+  }
+  document.querySelectorAll(".mod-card").forEach((t) => {
+    const e = parseInt(t.dataset.column);
+    const n = parseInt(t.dataset.index);
+    const o = `${e}-${n}`;
+    t.classList.remove("selected", "locked");
+    if (selectedMods.has(o)) t.classList.add("selected");
+    if (isColumnLocked(e)) t.classList.add("locked");
+  });
 }
 
 function isColumnLocked(t) {
@@ -914,30 +920,34 @@ function isColumnLocked(t) {
     case 4:
       return e < 10;
     default:
-      return !1;
+      return false;
   }
 }
 
 function resetSelection() {
-  selectedMods.clear(),
-    (columnCounts = [0, 0, 0, 0, 0]),
-    updateUI(),
-    updateArtifactBuffs();
+  selectedMods.clear();
+  columnCounts = [0, 0, 0, 0, 0];
+  updateUI();
+  updateArtifactBuffs();
 }
 
 function updateArtifactBuffs() {
-  (document.getElementById("elementalOverdrive").checked =
-    selectedMods.has("4-2")),
-    (document.getElementById("radiantShrapnel").checked =
-      selectedMods.has("4-0")),
-    recalculateAllDamage();
+  const elementalOverdrive = document.getElementById("elementalOverdrive");
+  const radiantShrapnel = document.getElementById("radiantShrapnel");
+  if (elementalOverdrive) {
+    elementalOverdrive.checked = selectedMods.has("4-2");
+  }
+  if (radiantShrapnel) {
+    radiantShrapnel.checked = selectedMods.has("4-0");
+  }
+  recalculateAllDamage();
 }
 
 function recalculateAllDamage() {
-  calculateWeaponDamage(),
-    calculateMeleeDamage(),
-    calculateGrenadeDamage(),
-    calculateSuperDamage();
+  calculateWeaponDamage();
+  calculateMeleeDamage();
+  calculateGrenadeDamage();
+  calculateSuperDamage();
 }
 
 function calculateWeaponDamage() {
@@ -946,17 +956,21 @@ function calculateWeaponDamage() {
   const n = window.calculatedStatBonuses.weapons || {};
 
   // Stat Bonus Damage
-  n.heavy_boss_damage &&
-    ((t *= 1 + n.heavy_boss_damage), e.push("Heavy Boss Dmg"));
+  if (n.heavy_boss_damage) {
+    t *= 1 + n.heavy_boss_damage;
+    e.push("Heavy Boss Dmg");
+  }
 
   // Global Stacking Buffs
-  document.getElementById("newGearWeapon").checked &&
-    ((t *= 1.1), e.push("New Gear (Art.)"));
+  if (document.getElementById("newGearWeapon")?.checked) {
+    t *= 1.1;
+    e.push("New Gear (Art.)");
+  }
 
   const theoreticalBuffCheckbox = document.getElementById(
     "theoreticalWellBuff"
   );
-  if (theoreticalBuffCheckbox.checked && !theoreticalBuffCheckbox.disabled) {
+  if (theoreticalBuffCheckbox?.checked && !theoreticalBuffCheckbox.disabled) {
     t *= 1.15;
     e.push("Theo. Well User");
   }
@@ -967,17 +981,27 @@ function calculateWeaponDamage() {
     { id: "radiant", value: 1.25, name: "Radiant" },
     { id: "wellOfRadiance", value: 1.25, name: "Well" },
     { id: "nobleRounds", value: 1.35, name: "Noble Rds" },
-  ].forEach((t) => {
-    document.getElementById(t.id).checked && t.value > o.value && (o = t);
+  ].forEach((buff) => {
+    if (document.getElementById(buff.id)?.checked && buff.value > o.value) {
+      o = buff;
+    }
   });
-  o.value > 1 && ((t *= o.value), e.push(o.name));
+  if (o.value > 1) {
+    t *= o.value;
+    e.push(o.name);
+  }
 
   // Weapon Damage Buffs (Highest Applies)
   let l = { value: 1 };
-  [{ id: "weaponSurge3x", value: 1.22, name: "Surge x3" }].forEach((t) => {
-    document.getElementById(t.id).checked && t.value > l.value && (l = t);
+  [{ id: "weaponSurge3x", value: 1.22, name: "Surge x3" }].forEach((buff) => {
+    if (document.getElementById(buff.id)?.checked && buff.value > l.value) {
+      l = buff;
+    }
   });
-  l.value > 1 && ((t *= l.value), e.push(l.name));
+  if (l.value > 1) {
+    t *= l.value;
+    e.push(l.name);
+  }
 
   // Weapon Perks (All Stack Multiplicatively)
   [
@@ -987,8 +1011,11 @@ function calculateWeaponDamage() {
     { id: "frenzy", value: 1.15, name: "Frenzy" },
     { id: "baitSwitch", value: 1.3, name: "B&S" },
     { id: "radiantShrapnel", value: 1.15, name: "Shrapnel" },
-  ].forEach((n) => {
-    document.getElementById(n.id).checked && ((t *= n.value), e.push(n.name));
+  ].forEach((perk) => {
+    if (document.getElementById(perk.id)?.checked) {
+      t *= perk.value;
+      e.push(perk.name);
+    }
   });
 
   // Debuffs (Highest Applies)
@@ -998,16 +1025,24 @@ function calculateWeaponDamage() {
     { id: "tetherDebuff", value: 1.3, name: "Tether" },
     { id: "divinityDebuff", value: 1.15, name: "Divinity" },
     { id: "tractorCannon", value: 1.3, name: "Tractor" },
-  ].forEach((t) => {
-    document.getElementById(t.id).checked && t.value > d.value && (d = t);
+  ].forEach((debuff) => {
+    if (document.getElementById(debuff.id)?.checked && debuff.value > d.value) {
+      d = debuff;
+    }
   });
-  d.value > 1 && ((t *= d.value), e.push(d.name));
+  if (d.value > 1) {
+    t *= d.value;
+    e.push(d.name);
+  }
 
   // Update UI
-  (document.getElementById("weaponDamageResult").textContent =
-    Math.round(100 * (t - 1) + 100) + "%"),
-    (document.getElementById("weaponBreakdown").textContent =
-      e.length > 0 ? "Active: " + e.join(" + ") : "Base damage");
+  const weaponDamageResult = document.getElementById("weaponDamageResult");
+  const weaponBreakdown = document.getElementById("weaponBreakdown");
+  if (weaponDamageResult)
+    weaponDamageResult.textContent = Math.round(100 * (t - 1) + 100) + "%";
+  if (weaponBreakdown)
+    weaponBreakdown.textContent =
+      e.length > 0 ? "Active: " + e.join(" + ") : "Base damage";
 }
 
 function calculateMeleeDamage() {
@@ -1029,47 +1064,68 @@ function calculateMeleeDamage() {
     necroticGrip: { v: 100, n: "Necrotic" },
     synthocepsWarlock: { v: 400, n: "Syntho (CI)" },
   };
-  window.calculatedStatBonuses.melee &&
-    window.calculatedStatBonuses.melee.damage_increase_pve &&
-    ((t += 100 * window.calculatedStatBonuses.melee.damage_increase_pve),
-    e.push("Stat Bonus"));
+  if (
+    window.calculatedStatBonuses.melee &&
+    window.calculatedStatBonuses.melee.damage_increase_pve
+  ) {
+    t += 100 * window.calculatedStatBonuses.melee.damage_increase_pve;
+    e.push("Stat Bonus");
+  }
   for (const o in n) {
     const l = document.getElementById(o);
-    l && l.checked && !l.disabled && ((t += n[o].v), e.push(n[o].n));
+    if (l && l.checked && !l.disabled) {
+      t += n[o].v;
+      e.push(n[o].n);
+    }
   }
-  (document.getElementById("meleeDamageResult").textContent =
-    (100 + t).toFixed(0) + "%"),
-    (document.getElementById("meleeBreakdown").textContent = e.length
+  const meleeDamageResult = document.getElementById("meleeDamageResult");
+  const meleeBreakdown = document.getElementById("meleeBreakdown");
+  if (meleeDamageResult)
+    meleeDamageResult.textContent = (100 + t).toFixed(0) + "%";
+  if (meleeBreakdown)
+    meleeBreakdown.textContent = e.length
       ? "Active: " + e.join(" + ")
-      : "Base damage (additive)");
+      : "Base damage (additive)";
 }
 
 function calculateGrenadeDamage() {
   let t = 1,
     e = [];
-  window.calculatedStatBonuses.grenade &&
-    window.calculatedStatBonuses.grenade.damage_increase_pve &&
-    ((t *= 1 + window.calculatedStatBonuses.grenade.damage_increase_pve),
-    e.push("Stat Bonus")),
-    (document.getElementById("grenadeDamageResult").textContent =
-      Math.round(100 * t) + "%"),
-    (document.getElementById("grenadeBreakdown").textContent = e.length
+  if (
+    window.calculatedStatBonuses.grenade &&
+    window.calculatedStatBonuses.grenade.damage_increase_pve
+  ) {
+    t *= 1 + window.calculatedStatBonuses.grenade.damage_increase_pve;
+    e.push("Stat Bonus");
+  }
+  const grenadeDamageResult = document.getElementById("grenadeDamageResult");
+  const grenadeBreakdown = document.getElementById("grenadeBreakdown");
+  if (grenadeDamageResult)
+    grenadeDamageResult.textContent = Math.round(100 * t) + "%";
+  if (grenadeBreakdown)
+    grenadeBreakdown.textContent = e.length
       ? "Active: " + e.join(" + ")
-      : "Base damage");
+      : "Base damage";
 }
 
 function calculateSuperDamage() {
   let t = 1,
     e = [];
-  window.calculatedStatBonuses.super &&
-    window.calculatedStatBonuses.super.damage_increase_pve &&
-    ((t *= 1 + window.calculatedStatBonuses.super.damage_increase_pve),
-    e.push("Stat Bonus")),
-    (document.getElementById("superDamageResult").textContent =
-      Math.round(100 * t) + "%"),
-    (document.getElementById("superBreakdown").textContent = e.length
+  if (
+    window.calculatedStatBonuses.super &&
+    window.calculatedStatBonuses.super.damage_increase_pve
+  ) {
+    t *= 1 + window.calculatedStatBonuses.super.damage_increase_pve;
+    e.push("Stat Bonus");
+  }
+  const superDamageResult = document.getElementById("superDamageResult");
+  const superBreakdown = document.getElementById("superBreakdown");
+  if (superDamageResult)
+    superDamageResult.textContent = Math.round(100 * t) + "%";
+  if (superBreakdown)
+    superBreakdown.textContent = e.length
       ? "Active: " + e.join(" + ")
-      : "Base damage");
+      : "Base damage";
 }
 
 function selectClass(t) {
@@ -1094,17 +1150,20 @@ function selectClass(t) {
   updateMeleeClassRestrictions();
   updateExoticOptions();
   updateArmorDisplay();
-  findOptimalBuilds();
 }
 
 function handleExoticSelection(t) {
   const e = document.getElementById(t);
-  e.checked ? selectedExotics.add(t) : selectedExotics.delete(t),
-    updateExoticRestrictions();
+  if (e?.checked) {
+    selectedExotics.add(t);
+  } else {
+    selectedExotics.delete(t);
+  }
+  updateExoticRestrictions();
 }
 
 function updateExoticRestrictions() {
-  const isClassItem = document.getElementById("exoticClassItem").checked;
+  const isClassItem = document.getElementById("exoticClassItem")?.checked;
 
   // Reset all disabled states
   document.querySelectorAll(".buff-item[data-exotic]").forEach((item) => {
@@ -1183,12 +1242,16 @@ function updateExoticRestrictions() {
 
 function updateMeleeClassRestrictions() {
   document.querySelectorAll("[data-melee-classes]").forEach((t) => {
-    const e = t.dataset.meleeClasses.split(" "),
-      n = t.querySelector("input"),
-      o = !e.includes("all") && !e.includes(currentClass);
-    t.classList.toggle("disabled", o), o && (n.checked = !1), (n.disabled = o);
-  }),
-    recalculateAllDamage();
+    const e = t.dataset.meleeClasses.split(" ");
+    const n = t.querySelector("input");
+    const o = !e.includes("all") && !e.includes(currentClass);
+    t.classList.toggle("disabled", o);
+    if (n) {
+      if (o) n.checked = false;
+      n.disabled = o;
+    }
+  });
+  recalculateAllDamage();
 }
 
 /* -------- ARMOR OPTIMIZATION FUNCTIONS -------- */
@@ -1228,19 +1291,28 @@ function findOptimalBuilds() {
 
   inventoryData.forEach((item) => {
     const type = bucketToType[item.bucketHash];
-    if (!type) return;
     if (
-      item.classType !== undefined &&
-      item.classType !== 3 &&
-      item.classType !== classId
+      !type ||
+      (item.classType !== undefined &&
+        item.classType !== 3 &&
+        item.classType !== classId)
     ) {
       return;
     }
     armorByType[type].push(item);
   });
 
-  const selectedExoticId = document.getElementById("exoticSelect").value;
+  const selectedExoticId = document.getElementById("exoticSelect")?.value;
   let results = [];
+
+  // Limit search space for performance
+  for (const key in armorByType) {
+    armorByType[key].sort(
+      (a, b) =>
+        Object.values(b.stats || {}).reduce((s, v) => s + v, 0) -
+        Object.values(a.stats || {}).reduce((s, v) => s + v, 0)
+    );
+  }
 
   for (const helmet of armorByType.helmet) {
     for (const gauntlets of armorByType.gauntlets) {
@@ -1273,7 +1345,6 @@ function findOptimalBuilds() {
     }
   }
 
-  // Sort by total stats descending
   results.sort(
     (a, b) =>
       Object.values(b.totals).reduce((sum, val) => sum + val, 0) -
@@ -1285,13 +1356,14 @@ function findOptimalBuilds() {
 
 const buildsPerPage = 25;
 let currentPage = 1;
-let generatedBuilds = [];
 
 function displayBuildResults(results, page = 1) {
   generatedBuilds = results;
   const container = document.getElementById("resultsContainer");
-  if (!container) return;
   const resultsDiv = document.getElementById("optimizationResults");
+
+  if (!container || !resultsDiv) return;
+
   if (results.length === 0) {
     container.innerHTML =
       '<div class="empty-state">No matching builds found.</div>';
@@ -1317,26 +1389,26 @@ function displayBuildResults(results, page = 1) {
       const pieceHtml = res.pieces
         .map(
           (p) => `
-                <div class="result-armor-piece ${p.isExotic ? "exotic" : ""}">
-                  <div class="result-armor-icon">
-                    ${p.icon ? `<img src="${p.icon}" />` : ""}
-                  </div>
-                  <div class="result-armor-name">${p.displayName}</div>
-                </div>`
+              <div class="result-armor-piece ${p.isExotic ? "exotic" : ""}">
+                <div class="result-armor-icon">
+                  ${p.icon ? `<img src="${p.icon}" />` : ""}
+                </div>
+                <div class="result-armor-name">${p.displayName}</div>
+              </div>`
         )
         .join("");
 
       return `
-              <div class="result-item">
-                <div class="result-header">
-                  <div class="result-title">Build ${buildNumber}</div>
-                </div>
-                <div class="result-stats">${statHtml}</div>
-                <div class="result-armor-grid">${pieceHtml}</div>
-                <button class="load-result-button" onclick="loadGeneratedBuild(${
-                  buildNumber - 1
-                })">Load This Build</button>
-              </div>`;
+            <div class="result-item">
+              <div class="result-header">
+                <div class="result-title">Build ${buildNumber}</div>
+              </div>
+              <div class="result-stats">${statHtml}</div>
+              <div class="result-armor-grid">${pieceHtml}</div>
+              <button class="load-result-button" onclick="loadGeneratedBuild(${
+                buildNumber - 1
+              })">Load This Build</button>
+            </div>`;
     })
     .join("");
 
@@ -1352,22 +1424,22 @@ function updatePaginationControls(totalPages) {
     return;
   }
   controls.innerHTML = `
-          <button onclick="changePage(${
-            currentPage - 1
-          })" ${currentPage === 1 ? "disabled" : ""}>Prev</button>
-          <span>Page ${currentPage} / ${totalPages}</span>
-          <button onclick="changePage(${
-            currentPage + 1
-          })" ${currentPage === totalPages ? "disabled" : ""}>Next</button>
-        `;
+        <button onclick="changePage(${
+          currentPage - 1
+        })" ${currentPage === 1 ? "disabled" : ""}>Prev</button>
+        <span>Page ${currentPage} / ${totalPages}</span>
+        <button onclick="changePage(${
+          currentPage + 1
+        })" ${currentPage === totalPages ? "disabled" : ""}>Next</button>
+      `;
 }
 
 function changePage(p) {
-  displayBuildResults(window.generatedBuilds, p);
+  displayBuildResults(generatedBuilds, p);
 }
 
 function loadGeneratedBuild(index) {
-  const build = window.generatedBuilds?.[index];
+  const build = generatedBuilds?.[index];
   if (!build) return;
   selectedInventoryItems = {};
   build.pieces.forEach((p) => {
@@ -1420,16 +1492,6 @@ function updateExoticOptions() {
 }
 
 function getTargetStatValue(statName) {
-  // Map the display stat names to actual stat names
-  const statMap = {
-    Weapons: "mobility",
-    Health: "resilience",
-    Class: "recovery",
-    Melee: "strength",
-    Grenade: "discipline",
-    Super: "intellect",
-  };
-
   return state.statValues[statName] || 10;
 }
 
@@ -1456,34 +1518,6 @@ function calculateTotalStats(armorPieces) {
   return totals;
 }
 
-function calculateOptimizationScore(actualStats, targetStats) {
-  let score = 0;
-
-  // Calculate score based on how close we are to target tiers
-  Object.entries(targetStats).forEach(([stat, target]) => {
-    const actual = actualStats[stat] || 0;
-    const targetTier = Math.floor(target / 10);
-    const actualTier = Math.floor(actual / 10);
-
-    // Penalize being under target more than being over
-    if (actualTier < targetTier) {
-      score -= (targetTier - actualTier) * 20;
-    } else if (actualTier > targetTier) {
-      score -= (actualTier - targetTier) * 5;
-    } else {
-      score += 10;
-    }
-
-    // Bonus for getting close to the next tier
-    const remainder = actual % 10;
-    if (remainder >= 8) {
-      score += 2;
-    }
-  });
-
-  return score;
-}
-
 function clearSelection() {
   selectedInventoryItems = {};
   updateArmorDisplay();
@@ -1493,18 +1527,23 @@ function clearSelection() {
 
 /* -------- LOADOUT MANAGEMENT FUNCTIONS -------- */
 function showLoadoutModal() {
-  document.getElementById("loadoutModal").style.display = "block";
-  displayLoadouts();
+  const modal = document.getElementById("loadoutModal");
+  if (modal) {
+    modal.style.display = "block";
+    displayLoadouts();
+  }
 }
 
 function hideLoadoutModal() {
-  document.getElementById("loadoutModal").style.display = "none";
+  const modal = document.getElementById("loadoutModal");
+  if (modal) {
+    modal.style.display = "none";
+  }
 }
 
 function saveLoadout() {
-  const name =
-    document.getElementById("loadoutName").value ||
-    `Loadout ${savedLoadouts.length + 1}`;
+  const nameInput = document.getElementById("loadoutName");
+  const name = nameInput?.value || `Loadout ${savedLoadouts.length + 1}`;
 
   if (Object.keys(selectedInventoryItems).length === 0) {
     showNotification("No armor selected to save", "error");
@@ -1521,7 +1560,7 @@ function saveLoadout() {
   savedLoadouts.push(loadout);
   localStorage.setItem("d2ArmorLoadouts", JSON.stringify(savedLoadouts));
 
-  document.getElementById("loadoutName").value = "";
+  if (nameInput) nameInput.value = "";
   displayLoadouts();
   showNotification(`Loadout "${name}" saved!`, "success");
 }
@@ -1535,6 +1574,7 @@ function loadSavedLoadouts() {
 
 function displayLoadouts() {
   const container = document.getElementById("loadoutList");
+  if (!container) return;
 
   if (savedLoadouts.length === 0) {
     container.innerHTML =
@@ -1545,20 +1585,22 @@ function displayLoadouts() {
   container.innerHTML = savedLoadouts
     .map(
       (loadout, index) => `
-          <div class="loadout-item">
-            <div>
-              <strong style="color: #ffd700;">${loadout.name}</strong>
-              <br>
-              <small style="color: #aaa;">${new Date(loadout.timestamp).toLocaleDateString()}</small>
-            </div>
-            <div style="display: flex; gap: 10px;">
-              <button class="auth-button-small" style="padding: 8px 16px; font-size: 0.9em;" 
-                onclick="loadLoadout(${index})">Load</button>
-              <button class="auth-button-small" style="padding: 8px 16px; font-size: 0.9em; background: linear-gradient(135deg, #dc3545, #c82333);" 
-                onclick="deleteLoadout(${index})">Delete</button>
-            </div>
+        <div class="loadout-item">
+          <div>
+            <strong style="color: #ffd700;">${loadout.name}</strong>
+            <br>
+            <small style="color: #aaa;">${new Date(
+              loadout.timestamp
+            ).toLocaleDateString()}</small>
           </div>
-        `
+          <div style="display: flex; gap: 10px;">
+            <button class="auth-button-small" style="padding: 8px 16px; font-size: 0.9em;" 
+              onclick="loadLoadout(${index})">Load</button>
+            <button class="auth-button-small" style="padding: 8px 16px; font-size: 0.9em; background: linear-gradient(135deg, #dc3545, #c82333);" 
+              onclick="deleteLoadout(${index})">Delete</button>
+          </div>
+        </div>
+      `
     )
     .join("");
 }
@@ -1567,12 +1609,9 @@ function loadLoadout(index) {
   const loadout = savedLoadouts[index];
   if (!loadout) return;
 
-  // Clear current selection
   selectedInventoryItems = {};
 
-  // Load the saved items
   Object.entries(loadout.items).forEach(([instanceId, item]) => {
-    // Find the item in current inventory
     const currentItem = inventoryData.find(
       (i) => i.itemInstanceId === instanceId
     );
@@ -1581,7 +1620,6 @@ function loadLoadout(index) {
     }
   });
 
-  // Load target stats if saved
   if (loadout.targetStats) {
     state.statValues = JSON.parse(JSON.stringify(loadout.targetStats));
     updateAllStatCalculations();

@@ -180,7 +180,7 @@ class D2ApiClient {
   }
 
   isExotic(item) {
-    return item.inventory?.tierType === 6;
+    return item.definition?.inventory?.tierType === 6;
   }
 
   getItemPowerLevel(item) {
@@ -203,19 +203,13 @@ class D2ApiClient {
 
   // Process inventory for display
   async processInventoryItems(items) {
-    // Get all unique item hashes
     const itemHashes = [...new Set(items.map((item) => item.itemHash))];
-
-    // Batch fetch definitions
     const definitions = await this.getItemDefinitions(itemHashes);
     const statDefinitions = await this.getStatDefinitions();
 
-    // Process each item
     return items.map((item) => {
       const definition = definitions[item.itemHash];
-      const isMasterworked =
-        item.instance?.energy?.energyCapacity === 10 ||
-        item.instance?.primaryStat?.value >= 1810;
+      const isMasterworked = item.instance?.energy?.energyCapacity === 10;
 
       return {
         ...item,
@@ -226,14 +220,14 @@ class D2ApiClient {
         icon: definition?.displayProperties?.icon
           ? `https://www.bungie.net${definition.displayProperties.icon}`
           : null,
-        isExotic: this.isExotic(item),
+        isExotic: this.isExotic({ definition }),
         isArtifice: this.isArtificeArmor(item),
-        isMasterworked: isMasterworked,
-        masterworkProgress: item.instance?.energy?.energyCapacity || 0,
+        isMasterworked,
         powerLevel: this.getItemPowerLevel(item),
         classType: definition?.classType,
         stats: this.getItemStats(item, statDefinitions),
         bucketHash: item.bucketHash || definition?.inventory?.bucketTypeHash,
+        itemInstanceId: item.itemInstanceId,
       };
     });
   }
@@ -241,8 +235,3 @@ class D2ApiClient {
 
 // Create global instance
 window.d2Api = new D2ApiClient();
-
-// Export for module usage
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = D2ApiClient;
-}
