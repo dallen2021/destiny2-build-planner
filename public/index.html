@@ -276,8 +276,11 @@
       .armor-name {
         font-weight: bold;
         font-size: 1.1em;
-        color: #ffd700;
         margin-bottom: 5px;
+      }
+
+      .legendary .armor-name {
+        color: #b686ff;
       }
 
       .exotic .armor-name {
@@ -295,9 +298,9 @@
         position: absolute;
         top: 15px;
         right: 15px;
-        font-size: 1.2em;
+        font-size: 0.9em;
         font-weight: bold;
-        color: #8a2be2;
+        color: #fff;
       }
 
       .armor-stats {
@@ -389,76 +392,6 @@
         border: 2px solid #2196f3;
       }
 
-      /* Armor tier dropdowns */
-      .armor-tier-selector {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
-      }
-
-      .armor-piece {
-        background: linear-gradient(
-          135deg,
-          rgba(50, 50, 60, 0.8),
-          rgba(40, 40, 50, 0.8)
-        );
-        padding: 15px;
-        border-radius: 12px;
-        text-align: center;
-        border: 2px solid rgba(138, 43, 226, 0.3);
-        transition: all 0.3s ease;
-      }
-
-      .armor-piece:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(138, 43, 226, 0.4);
-      }
-
-      .armor-piece label {
-        display: block;
-        margin-bottom: 8px;
-        font-weight: bold;
-        color: #ffd700;
-        font-size: 1.1em;
-      }
-
-      .armor-piece select {
-        width: 100%;
-        padding: 8px;
-        border-radius: 8px;
-        background: #333;
-        color: #fff;
-        border: 1px solid #555;
-        font-size: 1em;
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-
-      .armor-piece select:hover {
-        border-color: #8a2be2;
-      }
-
-      .stat-point-summary {
-        text-align: center;
-        font-size: 1.3em;
-        margin-bottom: 25px;
-        padding: 15px;
-        background: linear-gradient(
-          135deg,
-          rgba(138, 43, 226, 0.3),
-          rgba(75, 0, 130, 0.3)
-        );
-        border-radius: 15px;
-        border: 2px solid rgba(255, 215, 0, 0.4);
-        font-weight: bold;
-      }
-
-      .stat-point-summary .error {
-        color: #ff4d4d;
-        font-weight: bold;
-        animation: pulse 1s infinite;
-      }
 
       @keyframes pulse {
         0% {
@@ -797,6 +730,13 @@
           rgba(75, 0, 130, 0.5)
         );
         border-color: #ffd700;
+      }
+
+      .class-selector {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 20px;
       }
 
       .exotic-group {
@@ -1234,8 +1174,11 @@
         <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
           Target Stat Distribution
         </h2>
-        <div class="armor-tier-selector" id="armorTierSelector"></div>
-        <div class="stat-point-summary" id="statPointSummary"></div>
+        <div class="class-selector" id="classSelector">
+          <button class="class-button" id="hunterClassTop" onclick="selectClass('hunter')">Hunter</button>
+          <button class="class-button" id="titanClassTop" onclick="selectClass('titan')">Titan</button>
+          <button class="class-button" id="warlockClassTop" onclick="selectClass('warlock')">Warlock</button>
+        </div>
         <div class="stat-allocator" id="statAllocator"></div>
 
         <div style="margin-top: 20px; text-align: center">
@@ -2284,7 +2227,6 @@
         ],
       ];
 
-      const armorTierStats = { 1: 67, 2: 73, 3: 79, 4: 85, 5: 95 };
       const statsArr = [
         "Weapons",
         "Health",
@@ -2381,10 +2323,10 @@
       window.addEventListener("DOMContentLoaded", async () => {
         await initializeApp();
         initializeArtifact();
-        initArmorSelectors();
         initStatAllocator();
         updateAllStatCalculations();
-        selectClass("hunter");
+        const savedClass = localStorage.getItem("selectedClass") || "hunter";
+        selectClass(savedClass);
         loadSavedLoadouts();
 
         // Add event listener for instance component
@@ -2651,7 +2593,10 @@
         const tierFilter =
           document.getElementById("armorTierFilter")?.value || "all";
 
-        return inventoryData.filter((item) => {
+        const classMap = { titan: 0, hunter: 1, warlock: 2 };
+        const classId = classMap[currentClass];
+
+        const filtered = inventoryData.filter((item) => {
           // Type filter
           if (typeFilter !== "all") {
             const bucketToType = {
@@ -2670,8 +2615,34 @@
             if (tierFilter === "legendary" && item.isExotic) return false;
           }
 
+          // Class filter
+          if (
+            item.classType !== undefined &&
+            item.classType !== 3 &&
+            item.classType !== classId
+          ) {
+            return false;
+          }
+
           return true;
         });
+
+        const order = {
+          3448274439: 0,
+          3551918588: 1,
+          14239492: 2,
+          20886954: 3,
+          1585787867: 4,
+        };
+
+        filtered.sort((a, b) => {
+          if (a.isExotic !== b.isExotic) return a.isExotic ? -1 : 1;
+          if (order[a.bucketHash] !== order[b.bucketHash])
+            return order[a.bucketHash] - order[b.bucketHash];
+          return (b.powerLevel || 0) - (a.powerLevel || 0);
+        });
+
+        return filtered;
       }
 
       function toggleInventoryItem(instanceId) {
@@ -2775,18 +2746,6 @@
         }
       }
 
-      /* -------- Armor tier dropdowns -------- */
-      function initArmorSelectors() {
-        const cont = document.getElementById("armorTierSelector");
-        const pieces = ["Helmet", "Arms", "Chest", "Legs", "Class Item"];
-        pieces.forEach((p) => {
-          const div = document.createElement("div");
-          div.className = "armor-piece";
-          div.innerHTML = `<label>${p}</label><select class="armor-tier-select"><option value="1">T1</option><option value="2">T2</option><option value="3" selected>T3</option><option value="4">T4</option><option value="5">T5</option></select>`;
-          cont.appendChild(div);
-        });
-        cont.addEventListener("change", updateAllStatCalculations);
-      }
 
       /* ---------------- Stat allocator via BOXES ---------------- */
       function initStatAllocator() {
@@ -2832,20 +2791,6 @@
 
       /* ----------- Calculation & UI refresh ----------- */
       function updateAllStatCalculations() {
-        let avail = 0;
-        document
-          .querySelectorAll(".armor-tier-select")
-          .forEach((sel) => (avail += armorTierStats[sel.value]));
-        const allocated = Object.values(state.statValues).reduce(
-          (a, b) => a + b,
-          0
-        );
-
-        const summary = document.getElementById("statPointSummary");
-        summary.innerHTML = `Available Points: <span style="color:#ffd700">${avail}</span> | Allocated: <span>${allocated}</span>${
-          allocated > avail ? " <span class='error'>OVERBUDGET!</span>" : ""
-        }`;
-
         statsArr.forEach((stat) => {
           const cur = state.statValues[stat];
           document
@@ -2853,11 +2798,6 @@
             .forEach((box) => {
               const value = Number(box.dataset.value);
               box.classList.toggle("selected", value === cur);
-              const prospective = allocated - cur + value;
-              box.classList.toggle(
-                "disabled",
-                prospective > avail && value > cur
-              );
             });
         });
 
@@ -3204,22 +3144,25 @@
       }
 
       function selectClass(t) {
-        (currentClass = t),
-          document
-            .querySelectorAll(".class-button")
-            .forEach((t) => t.classList.remove("active")),
-          document.getElementById(t + "Class").classList.add("active"),
-          document
-            .querySelectorAll(".exotic-group")
-            .forEach((t) => (t.style.display = "none")),
-          (document.querySelector("." + t + "-exotics").style.display =
-            "block"),
-          selectedExotics.clear(),
-          document.querySelectorAll(".exotic-checkbox").forEach((t) => {
-            t.checked = !1;
-          }),
-          updateExoticRestrictions(),
-          updateMeleeClassRestrictions();
+        currentClass = t;
+        localStorage.setItem("selectedClass", t);
+        document
+          .querySelectorAll(".class-button")
+          .forEach((btn) => btn.classList.remove("active"));
+        const mainBtn = document.getElementById(t + "Class");
+        if (mainBtn) mainBtn.classList.add("active");
+        const topBtn = document.getElementById(t + "ClassTop");
+        if (topBtn) topBtn.classList.add("active");
+        document
+          .querySelectorAll(".exotic-group")
+          .forEach((el) => (el.style.display = "none"));
+        document.querySelector("." + t + "-exotics").style.display = "block";
+        selectedExotics.clear();
+        document.querySelectorAll(".exotic-checkbox").forEach((c) => {
+          c.checked = false;
+        });
+        updateExoticRestrictions();
+        updateMeleeClassRestrictions();
         updateExoticOptions();
         findOptimalBuilds();
       }
@@ -3385,8 +3328,7 @@
             .sort((a, b) => {
               const getTotal = (it) => Object.values(it.stats || {}).reduce((s, v) => s + v, 0);
               return getTotal(b) - getTotal(a);
-            })
-            .slice(0, 20);
+            });
         });
 
         const results = [];
