@@ -19,6 +19,7 @@ const manifestRoutes = require('./routes/manifest');
 const { updateManifest } = require('./services/manifestService');
 
 const app = express();
+app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
