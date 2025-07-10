@@ -1220,10 +1220,7 @@
         >
           Connect to Bungie.net
         </button>
-        <button
-          class="auth-button-small"
-          onclick="loadInventory()"
-        >
+        <button class="auth-button-small" onclick="loadInventory()">
           Reload Items
         </button>
       </div>
@@ -1245,19 +1242,20 @@
         <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
           Target Stat Distribution
         </h2>
-        <div class="class-selector" style="text-align:center;margin-bottom:20px">
-          <button class="class-button" id="topHunterClass" data-class="hunter" onclick="selectClass('hunter')">Hunter</button>
-          <button class="class-button" id="topTitanClass" data-class="titan" onclick="selectClass('titan')">Titan</button>
-          <button class="class-button" id="topWarlockClass" data-class="warlock" onclick="selectClass('warlock')">Warlock</button>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 20px">
+          <div class="class-selector">
+            <button class="class-button" id="topHunterClass" data-class="hunter" onclick="selectClass('hunter')">Hunter</button>
+            <button class="class-button" id="topTitanClass" data-class="titan" onclick="selectClass('titan')">Titan</button>
+            <button class="class-button" id="topWarlockClass" data-class="warlock" onclick="selectClass('warlock')">Warlock</button>
+          </div>
+          <div>
+            <select id="exoticSelect" class="filter-select" onchange="updateAllStatCalculations()">
+              <option value="">Any Exotic</option>
+            </select>
+          </div>
         </div>
         <div class="stat-allocator" id="statAllocator"></div>
-
-        <div style="margin-top: 20px; text-align: center">
-          <label for="exoticSelect" style="margin-right:10px">Preferred Exotic</label>
-          <select id="exoticSelect" class="filter-select" onchange="findOptimalBuilds()">
-            <option value="">Any Exotic</option>
-          </select>
-        </div>
+      </div>
 
         <!-- Optimization Button -->
         <div style="margin-top: 20px; text-align: center">
@@ -2543,14 +2541,14 @@
             }
           }
 
-        inventoryData = await window.d2Api.processInventoryItems(armorItems);
+          inventoryData = await window.d2Api.processInventoryItems(armorItems);
 
-        updateArmorDisplay();
-        updateExoticOptions();
-        showNotification(
-          `Loaded ${inventoryData.length} armor pieces`,
-          "success"
-        );
+          updateArmorDisplay();
+          updateExoticOptions();
+          showNotification(
+            `Loaded ${inventoryData.length} armor pieces`,
+            "success"
+          );
         } catch (error) {
           console.error("Failed to load inventory:", error);
           showNotification(
@@ -2686,7 +2684,11 @@
         const classId = classMap[currentClass];
 
         return inventoryData.filter((item) => {
-          if (item.classType !== undefined && item.classType !== 3 && item.classType !== classId) {
+          if (
+            item.classType !== undefined &&
+            item.classType !== 3 &&
+            item.classType !== classId
+          ) {
             return false;
           }
           // Type filter
@@ -3390,7 +3392,11 @@
           const type = bucketToType[item.bucketHash];
           if (!type) return;
 
-          if (item.classType !== undefined && item.classType !== 3 && item.classType !== classId) {
+          if (
+            item.classType !== undefined &&
+            item.classType !== 3 &&
+            item.classType !== classId
+          ) {
             return;
           }
 
@@ -3403,7 +3409,8 @@
         Object.keys(armorByType).forEach((key) => {
           armorByType[key] = armorByType[key]
             .sort((a, b) => {
-              const getTotal = (it) => Object.values(it.stats || {}).reduce((s, v) => s + v, 0);
+              const getTotal = (it) =>
+                Object.values(it.stats || {}).reduce((s, v) => s + v, 0);
               return getTotal(b) - getTotal(a);
             })
             .slice(0, 20);
@@ -3419,10 +3426,16 @@
                   const pieces = [helmet, gauntlets, chest, legs, classItem];
                   const exotics = pieces.filter((p) => p.isExotic);
                   if (exotics.length > 1) continue;
-                  if (selectedExotic && !pieces.find((p) => p.itemInstanceId === selectedExotic)) continue;
+                  if (
+                    selectedExotic &&
+                    !pieces.find((p) => p.itemInstanceId === selectedExotic)
+                  )
+                    continue;
 
                   const totals = calculateTotalStats(pieces);
-                  const meets = Object.keys(targetStats).every((k) => totals[k] >= targetStats[k]);
+                  const meets = Object.keys(targetStats).every(
+                    (k) => totals[k] >= targetStats[k]
+                  );
                   if (meets) {
                     results.push({ pieces, totals });
                     if (results.length >= 20) break;
@@ -3505,7 +3518,9 @@
         const exotics = inventoryData.filter(
           (i) =>
             i.isExotic &&
-            (i.classType === undefined || i.classType === 3 || i.classType === classId)
+            (i.classType === undefined ||
+              i.classType === 3 ||
+              i.classType === classId)
         );
 
         const slotOrder = {
@@ -3524,10 +3539,12 @@
         });
 
         const current = select.value;
-        select.innerHTML = '<option value="">Any Exotic</option>' +
+        select.innerHTML =
+          '<option value="">Any Exotic</option>' +
           exotics
             .map(
-              (e) => `<option value="${e.itemInstanceId}">${e.displayName}</option>`
+              (e) =>
+                `<option value="${e.itemInstanceId}">${e.displayName}</option>`
             )
             .join("");
 
