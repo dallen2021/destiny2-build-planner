@@ -163,10 +163,6 @@ body {
   flex-shrink: 0;
 }
 
-.build-results {
-  flex-grow: 1;
-}
-
 .pagination-controls {
   display: flex;
   justify-content: center;
@@ -938,7 +934,12 @@ body {
 }
 
 .build-results {
-  margin-top: 0;
+  display: none; /* Hide by default */
+  flex-grow: 1;
+}
+
+.build-results.active {
+  display: block; /* Show when active */
 }
 
 .result-item {

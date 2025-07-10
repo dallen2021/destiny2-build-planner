@@ -1361,7 +1361,7 @@ function displayBuildResults(results, page = 1) {
   if (results.length === 0) {
     container.innerHTML =
       '<div class="empty-state">No matching builds found.</div>';
-    resultsDiv.style.display = "block";
+    resultsDiv.classList.add("active"); // Use a class to show
     return;
   }
 
@@ -1407,7 +1407,7 @@ function displayBuildResults(results, page = 1) {
     .join("");
 
   updatePaginationControls(totalPages);
-  resultsDiv.style.display = "block";
+  resultsDiv.classList.add("active"); // Use a class to show
 }
 
 function updatePaginationControls(totalPages) {
