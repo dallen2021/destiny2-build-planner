@@ -42,7 +42,10 @@
       <div class="nav-tab active" onclick="switchTab('armor')">
         Armor Optimizer
       </div>
-      </div>
+      <div class="nav-tab" onclick="switchTab('artifact')">Artifact Mods</div>
+      <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
+      <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
+    </div>
 
     <div id="armor" class="content-section active">
       <div id="optimizerLayout" class="optimizer-layout">
@@ -125,125 +128,6 @@
           </div>
         </div>
       </div>
-
-      <div class="armor-optimizer-section" style="margin-top: 30px">
-        </div>
-    </div>
-
-      <!-- Armor Collection Section -->
-      <div class="armor-optimizer-section" style="margin-top: 30px">
-        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
-          My Armor Collection
-        </h2>
-
-        <div class="filter-controls">
-          <select
-            class="filter-select"
-            id="armorTypeFilter"
-            onchange="updateArmorDisplay()"
-          >
-            <option value="all">All Armor</option>
-            <option value="helmet">Helmets</option>
-            <option value="gauntlets">Gauntlets</option>
-            <option value="chest">Chest Armor</option>
-            <option value="legs">Leg Armor</option>
-            <option value="classItem">Class Items</option>
-          </select>
-
-          <select
-            class="filter-select"
-            id="armorTierFilter"
-            onchange="updateArmorDisplay()"
-          >
-            <option value="all">All Tiers</option>
-            <option value="legendary">Legendary</option>
-            <option value="exotic">Exotic</option>
-          </select>
-
-          <button class="auth-button-small" onclick="loadInventory()">
-            Refresh Inventory
-          </button>
-        </div>
-
-        <div id="armorContainer" class="armor-grid">
-          <div class="empty-state">
-            Connect to Bungie.net to load your armor collection
-          </div>
-        </div>
-      </div>
-
-      <!-- Loadout Modal -->
-      <div
-        id="loadoutModal"
-        style="
-          display: none;
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.8);
-          z-index: 9999;
-        "
-      >
-        <div
-          style="
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(30, 30, 40, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            min-width: 400px;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            border: 2px solid rgba(138, 43, 226, 0.5);
-          "
-        >
-          <h2 style="color: #ffd700; margin-bottom: 20px">Manage Loadouts</h2>
-
-          <div style="margin-bottom: 20px">
-            <input
-              type="text"
-              id="loadoutName"
-              placeholder="Loadout Name"
-              style="
-                width: 100%;
-                padding: 10px;
-                background: rgba(50, 50, 60, 0.8);
-                border: 2px solid #444;
-                border-radius: 8px;
-                color: #fff;
-                font-size: 1em;
-              "
-            />
-            <button
-              class="auth-button-small"
-              onclick="saveLoadout()"
-              style="margin-top: 10px; width: 100%"
-            >
-              Save Current Build
-            </button>
-          </div>
-
-          <div id="loadoutList" style="margin-top: 20px">
-            <!-- Loadouts will be dynamically added here -->
-          </div>
-
-          <button
-            class="auth-button-small"
-            onclick="hideLoadoutModal()"
-            style="
-              margin-top: 20px;
-              background: linear-gradient(135deg, #dc3545, #c82333);
-            "
-          >
-            Close
-          </button>
-        </div>
-      </div>
     </div>
 
     <div id="artifact" class="content-section">
@@ -277,6 +161,7 @@
         </center>
       </div>
     </div>
+
     <div id="damage" class="content-section">
       <div class="calc-container">
         <div class="calc-row">
@@ -953,6 +838,5 @@
     <script src="/js/api.js"></script>
     <script src="/js/manifest.js"></script>
     <script src="/js/app.js"></script>
-
   </body>
 </html>

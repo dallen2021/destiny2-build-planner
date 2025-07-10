@@ -245,7 +245,6 @@ const exoticClassItemCombinations = {
 
 /* ------------------- GLOBAL STATE ------------------- */
 let isAuthenticated = false;
-let selectedInventoryItems = {};
 let inventoryData = [];
 let generatedBuilds = [];
 let currentPage = 1;
@@ -268,8 +267,6 @@ const state = {
   },
 };
 
-let savedLoadouts = [];
-
 window.addEventListener("DOMContentLoaded", async () => {
   await initializeApp();
   initializeArtifact();
@@ -277,7 +274,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   updateAllStatCalculations();
   const savedClass = localStorage.getItem("d2SelectedClass") || "hunter";
   selectClass(savedClass);
-  loadSavedLoadouts();
 });
 
 /* -------- AUTH & INVENTORY FUNCTIONS -------- */
@@ -337,8 +333,6 @@ async function handleAuth() {
       showNotification("Disconnected from Bungie.net", "info");
       await checkAuth();
       inventoryData = [];
-      selectedInventoryItems = {};
-      updateArmorDisplay();
     } catch (error) {
       console.error("Logout error:", error);
       showNotification("Failed to disconnect", "error");
@@ -396,7 +390,6 @@ async function loadInventory() {
 
     inventoryData = await window.d2Api.processInventoryItems(armorItems);
 
-    updateArmorDisplay();
     updateExoticOptions();
     showNotification(`Loaded ${inventoryData.length} armor pieces`, "success");
   } catch (error) {
@@ -416,232 +409,6 @@ function isArmorItem(item) {
     1585787867, // Class item
   ];
   return armorBuckets.includes(item.bucketHash);
-}
-
-function updateArmorDisplay() {
-  const container = document.getElementById("armorContainer");
-  if (!container) return;
-
-  if (!isAuthenticated) {
-    container.innerHTML =
-      '<div class="empty-state">Connect to Bungie.net to load your armor collection</div>';
-    return;
-  }
-
-  if (inventoryData.length === 0) {
-    container.innerHTML =
-      '<div class="empty-state">No armor found. Try refreshing your inventory.</div>';
-    return;
-  }
-
-  const filtered = filterArmor();
-
-  const bucketOrder = {
-    3448274439: 0,
-    3551918588: 1,
-    14239492: 2,
-    20886954: 3,
-    1585787867: 4,
-  };
-
-  filtered.sort((a, b) => {
-    const orderA = bucketOrder[a.bucketHash] ?? 5;
-    const orderB = bucketOrder[b.bucketHash] ?? 5;
-    if (orderA !== orderB) return orderA - orderB;
-    if (a.isExotic !== b.isExotic) return a.isExotic ? -1 : 1;
-    return b.powerLevel - a.powerLevel;
-  });
-
-  container.innerHTML = filtered
-    .map((item) => {
-      const tierClass = item.isExotic ? "exotic" : "legendary";
-      const masterworkClass = item.isMasterworked ? "masterworked" : "";
-      const statNames = {
-        mobility: "MOBILITY",
-        resilience: "RESILIENCE",
-        recovery: "RECOVERY",
-        discipline: "DISCIPLINE",
-        intellect: "INTELLECT",
-        strength: "STRENGTH",
-      };
-
-      // Order stats correctly
-      const statOrder = [
-        "mobility",
-        "resilience",
-        "recovery",
-        "discipline",
-        "intellect",
-        "strength",
-      ];
-      const orderedStats = {};
-      statOrder.forEach((stat) => {
-        if (item.stats && item.stats[stat] !== undefined) {
-          orderedStats[stat] = item.stats[stat];
-        }
-      });
-
-      return `
-              <div class="armor-item ${tierClass} ${masterworkClass} ${
-                selectedInventoryItems[item.itemInstanceId] ? "selected" : ""
-              }" 
-                   onclick="toggleInventoryItem('${item.itemInstanceId}')"
-                   data-instance-id="${item.itemInstanceId}">
-                  <div class="armor-header">
-                      <div class="armor-icon ${masterworkClass}">
-                          ${
-                            item.icon
-                              ? `<img src="${item.icon}" alt="${item.displayName}" />`
-                              : ""
-                          }
-                      </div>
-                      <div class="armor-info">
-                          <div class="armor-name">${item.displayName}</div>
-                          <div class="armor-type">${item.itemType} ${
-                            item.location === "vault" ? "(Vault)" : ""
-                          }</div>
-                      </div>
-                      <div class="armor-power">${item.powerLevel || 0}</div>
-                  </div>
-                  <div class="armor-stats">
-                      ${Object.entries(orderedStats)
-                        .map(
-                          ([stat, value]) => `
-                              <div class="stat-item">
-                                  <div class="stat-name">${
-                                    statNames[stat] || stat.toUpperCase()
-                                  }</div>
-                                  <div class="stat-value">${value}</div>
-                              </div>
-                          `
-                        )
-                        .join("")}
-                  </div>
-                  <div class="armor-tags">
-                      ${
-                        item.isArtifice
-                          ? '<div class="armor-tag artifice">⬢ Artifice</div>'
-                          : ""
-                      }
-                      ${
-                        item.isExotic
-                          ? '<div class="armor-tag exotic">★ Exotic</div>'
-                          : ""
-                      }
-                      ${
-                        item.isMasterworked
-                          ? '<div class="armor-tag">✦ Masterworked</div>'
-                          : ""
-                      }
-                  </div>
-              </div>
-            `;
-    })
-    .join("");
-}
-
-function filterArmor() {
-  const typeFilter = document.getElementById("armorTypeFilter")?.value || "all";
-  const tierFilter = document.getElementById("armorTierFilter")?.value || "all";
-  const classMap = { titan: 0, hunter: 1, warlock: 2 };
-  const classId = classMap[currentClass];
-
-  return inventoryData.filter((item) => {
-    if (
-      item.classType !== undefined &&
-      item.classType !== 3 &&
-      item.classType !== classId
-    ) {
-      return false;
-    }
-    // Type filter
-    if (typeFilter !== "all") {
-      const bucketToType = {
-        3448274439: "helmet",
-        3551918588: "gauntlets",
-        14239492: "chest",
-        20886954: "legs",
-        1585787867: "classItem",
-      };
-      if (bucketToType[item.bucketHash] !== typeFilter) return false;
-    }
-
-    // Tier filter
-    if (tierFilter !== "all") {
-      if (tierFilter === "exotic" && !item.isExotic) return false;
-      if (tierFilter === "legendary" && item.isExotic) return false;
-    }
-
-    return true;
-  });
-}
-
-function toggleInventoryItem(instanceId) {
-  const item = inventoryData.find((item) => item.itemInstanceId === instanceId);
-  if (!item) return;
-
-  if (selectedInventoryItems[instanceId]) {
-    delete selectedInventoryItems[instanceId];
-  } else {
-    // Check if this is exotic and we already have an exotic selected
-    const bucketToType = {
-      3448274439: "helmet",
-      3551918588: "gauntlets",
-      14239492: "chest",
-      20886954: "legs",
-      1585787867: "classItem",
-    };
-    const itemType = bucketToType[item.bucketHash];
-
-    // Remove any existing item of the same type
-    Object.keys(selectedInventoryItems).forEach((id) => {
-      const existingItem = selectedInventoryItems[id];
-      if (bucketToType[existingItem.bucketHash] === itemType) {
-        delete selectedInventoryItems[id];
-      }
-    });
-
-    selectedInventoryItems[instanceId] = item;
-  }
-
-  updateArmorDisplay();
-  updateBuildSummary();
-}
-
-function updateBuildSummary() {
-  // Calculate total stats from selected armor
-  const statTotals = {
-    mobility: 0,
-    resilience: 0,
-    recovery: 0,
-    discipline: 0,
-    intellect: 0,
-    strength: 0,
-  };
-
-  Object.values(selectedInventoryItems).forEach((item) => {
-    if (item.stats) {
-      Object.entries(item.stats).forEach(([stat, value]) => {
-        if (statTotals.hasOwnProperty(stat)) {
-          statTotals[stat] += value;
-        }
-      });
-    }
-  });
-
-  // Update display
-  Object.entries(statTotals).forEach(([stat, total]) => {
-    const capitalizedStat = stat.charAt(0).toUpperCase() + stat.slice(1);
-    const element = document.getElementById(`total${capitalizedStat}`);
-    if (element) {
-      element.textContent = total;
-      const tier = Math.floor(Math.min(total, 100) / 10);
-      const tierElement = element.parentElement.querySelector(".stat-tier");
-      if (tierElement) {
-        tierElement.textContent = `Tier ${tier}`;
-      }
-    }
-  });
 }
 
 /* -------- GENERAL UI FUNCTIONS -------- */
@@ -1146,7 +913,6 @@ function selectClass(t) {
   updateExoticRestrictions();
   updateMeleeClassRestrictions();
   updateExoticOptions();
-  updateArmorDisplay();
 }
 
 function handleExoticSelection(t) {
@@ -1361,7 +1127,7 @@ function displayBuildResults(results, page = 1) {
   if (results.length === 0) {
     container.innerHTML =
       '<div class="empty-state">No matching builds found.</div>';
-    resultsDiv.classList.add("active"); // Use a class to show
+    resultsDiv.style.display = "block";
     return;
   }
 
@@ -1407,7 +1173,7 @@ function displayBuildResults(results, page = 1) {
     .join("");
 
   updatePaginationControls(totalPages);
-  resultsDiv.classList.add("active"); // Use a class to show
+  resultsDiv.style.display = "block";
 }
 
 function updatePaginationControls(totalPages) {
@@ -1435,13 +1201,8 @@ function changePage(p) {
 function loadGeneratedBuild(index) {
   const build = generatedBuilds?.[index];
   if (!build) return;
-  selectedInventoryItems = {};
-  build.pieces.forEach((p) => {
-    selectedInventoryItems[p.itemInstanceId] = p;
-  });
-  updateArmorDisplay();
-  updateBuildSummary();
-  showNotification("Build loaded", "success");
+  // For now, just show a notification since we removed armor display
+  showNotification(`Build ${index + 1} would be loaded here`, "success");
 }
 
 function updateExoticOptions() {
@@ -1512,125 +1273,10 @@ function calculateTotalStats(armorPieces) {
   return totals;
 }
 
+/* -------- SIMPLIFIED FUNCTIONS -------- */
+// Placeholder for future functionality
+
 function clearSelection() {
-  selectedInventoryItems = {};
-  updateArmorDisplay();
-  updateBuildSummary();
+  // Placeholder - armor selection has been removed
   showNotification("Selection cleared", "info");
-}
-
-/* -------- LOADOUT MANAGEMENT FUNCTIONS -------- */
-function showLoadoutModal() {
-  const modal = document.getElementById("loadoutModal");
-  if (modal) {
-    modal.style.display = "block";
-    displayLoadouts();
-  }
-}
-
-function hideLoadoutModal() {
-  const modal = document.getElementById("loadoutModal");
-  if (modal) {
-    modal.style.display = "none";
-  }
-}
-
-function saveLoadout() {
-  const nameInput = document.getElementById("loadoutName");
-  const name = nameInput?.value || `Loadout ${savedLoadouts.length + 1}`;
-
-  if (Object.keys(selectedInventoryItems).length === 0) {
-    showNotification("No armor selected to save", "error");
-    return;
-  }
-
-  const loadout = {
-    name: name,
-    timestamp: new Date().toISOString(),
-    items: JSON.parse(JSON.stringify(selectedInventoryItems)),
-    targetStats: JSON.parse(JSON.stringify(state.statValues)),
-  };
-
-  savedLoadouts.push(loadout);
-  localStorage.setItem("d2ArmorLoadouts", JSON.stringify(savedLoadouts));
-
-  if (nameInput) nameInput.value = "";
-  displayLoadouts();
-  showNotification(`Loadout "${name}" saved!`, "success");
-}
-
-function loadSavedLoadouts() {
-  const saved = localStorage.getItem("d2ArmorLoadouts");
-  if (saved) {
-    savedLoadouts = JSON.parse(saved);
-  }
-}
-
-function displayLoadouts() {
-  const container = document.getElementById("loadoutList");
-  if (!container) return;
-
-  if (savedLoadouts.length === 0) {
-    container.innerHTML =
-      '<div style="text-align: center; color: #aaa;">No saved loadouts</div>';
-    return;
-  }
-
-  container.innerHTML = savedLoadouts
-    .map(
-      (loadout, index) => `
-        <div class="loadout-item">
-          <div>
-            <strong style="color: #ffd700;">${loadout.name}</strong>
-            <br>
-            <small style="color: #aaa;">${new Date(
-              loadout.timestamp
-            ).toLocaleDateString()}</small>
-          </div>
-          <div style="display: flex; gap: 10px;">
-            <button class="auth-button-small" style="padding: 8px 16px; font-size: 0.9em;" 
-              onclick="loadLoadout(${index})">Load</button>
-            <button class="auth-button-small" style="padding: 8px 16px; font-size: 0.9em; background: linear-gradient(135deg, #dc3545, #c82333);" 
-              onclick="deleteLoadout(${index})">Delete</button>
-          </div>
-        </div>
-      `
-    )
-    .join("");
-}
-
-function loadLoadout(index) {
-  const loadout = savedLoadouts[index];
-  if (!loadout) return;
-
-  selectedInventoryItems = {};
-
-  Object.entries(loadout.items).forEach(([instanceId, item]) => {
-    const currentItem = inventoryData.find(
-      (i) => i.itemInstanceId === instanceId
-    );
-    if (currentItem) {
-      selectedInventoryItems[instanceId] = currentItem;
-    }
-  });
-
-  if (loadout.targetStats) {
-    state.statValues = JSON.parse(JSON.stringify(loadout.targetStats));
-    updateAllStatCalculations();
-  }
-
-  updateArmorDisplay();
-  updateBuildSummary();
-  hideLoadoutModal();
-  showNotification(`Loaded "${loadout.name}"`, "success");
-}
-
-function deleteLoadout(index) {
-  const loadout = savedLoadouts[index];
-  if (confirm(`Delete "${loadout.name}"?`)) {
-    savedLoadouts.splice(index, 1);
-    localStorage.setItem("d2ArmorLoadouts", JSON.stringify(savedLoadouts));
-    displayLoadouts();
-    showNotification(`Deleted "${loadout.name}"`, "info");
-  }
 }
