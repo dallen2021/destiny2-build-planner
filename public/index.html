@@ -1219,10 +1219,81 @@
       <div class="nav-tab" onclick="switchTab('artifact')">Artifact</div>
       <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
       <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
+      <button
+        class="auth-button-small"
+        onclick="loadInventory()"
+        style="
+          margin-left: auto;
+          background: linear-gradient(135deg, #4caf50, #2e7d32);
+        "
+      >
+        Reload Inventory
+      </button>
     </div>
 
     <!-- Armor Optimizer Tab -->
     <div id="armor" class="content-section active">
+      <!-- Character & Exotic Selection -->
+      <div class="stat-selector-section" style="margin-bottom: 20px">
+        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+          Character Selection
+        </h2>
+
+        <div
+          style="
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 20px;
+          "
+        >
+          <button
+            class="class-button"
+            id="hunterClassArmor"
+            onclick="selectArmorClass('hunter')"
+            style="padding: 15px 30px; font-size: 1.1em"
+          >
+            Hunter
+          </button>
+          <button
+            class="class-button"
+            id="titanClassArmor"
+            onclick="selectArmorClass('titan')"
+            style="padding: 15px 30px; font-size: 1.1em"
+          >
+            Titan
+          </button>
+          <button
+            class="class-button"
+            id="warlockClassArmor"
+            onclick="selectArmorClass('warlock')"
+            style="padding: 15px 30px; font-size: 1.1em"
+          >
+            Warlock
+          </button>
+        </div>
+
+        <div style="margin: 20px auto; max-width: 600px">
+          <label
+            style="
+              color: #ffd700;
+              font-size: 1.1em;
+              margin-bottom: 10px;
+              display: block;
+            "
+            >Select Exotic (Optional)</label
+          >
+          <select
+            id="exoticSelect"
+            class="filter-select"
+            style="width: 100%; padding: 12px; font-size: 1em"
+            onchange="updateExoticSelection()"
+          >
+            <option value="">No Exotic Selected</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Stat Selector Section -->
       <div class="stat-selector-section">
         <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
@@ -1232,19 +1303,14 @@
         <div class="stat-point-summary" id="statPointSummary"></div>
         <div class="stat-allocator" id="statAllocator"></div>
 
-        <!-- Optimization Button -->
-        <div style="margin-top: 20px; text-align: center">
-          <button
-            class="auth-button-small"
-            onclick="findOptimalBuilds()"
-            style="
-              background: linear-gradient(135deg, #4caf50, #2e7d32);
-              padding: 15px 40px;
-              font-size: 1.2em;
-            "
-          >
-            Find Optimal Builds
-          </button>
+        <!-- Optimization Info -->
+        <div style="margin-top: 20px; text-align: center; color: #aaa">
+          <p style="margin-bottom: 10px">
+            All armor pieces are assumed to be masterworked (+2 to each stat)
+          </p>
+          <p id="buildCount" style="font-size: 1.2em; color: #ffd700">
+            Select stats to see available builds
+          </p>
         </div>
       </div>
 
@@ -1292,9 +1358,9 @@
             <option value="exotic">Exotic</option>
           </select>
 
-          <button class="auth-button-small" onclick="loadInventory()">
-            Refresh Inventory
-          </button>
+          <div style="color: #ffd700; font-size: 1.1em">
+            Total: <span id="armorCount">0</span> pieces
+          </div>
         </div>
 
         <div id="armorContainer" class="armor-grid">
@@ -2374,15 +2440,8 @@
         selectClass("hunter");
         loadSavedLoadouts();
 
-        // Add event listener for instance component
-        const instanceCheckbox = document.getElementById("includeInstances");
-        if (instanceCheckbox) {
-          instanceCheckbox.addEventListener("change", (e) => {
-            if (e.target.checked && inventoryData.length > 0) {
-              loadInventory();
-            }
-          });
-        }
+        // Initialize armor optimizer with hunter by default
+        selectArmorClass("hunter");
       });
 
       /* -------- AUTH & INVENTORY FUNCTIONS -------- */
@@ -2472,13 +2531,49 @@
         showLoading(true);
         try {
           const response = await window.d2Api.getInventory();
+
+          // Log to debug
+          console.log("API Response:", {
+            profileInventory:
+              response.profileInventory?.data?.items?.length || 0,
+            characterInventories: Object.keys(
+              response.characterInventories?.data || {}
+            ).length,
+            characterEquipment: Object.keys(
+              response.characterEquipment?.data || {}
+            ).length,
+            itemComponents: {
+              stats: Object.keys(response.itemComponents?.stats?.data || {})
+                .length,
+              instances: Object.keys(
+                response.itemComponents?.instances?.data || {}
+              ).length,
+              sockets: Object.keys(response.itemComponents?.sockets?.data || {})
+                .length,
+            },
+            keys: Object.keys(response),
+          });
+
           let armorItems = [];
 
           // Get vault armor
           if (response.profileInventory?.data?.items) {
+            console.log(
+              `Total vault items: ${response.profileInventory.data.items.length}`
+            );
+
+            // Log a sample item to see structure
+            if (response.profileInventory.data.items.length > 0) {
+              console.log(
+                "Sample vault item:",
+                response.profileInventory.data.items[0]
+              );
+            }
+
             const vaultArmor = response.profileInventory.data.items.filter(
               (item) => isArmorItem(item)
             );
+            console.log(`Found ${vaultArmor.length} vault armor pieces`);
             vaultArmor.forEach((item) => {
               item.location = "vault";
               item.stats =
@@ -2491,13 +2586,24 @@
             });
           }
 
-          // Get character armor
+          // Get character inventories
           if (response.characterInventories?.data) {
+            const charInvKeys = Object.keys(response.characterInventories.data);
+            console.log(
+              `Found ${charInvKeys.length} characters with inventories`
+            );
+
             for (const [characterId, inventory] of Object.entries(
               response.characterInventories.data
             )) {
+              console.log(
+                `Character ${characterId} has ${inventory.items.length} total items`
+              );
               const charArmor = inventory.items.filter((item) =>
                 isArmorItem(item)
+              );
+              console.log(
+                `Found ${charArmor.length} armor pieces on character ${characterId}`
               );
               charArmor.forEach((item) => {
                 item.location = characterId;
@@ -2514,13 +2620,117 @@
             }
           }
 
+          // Get equipped items
+          if (response.characterEquipment?.data) {
+            for (const [characterId, equipment] of Object.entries(
+              response.characterEquipment.data
+            )) {
+              const equippedArmor = equipment.items.filter((item) =>
+                isArmorItem(item)
+              );
+              console.log(
+                `Found ${equippedArmor.length} equipped armor pieces on character ${characterId}`
+              );
+              equippedArmor.forEach((item) => {
+                // Check if we already have this item from inventory
+                const exists = armorItems.some(
+                  (existing) => existing.itemInstanceId === item.itemInstanceId
+                );
+                if (!exists) {
+                  item.location = characterId;
+                  item.equipped = true;
+                  item.stats =
+                    response.itemComponents?.stats?.data?.[item.itemInstanceId];
+                  item.sockets =
+                    response.itemComponents?.sockets?.data?.[
+                      item.itemInstanceId
+                    ];
+                  item.instance =
+                    response.itemComponents?.instances?.data?.[
+                      item.itemInstanceId
+                    ];
+                  armorItems.push(item);
+                }
+              });
+            }
+          }
+
+          // Check for postmaster items (they might be in character inventories with a special bucket)
+          if (response.characterInventories?.data) {
+            for (const [characterId, inventory] of Object.entries(
+              response.characterInventories.data
+            )) {
+              // Postmaster bucket is 215593132, Lost Items is 215593132
+              const postmasterItems = inventory.items.filter(
+                (item) =>
+                  item.bucketHash === 215593132 ||
+                  item.bucketHash === 1345459588
+              );
+
+              if (postmasterItems.length > 0) {
+                console.log(
+                  `Found ${postmasterItems.length} postmaster items for character ${characterId}`
+                );
+
+                // Filter for armor
+                const postmasterArmor = postmasterItems.filter((item) => {
+                  // Check if item definition indicates it's armor
+                  const buckets = [
+                    3448274439, 3551918588, 14239492, 20886954, 1585787867,
+                  ];
+                  // We need to check the item's actual bucket, not where it's stored
+                  return (
+                    item.itemCategoryHashes &&
+                    item.itemCategoryHashes.includes(20)
+                  );
+                });
+
+                if (postmasterArmor.length > 0) {
+                  console.log(
+                    `Found ${postmasterArmor.length} armor pieces in postmaster`
+                  );
+                  postmasterArmor.forEach((item) => {
+                    item.location = "postmaster";
+                    item.stats =
+                      response.itemComponents?.stats?.data?.[
+                        item.itemInstanceId
+                      ];
+                    item.sockets =
+                      response.itemComponents?.sockets?.data?.[
+                        item.itemInstanceId
+                      ];
+                    item.instance =
+                      response.itemComponents?.instances?.data?.[
+                        item.itemInstanceId
+                      ];
+                    armorItems.push(item);
+                  });
+                }
+              }
+            }
+          }
+
+          console.log(
+            `Total armor pieces before processing: ${armorItems.length}`
+          );
+
           inventoryData = await window.d2Api.processInventoryItems(armorItems);
 
           updateArmorDisplay();
+          updateExoticDropdown();
           showNotification(
             `Loaded ${inventoryData.length} armor pieces`,
             "success"
           );
+
+          // Update count display
+          document.getElementById("armorCount").textContent =
+            inventoryData.length;
+
+          // Auto-run optimization if stats are selected
+          if (hasStatsSelected()) {
+            findOptimalBuilds();
+          }
         } catch (error) {
           console.error("Failed to load inventory:", error);
           showNotification(
@@ -2533,6 +2743,7 @@
       }
 
       function isArmorItem(item) {
+        // Primary armor bucket hashes
         const armorBuckets = [
           3448274439, // Helmet
           3551918588, // Gauntlets
@@ -2540,7 +2751,28 @@
           20886954, // Legs
           1585787867, // Class item
         ];
-        return armorBuckets.includes(item.bucketHash);
+
+        // Check bucket hash
+        let isArmor = armorBuckets.includes(item.bucketHash);
+
+        // For items in postmaster/vault, check the item's category hashes
+        if (!isArmor && item.itemCategoryHashes) {
+          // Armor category hashes
+          const armorCategories = [
+            20, // Armor
+            45, // Helmet
+            46, // Gauntlets
+            47, // Chest Armor
+            48, // Leg Armor
+            49, // Class Armor
+          ];
+
+          isArmor = item.itemCategoryHashes.some((hash) =>
+            armorCategories.includes(hash)
+          );
+        }
+
+        return isArmor;
       }
 
       function updateArmorDisplay() {
@@ -2560,6 +2792,12 @@
         }
 
         const filtered = filterArmor();
+
+        // Update filtered count
+        const countEl = document.getElementById("armorCount");
+        if (countEl) {
+          countEl.textContent = `${filtered.length} / ${inventoryData.length}`;
+        }
 
         container.innerHTML = filtered
           .map((item) => {
@@ -2603,7 +2841,13 @@
                         <div class="armor-info">
                             <div class="armor-name">${item.displayName}</div>
                             <div class="armor-type">${item.itemType} ${
-                              item.location === "vault" ? "(Vault)" : ""
+                              item.location === "vault"
+                                ? "(Vault)"
+                                : item.location === "postmaster"
+                                  ? "(Postmaster)"
+                                  : item.equipped
+                                    ? "(Equipped)"
+                                    : ""
                             }</div>
                         </div>
                         <div class="armor-power">${item.powerLevel || 0}</div>
@@ -2638,6 +2882,15 @@
           document.getElementById("armorTierFilter")?.value || "all";
 
         return inventoryData.filter((item) => {
+          // Class filter
+          if (currentArmorClass) {
+            const classType = classTypes[currentArmorClass];
+            // Class 3 = any class
+            if (item.classType !== 3 && item.classType !== classType) {
+              return false;
+            }
+          }
+
           // Type filter
           if (typeFilter !== "all") {
             const bucketToType = {
@@ -2848,6 +3101,16 @@
         });
 
         applyStatBonuses();
+
+        // Auto-run optimization if in armor tab
+        if (
+          document.getElementById("armor").classList.contains("active") &&
+          currentArmorClass &&
+          inventoryData.length > 0 &&
+          hasStatsSelected()
+        ) {
+          findOptimalBuilds();
+        }
       }
 
       function interpolate(points, x) {
