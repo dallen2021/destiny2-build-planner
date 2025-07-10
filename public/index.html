@@ -1209,6 +1209,12 @@
         >
           Connect to Bungie.net
         </button>
+        <button
+          class="auth-button-small"
+          onclick="loadInventory()"
+        >
+          Reload Items
+        </button>
       </div>
     </div>
 
@@ -1231,6 +1237,13 @@
         <div class="armor-tier-selector" id="armorTierSelector"></div>
         <div class="stat-point-summary" id="statPointSummary"></div>
         <div class="stat-allocator" id="statAllocator"></div>
+
+        <div style="margin-top: 20px; text-align: center">
+          <label for="exoticSelect" style="margin-right:10px">Preferred Exotic</label>
+          <select id="exoticSelect" class="filter-select" onchange="findOptimalBuilds()">
+            <option value="">Any Exotic</option>
+          </select>
+        </div>
 
         <!-- Optimization Button -->
         <div style="margin-top: 20px; text-align: center">
@@ -2514,13 +2527,14 @@
             }
           }
 
-          inventoryData = await window.d2Api.processInventoryItems(armorItems);
+        inventoryData = await window.d2Api.processInventoryItems(armorItems);
 
-          updateArmorDisplay();
-          showNotification(
-            `Loaded ${inventoryData.length} armor pieces`,
-            "success"
-          );
+        updateArmorDisplay();
+        updateExoticOptions();
+        showNotification(
+          `Loaded ${inventoryData.length} armor pieces`,
+          "success"
+        );
         } catch (error) {
           console.error("Failed to load inventory:", error);
           showNotification(
@@ -2848,6 +2862,7 @@
         });
 
         applyStatBonuses();
+        findOptimalBuilds();
       }
 
       function interpolate(points, x) {
@@ -3205,6 +3220,8 @@
           }),
           updateExoticRestrictions(),
           updateMeleeClassRestrictions();
+        updateExoticOptions();
+        findOptimalBuilds();
       }
 
       function handleExoticSelection(t) {
@@ -3312,7 +3329,7 @@
       }
 
       /* -------- ARMOR OPTIMIZATION FUNCTIONS -------- */
-      function optimizeArmor() {
+      function findOptimalBuilds() {
         if (inventoryData.length === 0) {
           showNotification("Please load your inventory first", "info");
           return;
@@ -3327,6 +3344,10 @@
           intellect: getTargetStatValue("Super"),
           strength: getTargetStatValue("Melee"),
         };
+
+        // Filter by selected class
+        const classMap = { titan: 0, hunter: 1, warlock: 2 };
+        const classId = classMap[currentClass];
 
         // Group armor by type
         const armorByType = {
@@ -3347,55 +3368,44 @@
 
         inventoryData.forEach((item) => {
           const type = bucketToType[item.bucketHash];
-          if (type) {
-            armorByType[type].push(item);
+          if (!type) return;
+
+          if (item.classType !== undefined && item.classType !== 3 && item.classType !== classId) {
+            return;
           }
+
+          armorByType[type].push(item);
         });
 
-        // Find best combination
-        let bestCombination = null;
-        let bestScore = -Infinity;
+        const selectedExotic = document.getElementById("exoticSelect").value;
 
-        // Check all combinations (simplified - in reality you'd want a more sophisticated algorithm)
+        // limit search space
+        Object.keys(armorByType).forEach((key) => {
+          armorByType[key] = armorByType[key]
+            .sort((a, b) => {
+              const getTotal = (it) => Object.values(it.stats || {}).reduce((s, v) => s + v, 0);
+              return getTotal(b) - getTotal(a);
+            })
+            .slice(0, 20);
+        });
+
+        const results = [];
+
         for (const helmet of armorByType.helmet) {
           for (const gauntlets of armorByType.gauntlets) {
             for (const chest of armorByType.chest) {
               for (const legs of armorByType.legs) {
                 for (const classItem of armorByType.classItem) {
-                  // Check exotic constraint
-                  const exotics = [
-                    helmet,
-                    gauntlets,
-                    chest,
-                    legs,
-                    classItem,
-                  ].filter((item) => item.isExotic);
+                  const pieces = [helmet, gauntlets, chest, legs, classItem];
+                  const exotics = pieces.filter((p) => p.isExotic);
                   if (exotics.length > 1) continue;
+                  if (selectedExotic && !pieces.find((p) => p.itemInstanceId === selectedExotic)) continue;
 
-                  // Calculate total stats
-                  const totalStats = calculateTotalStats([
-                    helmet,
-                    gauntlets,
-                    chest,
-                    legs,
-                    classItem,
-                  ]);
-
-                  // Calculate score based on how close we are to target stats
-                  const score = calculateOptimizationScore(
-                    totalStats,
-                    targetStats
-                  );
-
-                  if (score > bestScore) {
-                    bestScore = score;
-                    bestCombination = {
-                      helmet,
-                      gauntlets,
-                      chest,
-                      legs,
-                      classItem,
-                    };
+                  const totals = calculateTotalStats(pieces);
+                  const meets = Object.keys(targetStats).every((k) => totals[k] >= targetStats[k]);
+                  if (meets) {
+                    results.push({ pieces, totals });
+                    if (results.length >= 20) break;
                   }
                 }
               }
@@ -3403,43 +3413,105 @@
           }
         }
 
-        if (bestCombination) {
-          // Clear current selection
-          selectedInventoryItems = {};
+        displayBuildResults(results);
+      }
 
-          // Select the optimized armor
-          Object.values(bestCombination).forEach((item) => {
-            if (item) {
-              selectedInventoryItems[item.itemInstanceId] = item;
-            }
-          });
-
-          updateArmorDisplay();
-          updateBuildSummary();
-
-          // Show optimization message
-          const optimizationDiv = document.createElement("div");
-          optimizationDiv.className = "optimization-message";
-          optimizationDiv.innerHTML = `✨ Build optimized! Check your Current Build Summary below.`;
-
-          const armorSection = document.querySelector(
-            ".armor-optimizer-section"
-          );
-          const existingMessage = armorSection.querySelector(
-            ".optimization-message"
-          );
-          if (existingMessage) {
-            existingMessage.remove();
-          }
-          armorSection.insertBefore(
-            optimizationDiv,
-            armorSection.querySelector(".stat-totals")
-          );
-
-          setTimeout(() => {
-            optimizationDiv.remove();
-          }, 5000);
+      function displayBuildResults(results) {
+        const container = document.getElementById("resultsContainer");
+        if (!container) return;
+        const resultsDiv = document.getElementById("optimizationResults");
+        if (results.length === 0) {
+          container.innerHTML =
+            '<div class="empty-state">No matching builds found.</div>';
+          resultsDiv.style.display = "block";
+          return;
         }
+
+        container.innerHTML = results
+          .map((res, idx) => {
+            const statHtml = Object.entries(res.totals)
+              .map(
+                ([k, v]) =>
+                  `<div class="result-stat"><div class="result-stat-name">${k.toUpperCase()}</div><div class="result-stat-value">${v}</div></div>`
+              )
+              .join("");
+
+            const pieceHtml = res.pieces
+              .map(
+                (p) => `
+                <div class="result-armor-piece ${p.isExotic ? "exotic" : ""}">
+                  <div class="result-armor-icon">
+                    ${p.icon ? `<img src="${p.icon}" />` : ""}
+                  </div>
+                  <div class="result-armor-name">${p.displayName}</div>
+                </div>`
+              )
+              .join("");
+
+            return `
+              <div class="result-item">
+                <div class="result-header">
+                  <div class="result-title">Build ${idx + 1}</div>
+                </div>
+                <div class="result-stats">${statHtml}</div>
+                <div class="result-armor-grid">${pieceHtml}</div>
+                <button class="load-result-button" onclick="loadGeneratedBuild(${idx})">Load This Build</button>
+              </div>`;
+          })
+          .join("");
+
+        resultsDiv.style.display = "block";
+        window.generatedBuilds = results;
+      }
+
+      function loadGeneratedBuild(index) {
+        const build = window.generatedBuilds?.[index];
+        if (!build) return;
+        selectedInventoryItems = {};
+        build.pieces.forEach((p) => {
+          selectedInventoryItems[p.itemInstanceId] = p;
+        });
+        updateArmorDisplay();
+        updateBuildSummary();
+        showNotification("Build loaded", "success");
+      }
+
+      function updateExoticOptions() {
+        const select = document.getElementById("exoticSelect");
+        if (!select) return;
+        const classMap = { titan: 0, hunter: 1, warlock: 2 };
+        const classId = classMap[currentClass];
+
+        const exotics = inventoryData.filter(
+          (i) =>
+            i.isExotic &&
+            (i.classType === undefined || i.classType === 3 || i.classType === classId)
+        );
+
+        const slotOrder = {
+          3448274439: 0,
+          3551918588: 1,
+          14239492: 2,
+          20886954: 3,
+          1585787867: 4,
+        };
+
+        exotics.sort((a, b) => {
+          if (slotOrder[a.bucketHash] !== slotOrder[b.bucketHash]) {
+            return slotOrder[a.bucketHash] - slotOrder[b.bucketHash];
+          }
+          return a.displayName.localeCompare(b.displayName);
+        });
+
+        const current = select.value;
+        select.innerHTML = '<option value="">Any Exotic</option>' +
+          exotics
+            .map(
+              (e) => `<option value="${e.itemInstanceId}">${e.displayName}</option>`
+            )
+            .join("");
+
+        if (current) select.value = current;
       }
 
       function getTargetStatValue(statName) {
@@ -3470,7 +3542,7 @@
           if (item && item.stats) {
             Object.entries(item.stats).forEach(([stat, value]) => {
               if (totals.hasOwnProperty(stat)) {
-                totals[stat] += value;
+                totals[stat] += value + 2; // assume masterworked
               }
             });
           }
