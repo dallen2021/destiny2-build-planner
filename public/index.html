@@ -1012,14 +1012,138 @@
         transform: translateX(5px);
       }
 
-      .optimization-message {
-        text-align: center;
+      .armor-item.masterworked {
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+        border-color: #ffd700;
+      }
+
+      .armor-icon.masterworked {
+        border-color: #ffd700;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+      }
+
+      .optimization-results {
+        margin-top: 30px;
+      }
+
+      .result-item {
+        background: rgba(50, 50, 60, 0.8);
+        border: 2px solid #444;
+        border-radius: 15px;
         padding: 20px;
-        background: rgba(138, 43, 226, 0.2);
-        border-radius: 10px;
-        margin-top: 20px;
-        font-size: 1.1em;
+        margin-bottom: 20px;
+      }
+
+      .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .result-title {
+        font-size: 1.2em;
         color: #ffd700;
+        font-weight: bold;
+      }
+
+      .result-stats {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
+        padding: 15px;
+        background: rgba(30, 30, 40, 0.8);
+        border-radius: 10px;
+        margin-bottom: 15px;
+      }
+
+      .result-stat {
+        text-align: center;
+      }
+
+      .result-stat-name {
+        font-size: 0.8em;
+        color: #aaa;
+      }
+
+      .result-stat-value {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #fff;
+      }
+
+      .result-armor-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+      }
+
+      .result-armor-piece {
+        background: rgba(40, 40, 50, 0.8);
+        border-radius: 10px;
+        padding: 10px;
+        text-align: center;
+        border: 2px solid transparent;
+      }
+
+      .result-armor-piece.exotic {
+        background: linear-gradient(
+          135deg,
+          rgba(255, 215, 0, 0.2),
+          rgba(40, 40, 50, 0.8)
+        );
+        border-color: #ffd700;
+      }
+
+      .result-armor-piece.masterworked {
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+      }
+
+      .result-armor-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 5px;
+        border-radius: 5px;
+        overflow: hidden;
+      }
+
+      .result-armor-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .result-armor-name {
+        font-size: 0.8em;
+        color: #ffd700;
+        margin-bottom: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .result-armor-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px;
+        font-size: 0.7em;
+      }
+
+      .load-result-button {
+        width: 100%;
+        padding: 10px;
+        background: linear-gradient(135deg, #4caf50, #2e7d32);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1em;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .load-result-button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 5px 15px rgba(76, 175, 80, 0.5);
       }
 
       @media (max-width: 1200px) {
@@ -1107,10 +1231,39 @@
         <div class="armor-tier-selector" id="armorTierSelector"></div>
         <div class="stat-point-summary" id="statPointSummary"></div>
         <div class="stat-allocator" id="statAllocator"></div>
+
+        <!-- Optimization Button -->
+        <div style="margin-top: 20px; text-align: center">
+          <button
+            class="auth-button-small"
+            onclick="findOptimalBuilds()"
+            style="
+              background: linear-gradient(135deg, #4caf50, #2e7d32);
+              padding: 15px 40px;
+              font-size: 1.2em;
+            "
+          >
+            Find Optimal Builds
+          </button>
+        </div>
+      </div>
+
+      <!-- Optimization Results Section -->
+      <div
+        id="optimizationResults"
+        class="optimization-results"
+        style="display: none"
+      >
+        <div class="armor-optimizer-section">
+          <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+            Optimization Results
+          </h2>
+          <div id="resultsContainer"></div>
+        </div>
       </div>
 
       <!-- Armor Collection Section -->
-      <div class="armor-optimizer-section">
+      <div class="armor-optimizer-section" style="margin-top: 30px">
         <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
           My Armor Collection
         </h2>
@@ -1148,70 +1301,6 @@
           <div class="empty-state">
             Connect to Bungie.net to load your armor collection
           </div>
-        </div>
-      </div>
-
-      <!-- Current Build Summary -->
-      <div class="armor-optimizer-section" style="margin-top: 30px">
-        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
-          Current Build Summary
-        </h2>
-        <div class="stat-totals" id="statTotals">
-          <div class="stat-total-item">
-            <div class="stat-name">Mobility</div>
-            <div class="stat-value" id="totalMobility">0</div>
-            <div class="stat-tier">Tier 0</div>
-          </div>
-          <div class="stat-total-item">
-            <div class="stat-name">Resilience</div>
-            <div class="stat-value" id="totalResilience">0</div>
-            <div class="stat-tier">Tier 0</div>
-          </div>
-          <div class="stat-total-item">
-            <div class="stat-name">Recovery</div>
-            <div class="stat-value" id="totalRecovery">0</div>
-            <div class="stat-tier">Tier 0</div>
-          </div>
-          <div class="stat-total-item">
-            <div class="stat-name">Discipline</div>
-            <div class="stat-value" id="totalDiscipline">0</div>
-            <div class="stat-tier">Tier 0</div>
-          </div>
-          <div class="stat-total-item">
-            <div class="stat-name">Intellect</div>
-            <div class="stat-value" id="totalIntellect">0</div>
-            <div class="stat-tier">Tier 0</div>
-          </div>
-          <div class="stat-total-item">
-            <div class="stat-name">Strength</div>
-            <div class="stat-value" id="totalStrength">0</div>
-            <div class="stat-tier">Tier 0</div>
-          </div>
-        </div>
-
-        <!-- Optimization Controls -->
-        <div
-          style="
-            margin-top: 20px;
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-          "
-        >
-          <button
-            class="auth-button-small"
-            onclick="optimizeArmor()"
-            style="background: linear-gradient(135deg, #4caf50, #2e7d32)"
-          >
-            Optimize Build
-          </button>
-          <button class="auth-button-small" onclick="clearSelection()">
-            Clear Selection
-          </button>
-          <button class="auth-button-small" onclick="showLoadoutModal()">
-            Manage Loadouts
-          </button>
         </div>
       </div>
 
@@ -2187,9 +2276,9 @@
         "Weapons",
         "Health",
         "Class",
-        "Melee",
         "Grenade",
         "Super",
+        "Melee",
       ];
       const statBonusData = {
         weapons: {
@@ -2218,16 +2307,16 @@
           damage_increase_pve: { 100: 0, 200: 65 },
           damage_increase_pvp: { 100: 0, 200: 20 },
         },
+        super: {
+          energy_gained: { 10: 14, 50: 56, 100: 190, 150: 190, 200: 190 },
+          damage_increase_pve: { 100: 0, 200: 45 },
+          damage_increase_pvp: { 100: 0, 200: 15 },
+        },
         melee: {
           cooldown: { 10: -7, 50: -35, 100: -65, 150: -65, 200: -65 },
           energy_gained: { 10: 14, 50: 56, 100: 190, 150: 190, 200: 190 },
           damage_increase_pve: { 100: 0, 200: 30 },
           damage_increase_pvp: { 100: 0, 200: 20 },
-        },
-        super: {
-          energy_gained: { 10: 14, 50: 56, 100: 190, 150: 190, 200: 190 },
-          damage_increase_pve: { 100: 0, 200: 45 },
-          damage_increase_pvp: { 100: 0, 200: 15 },
         },
       };
 
@@ -2284,6 +2373,16 @@
         updateAllStatCalculations();
         selectClass("hunter");
         loadSavedLoadouts();
+
+        // Add event listener for instance component
+        const instanceCheckbox = document.getElementById("includeInstances");
+        if (instanceCheckbox) {
+          instanceCheckbox.addEventListener("change", (e) => {
+            if (e.target.checked && inventoryData.length > 0) {
+              loadInventory();
+            }
+          });
+        }
       });
 
       /* -------- AUTH & INVENTORY FUNCTIONS -------- */
@@ -2382,6 +2481,12 @@
             );
             vaultArmor.forEach((item) => {
               item.location = "vault";
+              item.stats =
+                response.itemComponents?.stats?.data?.[item.itemInstanceId];
+              item.sockets =
+                response.itemComponents?.sockets?.data?.[item.itemInstanceId];
+              item.instance =
+                response.itemComponents?.instances?.data?.[item.itemInstanceId];
               armorItems.push(item);
             });
           }
@@ -2400,12 +2505,17 @@
                   response.itemComponents?.stats?.data?.[item.itemInstanceId];
                 item.sockets =
                   response.itemComponents?.sockets?.data?.[item.itemInstanceId];
+                item.instance =
+                  response.itemComponents?.instances?.data?.[
+                    item.itemInstanceId
+                  ];
                 armorItems.push(item);
               });
             }
           }
 
           inventoryData = await window.d2Api.processInventoryItems(armorItems);
+
           updateArmorDisplay();
           showNotification(
             `Loaded ${inventoryData.length} armor pieces`,
@@ -2454,6 +2564,7 @@
         container.innerHTML = filtered
           .map((item) => {
             const tierClass = item.isExotic ? "exotic" : "legendary";
+            const masterworkClass = item.isMasterworked ? "masterworked" : "";
             const statNames = {
               mobility: "MOBILITY",
               resilience: "RESILIENCE",
@@ -2463,14 +2574,30 @@
               strength: "STRENGTH",
             };
 
+            // Order stats correctly
+            const statOrder = [
+              "mobility",
+              "resilience",
+              "recovery",
+              "discipline",
+              "intellect",
+              "strength",
+            ];
+            const orderedStats = {};
+            statOrder.forEach((stat) => {
+              if (item.stats && item.stats[stat] !== undefined) {
+                orderedStats[stat] = item.stats[stat];
+              }
+            });
+
             return `
-                <div class="armor-item ${tierClass} ${
+                <div class="armor-item ${tierClass} ${masterworkClass} ${
                   selectedInventoryItems[item.itemInstanceId] ? "selected" : ""
                 }" 
                      onclick="toggleInventoryItem('${item.itemInstanceId}')"
                      data-instance-id="${item.itemInstanceId}">
                     <div class="armor-header">
-                        <div class="armor-icon">
+                        <div class="armor-icon ${masterworkClass}">
                             ${item.icon ? `<img src="${item.icon}" alt="${item.displayName}" />` : ""}
                         </div>
                         <div class="armor-info">
@@ -2482,7 +2609,7 @@
                         <div class="armor-power">${item.powerLevel || 0}</div>
                     </div>
                     <div class="armor-stats">
-                        ${Object.entries(item.stats || {})
+                        ${Object.entries(orderedStats)
                           .map(
                             ([stat, value]) => `
                                 <div class="stat-item">
@@ -2496,6 +2623,7 @@
                     <div class="armor-tags">
                         ${item.isArtifice ? '<div class="armor-tag artifice">⬢ Artifice</div>' : ""}
                         ${item.isExotic ? '<div class="armor-tag exotic">★ Exotic</div>' : ""}
+                        ${item.isMasterworked ? '<div class="armor-tag">✦ Masterworked</div>' : ""}
                     </div>
                 </div>
               `;
