@@ -11,24 +11,10 @@
     <link rel="stylesheet" href="/css/styles.css" />
   </head>
   <body>
-    <div id="loadingOverlay" class="loading-overlay">
+    <div id="loadingOverlay" class="loading-overlay" style="display: none">
       <div class="loading-content">
         <div class="loading-spinner"></div>
         <p>Loading Destiny 2 Build Planner...</p>
-      </div>
-    </div>
-
-    <!-- Auth Overlay -->
-    <div id="authOverlay" class="auth-overlay" style="display: none">
-      <div class="auth-modal">
-        <h2>Sign in with Bungie</h2>
-        <p>
-          To access your armor and build tools, please sign in with your Bungie
-          account.
-        </p>
-        <button class="auth-button" onclick="API.auth.login()">
-          Sign in with Bungie
-        </button>
       </div>
     </div>
 
@@ -72,6 +58,19 @@
     <div class="header" style="padding-left: 60px">
       <h1>Edge of Fate Build Planner</h1>
       <p>Comprehensive Damage Calculator & Build Optimization Tool</p>
+      <div class="auth-status-bar">
+        <div id="userInfo" class="user-info" style="display: none">
+          <span style="font-size: 0.9em">👤</span>
+          <span id="username">Guardian</span>
+        </div>
+        <button
+          id="authButton"
+          class="auth-button-small"
+          onclick="handleAuth()"
+        >
+          Sign in with Bungie
+        </button>
+      </div>
     </div>
 
     <div class="nav-tabs">

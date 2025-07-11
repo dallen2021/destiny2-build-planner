@@ -273,11 +273,67 @@ window.addEventListener("DOMContentLoaded", async () => {
 /* -------- INITIALIZATION -------- */
 async function initializeApp() {
   try {
-    // Simple initialization without any API calls
+    // Check for auth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    const authResult = urlParams.get("auth");
+
+    if (authResult === "success") {
+      showNotification("Successfully signed in with Bungie!", "success");
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (authResult === "error") {
+      showNotification("Failed to sign in. Please try again.", "error");
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Check authentication status
+    const authStatus = await API.auth.checkStatus();
+    updateAuthUI(authStatus);
     showLoading(false);
   } catch (error) {
     console.error("Initialization error:", error);
     showNotification("Failed to initialize application", "error");
+    showLoading(false);
+  }
+}
+
+/* -------- AUTH FUNCTIONS -------- */
+function updateAuthUI(authStatus) {
+  const authButton = document.getElementById("authButton");
+  const userInfo = document.getElementById("userInfo");
+  const username = document.getElementById("username");
+  const sideMenuUsername = document.getElementById("sideMenuUsername");
+
+  if (authStatus.authenticated) {
+    // User is logged in
+    authButton.textContent = "Sign Out";
+    authButton.onclick = handleSignOut;
+
+    if (authStatus.destinyMembership) {
+      username.textContent =
+        authStatus.destinyMembership.displayName || "Guardian";
+      sideMenuUsername.textContent =
+        authStatus.destinyMembership.displayName || "Guardian";
+    }
+
+    userInfo.style.display = "flex";
+  } else {
+    // User is not logged in
+    authButton.textContent = "Sign in with Bungie";
+    authButton.onclick = handleAuth;
+    userInfo.style.display = "none";
+    sideMenuUsername.textContent = "Guardian";
+  }
+}
+
+async function handleAuth() {
+  API.auth.login();
+}
+
+async function handleSignOut() {
+  if (confirm("Are you sure you want to sign out?")) {
+    await API.auth.logout();
   }
 }
 
@@ -311,6 +367,27 @@ function showLoading(show) {
   if (overlay) {
     overlay.style.display = show ? "flex" : "none";
   }
+}
+
+// ADD THESE THREE FUNCTIONS TO YOUR app.js FILE
+
+function toggleSideMenu() {
+  const sideMenu = document.getElementById("sideMenu");
+  sideMenu.classList.toggle("active");
+}
+
+async function refreshData() {
+  showNotification("Refreshing data...", "info");
+  // TODO: Add actual data refresh logic here
+  // For now, just show a success message after a short delay
+  setTimeout(() => {
+    showNotification("Data refreshed!", "success");
+  }, 1000);
+}
+
+function openSettings() {
+  showNotification("Settings feature coming soon!", "info");
+  // TODO: Implement settings panel in the future
 }
 
 /* ---------------- Stat allocator via BOXES ---------------- */

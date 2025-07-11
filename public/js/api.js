@@ -31,7 +31,12 @@ const API = {
   // Authentication methods
   auth: {
     async checkStatus() {
-      return API.request("/auth/status");
+      try {
+        return await API.request("/auth/status");
+      } catch (error) {
+        // Return not authenticated if there's an error
+        return { authenticated: false, user: null };
+      }
     },
 
     async login() {
