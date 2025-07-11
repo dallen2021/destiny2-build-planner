@@ -8,9 +8,28 @@ const {
 const { getDefinition } = require("../services/manifestService");
 
 /**
- * Helper function to handle pagination for profile-wide item fetching.
- * This optimized version builds the final response inside the loop to
- * avoid making an extra API request once pagination is complete.
+ * Merges item component data from a source response into a target response.
+ * This is crucial for combining paginated API results.
+ */
+function mergeItemComponents(target, source) {
+  if (!source || !target) {
+    return;
+  }
+
+  for (const componentName in source) {
+    if (Object.prototype.hasOwnProperty.call(source, componentName) && source[componentName].data) {
+      if (!target[componentName]) {
+        target[componentName] = { data: {}, privacy: source[componentName].privacy };
+      }
+      Object.assign(target[componentName].data, source[componentName].data);
+    }
+  }
+}
+
+/**
+ * Helper function to handle pagination for fetching a profile's inventory.
+ * This optimized version builds the final response inside the loop, merging
+ * all item components to avoid data loss from pagination.
  */
 async function getProfileWithAllItems(
   membershipType,
@@ -24,9 +43,8 @@ async function getProfileWithAllItems(
   let page = 0;
 
   do {
-    // On the first page we fetch all requested components plus profile inventory.
-    // Subsequent pages only request the profile inventory component.
-    const componentsToFetch = page === 0 ? `${components},102` : "102";
+    // On the first page, get all requested components plus profile inventory.
+    const componentsToFetch = page === 0 ? `${components},102` : "102,300,304,305";
 
     const response = await makeApiRequest(
       `/Destiny2/${membershipType}/Profile/${membershipId}/`,
@@ -39,12 +57,15 @@ async function getProfileWithAllItems(
       }
     );
 
-    // Store the full response from the first page.
     if (page === 0) {
+      // Store the main response object from the first page.
       finalResponse = response;
+    } else if (response.itemComponents) {
+      // Merge itemComponents from later pages.
+      mergeItemComponents(finalResponse.itemComponents, response.itemComponents);
     }
 
-    // Collect items from the current page.
+    // Collect items from the current page's vault inventory.
     if (response.profileInventory?.data?.items) {
       allItems = allItems.concat(response.profileInventory.data.items);
     }
@@ -53,7 +74,7 @@ async function getProfileWithAllItems(
     page += 1;
   } while (hasMore);
 
-  // Attach the full list of items to the response from the first page.
+  // Attach the fully populated item list to the final response.
   if (finalResponse.profileInventory?.data) {
     finalResponse.profileInventory.data.items = allItems;
   } else {
@@ -76,7 +97,7 @@ router.get("/inventory", ensureAuthenticated, async (req, res) => {
   // 300: Item instance data (stats, perks, etc.)
   // 304: Item stats
   // 305: Item sockets
-  const components = "201,205,300,304,305";
+  const components = "201,205";
 
   const profileData = await getProfileWithAllItems(
     membershipType,
