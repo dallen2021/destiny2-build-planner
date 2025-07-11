@@ -250,6 +250,7 @@ let activeElementFilters = new Set();
 let currentClass = "hunter";
 let selectedExotics = new Set();
 window.calculatedStatBonuses = {};
+let isAuthenticated = false;
 const state = {
   statValues: {
     Weapons: 10,
@@ -262,12 +263,20 @@ const state = {
 };
 
 window.addEventListener("DOMContentLoaded", async () => {
+  console.log("DOM Content Loaded - initializing app");
+
   await initializeApp();
   initializeArtifact();
   initStatAllocator();
   updateAllStatCalculations();
   const savedClass = localStorage.getItem("d2SelectedClass") || "hunter";
   selectClass(savedClass);
+
+  // Initialize armor display
+  displayNoArmorMessage();
+  setupArmorFilters();
+
+  console.log("App initialization complete");
 });
 
 /* -------- INITIALIZATION -------- */
@@ -305,6 +314,8 @@ function updateAuthUI(authStatus) {
   const username = document.getElementById("username");
   const sideMenuUsername = document.getElementById("sideMenuUsername");
 
+  isAuthenticated = authStatus.authenticated;
+
   if (authStatus.authenticated) {
     // User is logged in
     authButton.textContent = "Sign Out";
@@ -318,12 +329,23 @@ function updateAuthUI(authStatus) {
     }
 
     userInfo.style.display = "flex";
+    
+    // Load armor inventory when authenticated if on armor display tab
+    const activeTab = document.querySelector(".nav-tab.active");
+    if (activeTab && activeTab.textContent.trim() === "Armor Inventory") {
+      loadArmorInventory();
+    }
   } else {
     // User is not logged in
     authButton.textContent = "Sign in with Bungie";
     authButton.onclick = handleAuth;
     userInfo.style.display = "none";
     sideMenuUsername.textContent = "Guardian";
+    
+    // Clear armor display when not authenticated
+    armorLoaded = false;
+    armorItems = [];
+    displayNoArmorMessage();
   }
 }
 
@@ -349,6 +371,11 @@ function switchTab(tabName) {
     .querySelector(`.nav-tab[onclick="switchTab('${tabName}')"]`)
     .classList.add("active");
   document.getElementById(tabName).classList.add("active");
+
+  // Load armor when switching to armor display tab if authenticated
+  if (tabName === "armorDisplay" && isAuthenticated) {
+    loadArmorInventory();
+  }
 }
 
 function showNotification(message, type = "info") {
@@ -369,26 +396,553 @@ function showLoading(show) {
   }
 }
 
-// ADD THESE THREE FUNCTIONS TO YOUR app.js FILE
-
 function toggleSideMenu() {
   const sideMenu = document.getElementById("sideMenu");
   sideMenu.classList.toggle("active");
-}
-
-async function refreshData() {
-  showNotification("Refreshing data...", "info");
-  // TODO: Add actual data refresh logic here
-  // For now, just show a success message after a short delay
-  setTimeout(() => {
-    showNotification("Data refreshed!", "success");
-  }, 1000);
 }
 
 function openSettings() {
   showNotification("Settings feature coming soon!", "info");
   // TODO: Implement settings panel in the future
 }
+
+/* -------- ARMOR DISPLAY FUNCTIONS -------- */
+let armorItems = [];
+let filteredArmorItems = [];
+let armorLoaded = false;
+let armorLoading = false;
+
+async function loadArmorInventory() {
+  const armorGrid = document.getElementById("armorGridContainer");
+  if (!armorGrid) return;
+  
+  // Don't reload if already loaded
+  if (armorLoaded && armorItems.length > 0) {
+    applyArmorFilters();
+    return;
+  }
+  
+  // Prevent multiple simultaneous loads
+  if (armorLoading) return;
+  armorLoading = true;
+
+  try {
+    showLoading(true);
+    armorGrid.innerHTML = '<div class="loading-spinner" style="margin: 40px auto;"></div>';
+    
+    console.log("Loading armor inventory...");
+    
+    // Fetch inventory from API
+    const inventoryData = await API.inventory.getAll();
+    
+    console.log("Inventory data received:", inventoryData);
+    
+    // Extract armor items from the response
+    armorItems = [];
+    
+    // Process character inventories
+    if (inventoryData.characterInventories?.data) {
+      console.log("Processing character inventories...");
+      for (const charId in inventoryData.characterInventories.data) {
+        const charInventory = inventoryData.characterInventories.data[charId];
+        console.log(`Character ${charId} has ${charInventory.items?.length || 0} items`);
+        if (charInventory.items) {
+          // Log sample item to check structure
+          if (charInventory.items.length > 0) {
+            console.log("Sample item from character inventory:", charInventory.items[0]);
+          }
+          armorItems = armorItems.concat(charInventory.items);
+        }
+      }
+    } else {
+      console.log("No character inventories found");
+    }
+    
+    // Process character equipment
+    if (inventoryData.characterEquipment?.data) {
+      console.log("Processing character equipment...");
+      for (const charId in inventoryData.characterEquipment.data) {
+        const charEquipment = inventoryData.characterEquipment.data[charId];
+        console.log(`Character ${charId} has ${charEquipment.items?.length || 0} equipped items`);
+        if (charEquipment.items) {
+          armorItems = armorItems.concat(charEquipment.items);
+        }
+      }
+    } else {
+      console.log("No character equipment found");
+    }
+    
+    // Process profile inventory (vault)
+    if (inventoryData.profileInventory?.data?.items) {
+      console.log(`Vault has ${inventoryData.profileInventory.data.items.length} items`);
+      armorItems = armorItems.concat(inventoryData.profileInventory.data.items);
+    } else {
+      console.log("No vault items found");
+    }
+    
+    console.log(`Total items before armor filter: ${armorItems.length}`);
+    
+    // Filter for armor items only (using bucket hashes)
+    const armorBuckets = [3448274439, 3551918588, 14239492, 20886954, 1585787867];
+    
+    // Debug: Check what bucket hashes we're seeing
+    const bucketCounts = {};
+    armorItems.forEach(item => {
+      bucketCounts[item.bucketHash] = (bucketCounts[item.bucketHash] || 0) + 1;
+    });
+    console.log("Bucket hash counts:", bucketCounts);
+    
+    const beforeFilterCount = armorItems.length;
+    armorItems = armorItems.filter(item => armorBuckets.includes(item.bucketHash));
+    
+    console.log(`Filtered from ${beforeFilterCount} to ${armorItems.length} armor items`);
+    console.log("Armor buckets we're looking for:", armorBuckets);
+    
+    // Check if we have any armor items
+    if (armorItems.length === 0) {
+      console.log("No armor items found after filtering!");
+      displayNoArmorMessage("No armor items found in your inventory");
+      armorLoading = false;
+      showLoading(false);
+      return;
+    }
+    
+    // Get item definitions for all armor
+    const uniqueHashes = [...new Set(armorItems.map(item => item.itemHash))];
+    console.log(`Fetching definitions for ${uniqueHashes.length} unique items`);
+    console.log("Sample item hashes:", uniqueHashes.slice(0, 5));
+    
+    let itemDefinitions = {};
+    try {
+      itemDefinitions = await Manifest.getItems(uniqueHashes);
+      console.log(`Received ${Object.keys(itemDefinitions).length} item definitions`);
+    } catch (error) {
+      console.error("Failed to get item definitions:", error);
+      // Continue without definitions
+    }
+    
+    // Combine item data with definitions
+    armorItems = armorItems.map(item => {
+      const definition = itemDefinitions[item.itemHash];
+      const stats = inventoryData.itemComponents?.stats?.data?.[item.itemInstanceId]?.stats || {};
+      
+      return {
+        ...item,
+        definition: definition || { displayProperties: { name: `Item ${item.itemHash}` } },
+        stats: stats,
+        power: inventoryData.itemComponents?.instances?.data?.[item.itemInstanceId]?.primaryStat?.value || 0
+      };
+    });
+    
+    // Initial display
+    armorLoaded = true;
+    armorLoading = false;
+    console.log("Applying filters and displaying armor");
+    applyArmorFilters();
+    setupArmorFilters();
+    
+    showLoading(false);
+  } catch (error) {
+    console.error("Failed to load armor inventory:", error);
+    armorLoaded = false;
+    armorLoading = false;
+    
+    if (error.message.includes("Not authenticated") || error.message.includes("401")) {
+      displayNoArmorMessage("Please sign in with Bungie to view your armor collection");
+    } else {
+      showNotification("Failed to load armor inventory", "error");
+      displayNoArmorMessage("Failed to load armor. Please try refreshing.");
+    }
+    showLoading(false);
+  }
+}
+
+function displayArmorItems(items) {
+  const armorGrid = document.getElementById("armorGridContainer");
+  if (!armorGrid) {
+    console.error("Armor grid container not found!");
+    return;
+  }
+  
+  console.log(`Displaying ${items.length} armor items`);
+  
+  if (!items || items.length === 0) {
+    displayNoArmorMessage("No armor items found matching your filters.");
+    return;
+  }
+  
+  // Display first few items for debugging
+  console.log("First armor item:", items[0]);
+  
+  armorGrid.innerHTML = items.map(item => {
+    const name = item.definition?.displayProperties?.name || "Unknown Item";
+    const icon = item.definition?.displayProperties?.icon 
+      ? `https://www.bungie.net${item.definition.displayProperties.icon}` 
+      : "";
+    const tierType = item.definition?.inventory?.tierTypeName || "";
+    const itemType = item.definition?.itemTypeDisplayName || "";
+    
+    // Calculate total stats
+    let totalStats = 0;
+    const statValues = {};
+    
+    if (item.stats) {
+      // Only count the main 6 stats
+      const mainStatHashes = Object.keys(Manifest.statHashes);
+      for (const statHash of mainStatHashes) {
+        const statValue = item.stats[statHash]?.value || 0;
+        totalStats += statValue;
+        statValues[statHash] = statValue;
+      }
+    }
+    
+    // Determine rarity class
+    const rarityClass = tierType.toLowerCase() === "exotic" ? "exotic" : "legendary";
+    
+    return `
+      <div class="armor-item ${rarityClass}" data-item-id="${item.itemInstanceId}" onclick="selectArmorItem('${item.itemInstanceId}')">
+        <div class="armor-power">${item.power}</div>
+        <div class="armor-header">
+          <div class="armor-icon">
+            ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
+          </div>
+          <div class="armor-info">
+            <div class="armor-name">${name}</div>
+            <div class="armor-type">${itemType}</div>
+          </div>
+        </div>
+        <div class="armor-stats">
+          ${Object.entries(Manifest.statHashes).map(([hash, statName]) => `
+            <div class="stat-item">
+              <div class="stat-name">${statName.substring(0, 3)}</div>
+              <div class="stat-value">${statValues[hash] || 0}</div>
+            </div>
+          `).join("")}
+        </div>
+        <div class="armor-tags">
+          <span class="armor-tag">Total: ${totalStats}</span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function displayNoArmorMessage(message = "Sign in with Bungie to view your armor collection") {
+  const armorGrid = document.getElementById("armorGridContainer");
+  if (armorGrid) {
+    armorGrid.innerHTML = `<div class="empty-state">${message}</div>`;
+  }
+}
+
+function setupArmorFilters() {
+  // Check if already set up
+  const searchInput = document.getElementById("armorSearchInput");
+  if (searchInput && searchInput.dataset.initialized) {
+    return;
+  }
+  
+  // Search input
+  if (searchInput) {
+    searchInput.addEventListener("input", debounce(() => applyArmorFilters(), 300));
+    searchInput.dataset.initialized = "true";
+  }
+  
+  // Class filter
+  const classFilter = document.getElementById("armorClassFilter");
+  if (classFilter && !classFilter.dataset.initialized) {
+    classFilter.addEventListener("change", () => applyArmorFilters());
+    classFilter.dataset.initialized = "true";
+  }
+  
+  // Slot filter
+  const slotFilter = document.getElementById("armorSlotFilter");
+  if (slotFilter && !slotFilter.dataset.initialized) {
+    slotFilter.addEventListener("change", () => applyArmorFilters());
+    slotFilter.dataset.initialized = "true";
+  }
+}
+
+function applyArmorFilters() {
+  const searchValue = document.getElementById("armorSearchInput")?.value.toLowerCase() || "";
+  const classValue = document.getElementById("armorClassFilter")?.value || "all";
+  const slotValue = document.getElementById("armorSlotFilter")?.value || "all";
+  
+  console.log("Applying filters:", { searchValue, classValue, slotValue, totalItems: armorItems.length });
+  
+  filteredArmorItems = armorItems.filter(item => {
+    // Search filter
+    if (searchValue) {
+      const name = item.definition?.displayProperties?.name?.toLowerCase() || "";
+      const type = item.definition?.itemTypeDisplayName?.toLowerCase() || "";
+      if (!name.includes(searchValue) && !type.includes(searchValue)) {
+        return false;
+      }
+    }
+    
+    // Class filter
+    if (classValue !== "all") {
+      const itemClass = item.definition?.classType;
+      if (itemClass !== undefined && itemClass !== parseInt(classValue) && itemClass !== 3) {
+        return false;
+      }
+    }
+    
+    // Slot filter
+    if (slotValue !== "all" && item.bucketHash !== parseInt(slotValue)) {
+      return false;
+    }
+    
+    return true;
+  });
+  
+  console.log(`Filtered to ${filteredArmorItems.length} items`);
+  displayArmorItems(filteredArmorItems);
+}
+
+async function refreshData() {
+  showNotification("Refreshing armor data...", "info");
+  armorLoaded = false; // Force reload
+  armorLoading = false; // Reset loading flag
+  await loadArmorInventory();
+  showNotification("Armor data refreshed!", "success");
+}
+
+// Utility function for debouncing
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Handle armor item selection
+function selectArmorItem(itemId) {
+  // TODO: Implement armor item selection logic
+  // For now, just show item details
+  const item = armorItems.find(i => i.itemInstanceId === itemId);
+  if (item) {
+    showNotification(`Selected: ${item.definition?.displayProperties?.name || "Unknown Item"}`, "info");
+  }
+}
+
+// Debug function to manually check inventory
+window.debugInventory = async function() {
+  try {
+    console.log("=== MANUAL INVENTORY DEBUG ===");
+    const data = await API.inventory.getAll();
+    console.log("Full API Response:", data);
+    
+    // Check response structure
+    console.log("Response keys:", Object.keys(data));
+    
+    let totalItems = 0;
+    
+    // Check each possible location
+    if (data.characterInventories?.data) {
+      console.log("characterInventories structure:", data.characterInventories);
+      for (const charId in data.characterInventories.data) {
+        const items = data.characterInventories.data[charId].items || [];
+        console.log(`Character ${charId} inventory:`, items.length, "items");
+        totalItems += items.length;
+      }
+    } else {
+      console.log("No characterInventories.data found");
+    }
+    
+    if (data.characterEquipment?.data) {
+      console.log("characterEquipment structure:", data.characterEquipment);
+      for (const charId in data.characterEquipment.data) {
+        const items = data.characterEquipment.data[charId].items || [];
+        console.log(`Character ${charId} equipment:`, items.length, "items");
+        totalItems += items.length;
+      }
+    } else {
+      console.log("No characterEquipment.data found");
+    }
+    
+    if (data.profileInventory?.data?.items) {
+      console.log("profileInventory structure:", data.profileInventory);
+      console.log("Vault items:", data.profileInventory.data.items.length);
+      totalItems += data.profileInventory.data.items.length;
+    } else {
+      console.log("No profileInventory.data.items found");
+    }
+    
+    console.log("Total items found:", totalItems);
+    
+    // Check item components
+    console.log("Item components available:", Object.keys(data.itemComponents || {}));
+    
+    return data;
+  } catch (error) {
+    console.error("Debug inventory error:", error);
+    throw error;
+  }
+};
+
+// Debug function to check specific armor
+window.debugArmor = function() {
+  console.log("=== ARMOR DEBUG ===");
+  console.log("Loaded armor items:", armorItems.length);
+  console.log("First 5 armor items:", armorItems.slice(0, 5));
+  console.log("Armor bucket hashes:", [3448274439, 3551918588, 14239492, 20886954, 1585787867]);
+  console.log("Armor loaded flag:", armorLoaded);
+  console.log("Currently loading:", armorLoading);
+};
+
+// Manual reload function
+window.reloadArmor = async function() {
+  console.log("=== MANUAL ARMOR RELOAD ===");
+  armorLoaded = false;
+  armorLoading = false;
+  armorItems = [];
+  await loadArmorInventory();
+  console.log("Reload complete. Items loaded:", armorItems.length);
+};
+
+// Test API connection
+window.testAPI = async function() {
+  console.log("=== API CONNECTION TEST ===");
+  
+  try {
+    // Test auth status
+    console.log("Testing auth status...");
+    const authStatus = await API.auth.checkStatus();
+    console.log("Auth status:", authStatus);
+    
+    if (!authStatus.authenticated) {
+      console.log("Not authenticated. Please sign in first.");
+      return;
+    }
+    
+    // Test basic API call
+    console.log("Testing inventory API...");
+    const inventory = await API.inventory.getAll();
+    console.log("Inventory response received:", inventory);
+    
+    return inventory;
+  } catch (error) {
+    console.error("API test failed:", error);
+    throw error;
+  }
+};
+
+// Simple test to check if anything works
+window.quickTest = async function() {
+  console.log("=== QUICK TEST ===");
+  
+  // 1. Check if we're on the armor tab
+  const activeTab = document.querySelector(".nav-tab.active");
+  console.log("Active tab:", activeTab?.textContent);
+  
+  // 2. Check if armor grid exists
+  const grid = document.getElementById("armorGridContainer");
+  console.log("Armor grid found:", !!grid);
+  
+  // 3. Try to fetch inventory directly
+  try {
+    const response = await fetch("/api/inventory", {
+      credentials: "include"
+    });
+    console.log("Raw response status:", response.status);
+    const data = await response.json();
+    console.log("Raw response data:", data);
+  } catch (err) {
+    console.error("Raw fetch failed:", err);
+  }
+  
+  // 4. Check current armor state
+  console.log("Current armor items:", armorItems.length);
+  console.log("Is authenticated:", isAuthenticated);
+};
+
+// Full diagnostic function
+window.diagnoseArmor = async function() {
+  console.log("=== FULL ARMOR DIAGNOSTIC ===");
+  console.log("1. Checking authentication...");
+  
+  try {
+    const authStatus = await API.auth.checkStatus();
+    console.log("✓ Auth status:", authStatus.authenticated ? "Logged in" : "Not logged in");
+    
+    if (!authStatus.authenticated) {
+      console.log("✗ You need to sign in first!");
+      return;
+    }
+    
+    console.log("\n2. Testing API connection...");
+    API.debug = true; // Enable debug logging
+    const inventory = await API.inventory.getAll();
+    API.debug = false; // Disable debug logging
+    
+    console.log("✓ API responded successfully");
+    
+    console.log("\n3. Checking inventory structure...");
+    console.log("- Has characterInventories?", !!inventory.characterInventories);
+    console.log("- Has characterEquipment?", !!inventory.characterEquipment);
+    console.log("- Has profileInventory?", !!inventory.profileInventory);
+    console.log("- Has itemComponents?", !!inventory.itemComponents);
+    
+    console.log("\n4. Forcing armor reload...");
+    armorLoaded = false;
+    armorLoading = false;
+    await loadArmorInventory();
+    
+    console.log("\n5. Final status:");
+    console.log("- Armor items loaded:", armorItems.length);
+    console.log("- Grid container exists?", !!document.getElementById("armorGridContainer"));
+    
+    if (armorItems.length > 0) {
+      console.log("\n✓ SUCCESS: Armor loaded!");
+      console.log("First armor item:", armorItems[0]);
+    } else {
+      console.log("\n✗ FAILED: No armor items found");
+      console.log("Please check the logs above for issues");
+    }
+    
+  } catch (error) {
+    console.error("✗ Diagnostic failed:", error);
+  }
+};
+
+// Test display with dummy data
+window.testArmorDisplay = function() {
+  console.log("=== TEST ARMOR DISPLAY ===");
+  const dummyItems = [
+    {
+      itemInstanceId: "test123",
+      itemHash: 123456,
+      bucketHash: 3448274439, // Helmet
+      definition: {
+        displayProperties: {
+          name: "Test Helmet",
+          icon: "/common/destiny2_content/icons/test.jpg"
+        },
+        inventory: {
+          tierTypeName: "Legendary"
+        },
+        itemTypeDisplayName: "Helmet"
+      },
+      stats: {
+        "2996146975": { value: 10 }, // Mobility
+        "392767087": { value: 20 }, // Resilience
+        "1943323491": { value: 15 }, // Recovery
+        "1735777505": { value: 10 }, // Discipline
+        "144602215": { value: 25 }, // Intellect
+        "4244567218": { value: 12 }  // Strength
+      },
+      power: 1810
+    }
+  ];
+  
+  displayArmorItems(dummyItems);
+  console.log("Test display complete");
+};
 
 /* ---------------- Stat allocator via BOXES ---------------- */
 function initStatAllocator() {
