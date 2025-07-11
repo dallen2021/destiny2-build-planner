@@ -7,27 +7,83 @@ const {
 } = require("../middleware/bungie");
 const { getDefinition } = require("../services/manifestService");
 
+/**
+ * Helper function to handle pagination for profile-wide item fetching.
+ * This optimized version builds the final response inside the loop to
+ * avoid making an extra API request once pagination is complete.
+ */
+async function getProfileWithAllItems(
+  membershipType,
+  membershipId,
+  components,
+  session
+) {
+  let finalResponse = {};
+  let allItems = [];
+  let hasMore = true;
+  let page = 0;
+
+  do {
+    // On the first page we fetch all requested components plus profile inventory.
+    // Subsequent pages only request the profile inventory component.
+    const componentsToFetch = page === 0 ? `${components},102` : "102";
+
+    const response = await makeApiRequest(
+      `/Destiny2/${membershipType}/Profile/${membershipId}/`,
+      {
+        params: {
+          components: componentsToFetch,
+          page,
+        },
+        session,
+      }
+    );
+
+    // Store the full response from the first page.
+    if (page === 0) {
+      finalResponse = response;
+    }
+
+    // Collect items from the current page.
+    if (response.profileInventory?.data?.items) {
+      allItems = allItems.concat(response.profileInventory.data.items);
+    }
+
+    hasMore = response.profileInventory?.data?.hasMore || false;
+    page += 1;
+  } while (hasMore);
+
+  // Attach the full list of items to the response from the first page.
+  if (finalResponse.profileInventory?.data) {
+    finalResponse.profileInventory.data.items = allItems;
+  } else {
+    finalResponse.profileInventory = {
+      data: { items: allItems },
+    };
+  }
+
+  return finalResponse;
+}
+
 // Get all character and vault inventory
 router.get("/inventory", ensureAuthenticated, async (req, res) => {
   try {
     const { membershipType, membershipId } = req.session.destinyMembership;
 
-    // Components:
-    // 102: Profile-wide inventory (Vault)
-    // 201: Character-specific inventories
-    // 205: Character equipment
-    // 300: Item instance data (stats, perks, etc.)
-    // 304: Item stats
-    // 305: Item sockets
-    const components = "102,201,205,300,304,305";
+  // Components:
+  // 201: Character-specific inventories
+  // 205: Character equipment
+  // 300: Item instance data (stats, perks, etc.)
+  // 304: Item stats
+  // 305: Item sockets
+  const components = "201,205,300,304,305";
 
-    const profileData = await makeApiRequest(
-      `/Destiny2/${membershipType}/Profile/${membershipId}/`,
-      {
-        params: { components },
-        session: req.session,
-      }
-    );
+  const profileData = await getProfileWithAllItems(
+    membershipType,
+    membershipId,
+    components,
+    req.session
+  );
 
     res.json(profileData);
   } catch (error) {
