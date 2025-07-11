@@ -17,9 +17,15 @@ function mergeItemComponents(target, source) {
   }
 
   for (const componentName in source) {
-    if (Object.prototype.hasOwnProperty.call(source, componentName) && source[componentName].data) {
+    if (
+      Object.prototype.hasOwnProperty.call(source, componentName) &&
+      source[componentName].data
+    ) {
       if (!target[componentName]) {
-        target[componentName] = { data: {}, privacy: source[componentName].privacy };
+        target[componentName] = {
+          data: {},
+          privacy: source[componentName].privacy,
+        };
       }
       Object.assign(target[componentName].data, source[componentName].data);
     }
@@ -38,48 +44,71 @@ async function getProfileWithAllItems(
   session
 ) {
   let finalResponse = {};
-  let allItems = [];
+  let allVaultItems = [];
   let hasMore = true;
   let page = 0;
 
-  do {
-    // On the first page, get all requested components plus profile inventory.
-    const componentsToFetch = page === 0 ? `${components},102` : "102,300,304,305";
+  // Initial call to get all character data and first page of vault
+  const initialComponents = `${components},102,300,304,305`;
+  const initialResponse = await makeApiRequest(
+    `/Destiny2/${membershipType}/Profile/${membershipId}/`,
+    {
+      params: {
+        components: initialComponents,
+        page: 0,
+      },
+      session,
+    }
+  );
 
+  finalResponse = initialResponse;
+
+  if (finalResponse.profileInventory?.data?.items) {
+    allVaultItems = allVaultItems.concat(
+      finalResponse.profileInventory.data.items
+    );
+  }
+
+  hasMore = finalResponse.profileInventory?.data?.hasMore || false;
+  page = 1;
+
+  // Loop for subsequent vault pages if necessary
+  while (hasMore) {
     const response = await makeApiRequest(
       `/Destiny2/${membershipType}/Profile/${membershipId}/`,
       {
         params: {
-          components: componentsToFetch,
+          // Only fetch vault and item components on subsequent pages
+          components: "102,300,304,305",
           page,
         },
         session,
       }
     );
 
-    if (page === 0) {
-      // Store the main response object from the first page.
-      finalResponse = response;
-    } else if (response.itemComponents) {
-      // Merge itemComponents from later pages.
-      mergeItemComponents(finalResponse.itemComponents, response.itemComponents);
+    if (response.itemComponents) {
+      mergeItemComponents(
+        finalResponse.itemComponents,
+        response.itemComponents
+      );
     }
 
-    // Collect items from the current page's vault inventory.
     if (response.profileInventory?.data?.items) {
-      allItems = allItems.concat(response.profileInventory.data.items);
+      allVaultItems = allVaultItems.concat(
+        response.profileInventory.data.items
+      );
     }
 
     hasMore = response.profileInventory?.data?.hasMore || false;
     page += 1;
-  } while (hasMore);
+  }
 
-  // Attach the fully populated item list to the final response.
+  // Attach the fully populated vault item list to the final response
   if (finalResponse.profileInventory?.data) {
-    finalResponse.profileInventory.data.items = allItems;
+    finalResponse.profileInventory.data.items = allVaultItems;
   } else {
     finalResponse.profileInventory = {
-      data: { items: allItems },
+      data: { items: allVaultItems },
     };
   }
 
@@ -91,20 +120,17 @@ router.get("/inventory", ensureAuthenticated, async (req, res) => {
   try {
     const { membershipType, membershipId } = req.session.destinyMembership;
 
-  // Components:
-  // 201: Character-specific inventories
-  // 205: Character equipment
-  // 300: Item instance data (stats, perks, etc.)
-  // 304: Item stats
-  // 305: Item sockets
-  const components = "201,205";
+    // Components:
+    // 201: Character-specific inventories
+    // 205: Character equipment
+    const components = "201,205";
 
-  const profileData = await getProfileWithAllItems(
-    membershipType,
-    membershipId,
-    components,
-    req.session
-  );
+    const profileData = await getProfileWithAllItems(
+      membershipType,
+      membershipId,
+      components,
+      req.session
+    );
 
     res.json(profileData);
   } catch (error) {
