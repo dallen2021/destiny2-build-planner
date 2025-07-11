@@ -18,21 +18,106 @@
       </div>
     </div>
 
-    <div class="header">
+    <!-- Auth Overlay -->
+    <div id="authOverlay" class="auth-overlay" style="display: none">
+      <div class="auth-modal">
+        <h2>Sign in with Bungie</h2>
+        <p>
+          To access your armor and build tools, please sign in with your Bungie
+          account.
+        </p>
+        <button class="auth-button" onclick="API.auth.login()">
+          Sign in with Bungie
+        </button>
+      </div>
+    </div>
+
+    <!-- Hamburger Menu -->
+    <div class="hamburger-menu" onclick="toggleSideMenu()">
+      <span></span>
+      <span></span>
+      <span></span>
+    </div>
+
+    <!-- Side Menu -->
+    <div id="sideMenu" class="side-menu">
+      <div class="side-menu-header">
+        <h3 id="sideMenuUsername">Guardian</h3>
+        <button class="close-menu" onclick="toggleSideMenu()">&times;</button>
+      </div>
+      <div class="side-menu-content">
+        <a href="#" onclick="switchTab('armorDisplay'); toggleSideMenu();"
+          >Armor Inventory</a
+        >
+        <a href="#" onclick="switchTab('armor'); toggleSideMenu();"
+          >Stat Allocator</a
+        >
+        <a href="#" onclick="switchTab('artifact'); toggleSideMenu();"
+          >Artifact Mods</a
+        >
+        <a href="#" onclick="switchTab('damage'); toggleSideMenu();"
+          >Damage Calculator</a
+        >
+        <a href="#" onclick="switchTab('build'); toggleSideMenu();"
+          >Build Info</a
+        >
+        <hr />
+        <a href="#" onclick="refreshData()">Refresh Data</a>
+        <a href="#" onclick="openSettings()">Settings</a>
+        <hr />
+        <a href="#" onclick="API.auth.logout()">Sign Out</a>
+      </div>
+    </div>
+
+    <div class="header" style="padding-left: 60px">
       <h1>Edge of Fate Build Planner</h1>
       <p>Comprehensive Damage Calculator & Build Optimization Tool</p>
     </div>
 
     <div class="nav-tabs">
-      <div class="nav-tab active" onclick="switchTab('armor')">
-        Stat Allocator
+      <div class="nav-tab active" onclick="switchTab('armorDisplay')">
+        Armor Inventory
       </div>
+      <div class="nav-tab" onclick="switchTab('armor')">Stat Allocator</div>
       <div class="nav-tab" onclick="switchTab('artifact')">Artifact Mods</div>
       <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
       <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
     </div>
 
-    <div id="armor" class="content-section active">
+    <div id="armorDisplay" class="content-section active">
+      <div class="armor-display-container">
+        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+          Armor Inventory
+        </h2>
+        <div class="armor-filters">
+          <input
+            type="text"
+            id="armorSearchInput"
+            placeholder="Search armor..."
+            class="armor-search"
+          />
+          <select id="armorClassFilter" class="filter-select">
+            <option value="all">All Classes</option>
+            <option value="0">Titan</option>
+            <option value="1">Hunter</option>
+            <option value="2">Warlock</option>
+          </select>
+          <select id="armorSlotFilter" class="filter-select">
+            <option value="all">All Slots</option>
+            <option value="3448274439">Helmet</option>
+            <option value="3551918588">Gauntlets</option>
+            <option value="14239492">Chest</option>
+            <option value="20886954">Legs</option>
+            <option value="1585787867">Class Item</option>
+          </select>
+        </div>
+        <div id="armorGridContainer" class="armor-grid">
+          <!-- Armor items will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <div id="armor" class="content-section">
       <div class="stat-selector-section">
         <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
           Target Stat Distribution
@@ -781,7 +866,9 @@
       </div>
     </div>
 
-    <!-- Load JavaScript files (API and manifest files removed) -->
+    <!-- Load JavaScript files -->
+    <script src="/js/api.js"></script>
+    <script src="/js/manifest.js"></script>
     <script src="/js/app.js"></script>
   </body>
 </html>
