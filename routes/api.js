@@ -7,16 +7,20 @@ const {
 } = require("../middleware/bungie");
 const { getDefinition } = require("../services/manifestService");
 
-// Get character inventory
+// Get all character and vault inventory
 router.get("/inventory", ensureAuthenticated, async (req, res) => {
   try {
     const { membershipType, membershipId } = req.session.destinyMembership;
 
-    // Components: 102=Inventory, 201=Character inventories, 205=Equipment,
-    // 300=Item instances, 304=Item stats, 305=Item sockets
+    // Components:
+    // 102: Profile-wide inventory (Vault)
+    // 201: Character-specific inventories
+    // 205: Character equipment
+    // 300: Item instance data (stats, perks, etc.)
+    // 304: Item stats
+    // 305: Item sockets
     const components = "102,201,205,300,304,305";
 
-    // Fetch profile data (character inventories, profile inventory)
     const profileData = await makeApiRequest(
       `/Destiny2/${membershipType}/Profile/${membershipId}/`,
       {
@@ -24,38 +28,6 @@ router.get("/inventory", ensureAuthenticated, async (req, res) => {
         session: req.session,
       }
     );
-
-    // Fetch vault inventory (characterId 0)
-    const vaultData = await getCharacter(
-      membershipType,
-      membershipId,
-      0,
-      "201,205,300,304,305",
-      req.session
-    );
-
-    // Merge vault items into profile inventory
-    if (vaultData.inventory?.data?.items) {
-      if (!profileData.profileInventory) {
-        profileData.profileInventory = { data: { items: [] } };
-      }
-      profileData.profileInventory.data.items =
-        profileData.profileInventory.data.items.concat(
-          vaultData.inventory.data.items
-        );
-    }
-
-    // Merge item components
-    const mergeComponents = (target, source) => {
-      if (!source) return;
-      Object.entries(source).forEach(([key, val]) => {
-        if (!val?.data) return;
-        if (!target[key]) target[key] = { data: {} };
-        target[key].data = { ...target[key].data, ...val.data };
-      });
-    };
-
-    mergeComponents(profileData.itemComponents, vaultData.itemComponents);
 
     res.json(profileData);
   } catch (error) {
