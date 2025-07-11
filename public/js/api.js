@@ -1,7 +1,14 @@
 // api.js - Frontend API wrapper for Bungie API calls
 const API = {
   // Base configuration
-  baseURL: window.location.origin,
+  // Determine base URL. If the page is opened directly from the filesystem,
+  // window.location.origin will be "null" which breaks API calls.
+  // Fallback to localhost in that case so the app still works when the
+  // backend is running locally.
+  baseURL:
+    window.location.origin && window.location.origin !== "null"
+      ? window.location.origin
+      : "http://localhost:3000",
   isAuthenticated: false,
 
   // Helper method for API calls
