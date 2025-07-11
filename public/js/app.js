@@ -415,138 +415,82 @@ let armorLoading = false;
 async function loadArmorInventory() {
   const armorGrid = document.getElementById("armorGridContainer");
   if (!armorGrid) return;
-  
-  // Don't reload if already loaded
+
   if (armorLoaded && armorItems.length > 0) {
     applyArmorFilters();
     return;
   }
-  
-  // Prevent multiple simultaneous loads
+
   if (armorLoading) return;
   armorLoading = true;
 
   try {
     showLoading(true);
     armorGrid.innerHTML = '<div class="loading-spinner" style="margin: 40px auto;"></div>';
-    
-    console.log("Loading armor inventory...");
-    
-    // Fetch inventory from API
+
     const inventoryData = await API.inventory.getAll();
-    
-    console.log("Inventory data received:", inventoryData);
-    
-    // Extract armor items from the response
-    armorItems = [];
-    
-    // Process character inventories
-    if (inventoryData.characterInventories?.data) {
-      console.log("Processing character inventories...");
-      for (const charId in inventoryData.characterInventories.data) {
-        const charInventory = inventoryData.characterInventories.data[charId];
-        console.log(`Character ${charId} has ${charInventory.items?.length || 0} items`);
-        if (charInventory.items) {
-          // Log sample item to check structure
-          if (charInventory.items.length > 0) {
-            console.log("Sample item from character inventory:", charInventory.items[0]);
-          }
-          armorItems = armorItems.concat(charInventory.items);
-        }
-      }
-    } else {
-      console.log("No character inventories found");
-    }
-    
-    // Process character equipment
-    if (inventoryData.characterEquipment?.data) {
-      console.log("Processing character equipment...");
-      for (const charId in inventoryData.characterEquipment.data) {
-        const charEquipment = inventoryData.characterEquipment.data[charId];
-        console.log(`Character ${charId} has ${charEquipment.items?.length || 0} equipped items`);
-        if (charEquipment.items) {
-          armorItems = armorItems.concat(charEquipment.items);
-        }
-      }
-    } else {
-      console.log("No character equipment found");
-    }
-    
-    // Process profile inventory (vault)
+
+    // --- Start of Corrected Logic ---
+    let allItems = [];
+    const itemComponents = inventoryData.itemComponents || {};
+
     if (inventoryData.profileInventory?.data?.items) {
-      console.log(`Vault has ${inventoryData.profileInventory.data.items.length} items`);
-      armorItems = armorItems.concat(inventoryData.profileInventory.data.items);
-    } else {
-      console.log("No vault items found");
+      allItems = allItems.concat(inventoryData.profileInventory.data.items);
     }
-    
-    console.log(`Total items before armor filter: ${armorItems.length}`);
-    
-    // Filter for armor items only (using bucket hashes)
+
+    if (inventoryData.characterInventories?.data) {
+      for (const charId in inventoryData.characterInventories.data) {
+        if (inventoryData.characterInventories.data[charId].items) {
+          allItems = allItems.concat(inventoryData.characterInventories.data[charId].items);
+        }
+      }
+    }
+
+    if (inventoryData.characterEquipment?.data) {
+      for (const charId in inventoryData.characterEquipment.data) {
+        if (inventoryData.characterEquipment.data[charId].items) {
+          allItems = allItems.concat(inventoryData.characterEquipment.data[charId].items);
+        }
+      }
+    }
+    // --- End of Corrected Logic ---
+
     const armorBuckets = [3448274439, 3551918588, 14239492, 20886954, 1585787867];
-    
-    // Debug: Check what bucket hashes we're seeing
-    const bucketCounts = {};
-    armorItems.forEach(item => {
-      bucketCounts[item.bucketHash] = (bucketCounts[item.bucketHash] || 0) + 1;
-    });
-    console.log("Bucket hash counts:", bucketCounts);
-    
-    const beforeFilterCount = armorItems.length;
-    armorItems = armorItems.filter(item => armorBuckets.includes(item.bucketHash));
-    
-    console.log(`Filtered from ${beforeFilterCount} to ${armorItems.length} armor items`);
-    console.log("Armor buckets we're looking for:", armorBuckets);
-    
-    // Check if we have any armor items
+    armorItems = allItems.filter(item => armorBuckets.includes(item.bucketHash));
+
     if (armorItems.length === 0) {
-      console.log("No armor items found after filtering!");
-      displayNoArmorMessage("No armor items found in your inventory");
+      displayNoArmorMessage("No armor items found in your inventory or vault.");
       armorLoading = false;
       showLoading(false);
       return;
     }
-    
-    // Get item definitions for all armor
+
     const uniqueHashes = [...new Set(armorItems.map(item => item.itemHash))];
-    console.log(`Fetching definitions for ${uniqueHashes.length} unique items`);
-    console.log("Sample item hashes:", uniqueHashes.slice(0, 5));
-    
-    let itemDefinitions = {};
-    try {
-      itemDefinitions = await Manifest.getItems(uniqueHashes);
-      console.log(`Received ${Object.keys(itemDefinitions).length} item definitions`);
-    } catch (error) {
-      console.error("Failed to get item definitions:", error);
-      // Continue without definitions
-    }
-    
-    // Combine item data with definitions
+    const itemDefinitions = await Manifest.getItems(uniqueHashes);
+
     armorItems = armorItems.map(item => {
       const definition = itemDefinitions[item.itemHash];
-      const stats = inventoryData.itemComponents?.stats?.data?.[item.itemInstanceId]?.stats || {};
-      
+      const stats = itemComponents.stats?.data?.[item.itemInstanceId]?.stats || {};
+
       return {
         ...item,
         definition: definition || { displayProperties: { name: `Item ${item.itemHash}` } },
         stats: stats,
-        power: inventoryData.itemComponents?.instances?.data?.[item.itemInstanceId]?.primaryStat?.value || 0
+        power: itemComponents.instances?.data?.[item.itemInstanceId]?.primaryStat?.value || 0
       };
     });
-    
-    // Initial display
+
     armorLoaded = true;
     armorLoading = false;
-    console.log("Applying filters and displaying armor");
     applyArmorFilters();
     setupArmorFilters();
-    
+
     showLoading(false);
   } catch (error) {
     console.error("Failed to load armor inventory:", error);
     armorLoaded = false;
     armorLoading = false;
-    
+
     if (error.message.includes("Not authenticated") || error.message.includes("401")) {
       displayNoArmorMessage("Please sign in with Bungie to view your armor collection");
     } else {
