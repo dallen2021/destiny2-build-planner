@@ -47,6 +47,18 @@ async function getProfileWithAllItems(membershipType, membershipId, session) {
     { params: { components: CORE, page: 0 }, session }
   );
 
+  console.log(
+    `Fetched page 0: ${
+      initial.profileInventory?.data?.items?.length || 0
+    } items`
+  );
+  if (initial.profileInventory?.data?.items?.length) {
+    console.log(
+      "Item hashes:",
+      initial.profileInventory.data.items.map((i) => i.itemHash)
+    );
+  }
+
   const vaultItems = [...(initial.profileInventory?.data?.items ?? [])];
   let hasMore   = initial.profileInventory?.hasMore ?? false;   // <-- correct level
   let page      = 1;
@@ -57,6 +69,18 @@ async function getProfileWithAllItems(membershipType, membershipId, session) {
       `/Destiny2/${membershipType}/Profile/${membershipId}/`,
       { params: { components: CORE, page }, session }
     );
+
+    console.log(
+      `Fetched page ${page}: ${
+        resp.profileInventory?.data?.items?.length || 0
+      } items`
+    );
+    if (resp.profileInventory?.data?.items?.length) {
+      console.log(
+        "Item hashes:",
+        resp.profileInventory.data.items.map((i) => i.itemHash)
+      );
+    }
 
     if (resp.profileInventory?.data?.items?.length) {
       vaultItems.push(...resp.profileInventory.data.items);
