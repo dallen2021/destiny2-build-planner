@@ -411,6 +411,8 @@ let armorItems = [];
 let filteredArmorItems = [];
 let armorLoaded = false;
 let armorLoading = false;
+let armorCurrentPage = 1;
+const armorItemsPerPage = 20;
 
 async function loadArmorInventory() {
   const armorGrid = document.getElementById("armorGridContainer");
@@ -578,6 +580,40 @@ function displayNoArmorMessage(message = "Sign in with Bungie to view your armor
   }
 }
 
+function updateArmorPagination(totalPages) {
+  const info = document.getElementById("armorPageInfo");
+  const prev = document.getElementById("armorPrevPage");
+  const next = document.getElementById("armorNextPage");
+  const container = document.getElementById("armorPagination");
+  if (!info || !prev || !next || !container) return;
+
+  info.textContent = `Page ${armorCurrentPage} of ${totalPages}`;
+  prev.disabled = armorCurrentPage <= 1;
+  next.disabled = armorCurrentPage >= totalPages;
+  container.style.display = totalPages > 1 ? "flex" : "none";
+}
+
+function renderArmorPage() {
+  const totalPages = Math.ceil(filteredArmorItems.length / armorItemsPerPage) || 1;
+  if (armorCurrentPage > totalPages) armorCurrentPage = totalPages;
+  if (armorCurrentPage < 1) armorCurrentPage = 1;
+  const start = (armorCurrentPage - 1) * armorItemsPerPage;
+  const end = start + armorItemsPerPage;
+  const pageItems = filteredArmorItems.slice(start, end);
+  displayArmorItems(pageItems);
+  updateArmorPagination(totalPages);
+}
+
+function goToNextArmorPage() {
+  armorCurrentPage++;
+  renderArmorPage();
+}
+
+function goToPrevArmorPage() {
+  armorCurrentPage--;
+  renderArmorPage();
+}
+
 function setupArmorFilters() {
   // Check if already set up
   const searchInput = document.getElementById("armorSearchInput");
@@ -603,6 +639,17 @@ function setupArmorFilters() {
   if (slotFilter && !slotFilter.dataset.initialized) {
     slotFilter.addEventListener("change", () => applyArmorFilters());
     slotFilter.dataset.initialized = "true";
+  }
+
+  const prev = document.getElementById("armorPrevPage");
+  const next = document.getElementById("armorNextPage");
+  if (prev && !prev.dataset.initialized) {
+    prev.addEventListener("click", () => goToPrevArmorPage());
+    prev.dataset.initialized = "true";
+  }
+  if (next && !next.dataset.initialized) {
+    next.addEventListener("click", () => goToNextArmorPage());
+    next.dataset.initialized = "true";
   }
 }
 
@@ -640,7 +687,8 @@ function applyArmorFilters() {
   });
   
   console.log(`Filtered to ${filteredArmorItems.length} items`);
-  displayArmorItems(filteredArmorItems);
+  armorCurrentPage = 1;
+  renderArmorPage();
 }
 
 async function refreshData() {
