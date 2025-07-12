@@ -454,7 +454,7 @@ async function loadArmorInventory() {
     showLoading(true);
     armorGrid.innerHTML = '<div class="loading-spinner" style="margin: 40px auto;"></div>';
 
-    const inventoryData = await API.inventory.getAll();
+    const inventoryData = await API.inventory.getInventory();
 
     const itemComponents = inventoryData.itemComponents || {};
     const allItems = combineInventoryItems(inventoryData);
@@ -728,7 +728,7 @@ function selectArmorItem(itemId) {
 window.debugInventory = async function() {
   try {
     console.log("=== MANUAL INVENTORY DEBUG ===");
-    const data = await API.inventory.getAll();
+    const data = await API.inventory.getInventory();
     console.log("Full API Response:", data);
     
     // Check response structure
@@ -816,7 +816,7 @@ window.testAPI = async function() {
     
     // Test basic API call
     console.log("Testing inventory API...");
-    const inventory = await API.inventory.getAll();
+    const inventory = await API.inventory.getInventory();
     console.log("Inventory response received:", inventory);
     
     return inventory;
@@ -871,7 +871,7 @@ window.diagnoseArmor = async function() {
     
     console.log("\n2. Testing API connection...");
     API.debug = true; // Enable debug logging
-    const inventory = await API.inventory.getAll();
+    const inventory = await API.inventory.getInventory();
     API.debug = false; // Disable debug logging
     
     console.log("✓ API responded successfully");
