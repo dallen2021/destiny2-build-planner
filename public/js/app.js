@@ -414,6 +414,30 @@ let armorLoading = false;
 let armorCurrentPage = 1;
 const armorItemsPerPage = 20;
 
+function combineInventoryItems(inventoryData) {
+  let all = [];
+  if (inventoryData.profileInventory?.data?.items) {
+    console.log(
+      `Vault items fetched: ${inventoryData.profileInventory.data.items.length}`
+    );
+    all = all.concat(inventoryData.profileInventory.data.items);
+  }
+
+  if (inventoryData.characterInventories?.data) {
+    Object.values(inventoryData.characterInventories.data).forEach((inv) => {
+      all = all.concat(inv.items || []);
+    });
+  }
+
+  if (inventoryData.characterEquipment?.data) {
+    Object.values(inventoryData.characterEquipment.data).forEach((equip) => {
+      all = all.concat(equip.items || []);
+    });
+  }
+
+  return all;
+}
+
 async function loadArmorInventory() {
   const armorGrid = document.getElementById("armorGridContainer");
   if (!armorGrid) return;
@@ -432,30 +456,8 @@ async function loadArmorInventory() {
 
     const inventoryData = await API.inventory.getAll();
 
-    // --- Start of Corrected Logic ---
-    let allItems = [];
     const itemComponents = inventoryData.itemComponents || {};
-
-    if (inventoryData.profileInventory?.data?.items) {
-      allItems = allItems.concat(inventoryData.profileInventory.data.items);
-    }
-
-    if (inventoryData.characterInventories?.data) {
-      for (const charId in inventoryData.characterInventories.data) {
-        if (inventoryData.characterInventories.data[charId].items) {
-          allItems = allItems.concat(inventoryData.characterInventories.data[charId].items);
-        }
-      }
-    }
-
-    if (inventoryData.characterEquipment?.data) {
-      for (const charId in inventoryData.characterEquipment.data) {
-        if (inventoryData.characterEquipment.data[charId].items) {
-          allItems = allItems.concat(inventoryData.characterEquipment.data[charId].items);
-        }
-      }
-    }
-    // --- End of Corrected Logic ---
+    const allItems = combineInventoryItems(inventoryData);
 
     const armorBuckets = [3448274439, 3551918588, 14239492, 20886954, 1585787867];
     armorItems = allItems.filter(item => armorBuckets.includes(item.bucketHash));
