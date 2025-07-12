@@ -33,68 +33,46 @@ function mergeItemComponents(target, source) {
 }
 
 /**
- * Helper function to handle pagination for fetching a profile's inventory.
- * This optimized version builds the final response inside the loop, merging
- * all item components to avoid data loss from pagination.
+ * Grab every character item *and* every vault page,
+ * merging item-components as we go.
  */
 async function getProfileWithAllItems(membershipType, membershipId, session) {
-  // Components needed for a complete inventory view
-  const allComponents = [
-    102, // ProfileInventories (Vault)
-    201, // CharacterInventories
-    205, // CharacterEquipment
-    300, // ItemInstances
-    301, // ItemRenderData
-    302, // ItemSockets
-    304, // ItemStats
-    305, // ItemTalentGrids
-    307, // ItemPlugStates
-  ].join(',');
+  // components: 102 = ProfileInventory (vault), 201 = CharacterInventories, 205 = CharacterEquipment
+  //            300+  = Item component sets we need for stats & sockets
+  const CORE = "102,201,205,300,301,302,304,305,307";
 
-  // Fetch the first page which also includes character data
-  const initialResponse = await makeApiRequest(
+  // ---- page 0 ----
+  const initial = await makeApiRequest(
     `/Destiny2/${membershipType}/Profile/${membershipId}/`,
-    {
-      params: { components: allComponents, page: 0 },
-      session,
-    }
+    { params: { components: CORE, page: 0 }, session }
   );
 
-  const finalResponse = initialResponse;
-  const vaultItems = finalResponse.profileInventory?.data?.items || [];
-  let hasMore = finalResponse.profileInventory?.data?.hasMore || false;
-  let page = 1;
+  const vaultItems = [...(initial.profileInventory?.data?.items ?? [])];
+  let hasMore   = initial.profileInventory?.hasMore ?? false;   // <-- correct level
+  let page      = 1;
 
-  // Fetch additional vault pages if present
+  // ---- extra pages ----
   while (hasMore) {
-    const pageComponents = '102,300,301,302,304,305,307';
-    const pageResponse = await makeApiRequest(
+    const resp = await makeApiRequest(
       `/Destiny2/${membershipType}/Profile/${membershipId}/`,
-      {
-        params: { components: pageComponents, page },
-        session,
-      }
+      { params: { components: CORE, page }, session }
     );
 
-    if (pageResponse.profileInventory?.data?.items) {
-      vaultItems.push(...pageResponse.profileInventory.data.items);
+    if (resp.profileInventory?.data?.items?.length) {
+      vaultItems.push(...resp.profileInventory.data.items);
     }
 
-    if (pageResponse.itemComponents) {
-      mergeItemComponents(finalResponse.itemComponents, pageResponse.itemComponents);
+    if (resp.itemComponents) {
+      mergeItemComponents(initial.itemComponents, resp.itemComponents);
     }
 
-    hasMore = pageResponse.profileInventory?.data?.hasMore || false;
+    hasMore = resp.profileInventory?.hasMore ?? false;          // <-- correct level
     page++;
   }
 
-  if (finalResponse.profileInventory?.data) {
-    finalResponse.profileInventory.data.items = vaultItems;
-  } else {
-    finalResponse.profileInventory = { data: { items: vaultItems } };
-  }
-
-  return finalResponse;
+  // stitch vault back into the first response so the shape stays the same
+  initial.profileInventory.data.items = vaultItems;
+  return initial;
 }
 
 // Get all character and vault inventory
