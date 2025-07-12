@@ -41,62 +41,14 @@ async function getProfileWithAllItems(membershipType, membershipId, session) {
   //            300+  = Item component sets we need for stats & sockets
   const CORE = "102,201,205,300,301,302,304,305,307";
 
-  // ---- page 0 ----
-  const initial = await makeApiRequest(
+  // Destiny profile inventories are returned in a single response. Fetch once
+  // and return the result.
+  const profile = await makeApiRequest(
     `/Destiny2/${membershipType}/Profile/${membershipId}/`,
-    { params: { components: CORE, page: 0 }, session }
+    { params: { components: CORE }, session }
   );
 
-  console.log(
-    `Fetched page 0: ${
-      initial.profileInventory?.data?.items?.length || 0
-    } items`
-  );
-  if (initial.profileInventory?.data?.items?.length) {
-    console.log(
-      "Item hashes:",
-      initial.profileInventory.data.items.map((i) => i.itemHash)
-    );
-  }
-
-  const vaultItems = [...(initial.profileInventory?.data?.items ?? [])];
-  let hasMore   = initial.profileInventory?.hasMore ?? false;   // <-- correct level
-  let page      = 1;
-
-  // ---- extra pages ----
-  while (hasMore) {
-    const resp = await makeApiRequest(
-      `/Destiny2/${membershipType}/Profile/${membershipId}/`,
-      { params: { components: CORE, page }, session }
-    );
-
-    console.log(
-      `Fetched page ${page}: ${
-        resp.profileInventory?.data?.items?.length || 0
-      } items`
-    );
-    if (resp.profileInventory?.data?.items?.length) {
-      console.log(
-        "Item hashes:",
-        resp.profileInventory.data.items.map((i) => i.itemHash)
-      );
-    }
-
-    if (resp.profileInventory?.data?.items?.length) {
-      vaultItems.push(...resp.profileInventory.data.items);
-    }
-
-    if (resp.itemComponents) {
-      mergeItemComponents(initial.itemComponents, resp.itemComponents);
-    }
-
-    hasMore = resp.profileInventory?.hasMore ?? false;          // <-- correct level
-    page++;
-  }
-
-  // stitch vault back into the first response so the shape stays the same
-  initial.profileInventory.data.items = vaultItems;
-  return initial;
+  return profile;
 }
 
 // Get all character and vault inventory
