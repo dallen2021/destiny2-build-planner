@@ -627,7 +627,9 @@ function displayCharacterItems(items) {
     1585787867: document.getElementById("character-class"),
   };
 
-  Object.values(containers).forEach((c) => (c.innerHTML = ""));
+  for (const key in containers) {
+    if (containers[key]) containers[key].innerHTML = "";
+  }
 
   items.forEach((item) => {
     const container = containers[item.bucketHash];
@@ -650,7 +652,9 @@ function displayVaultItems(items) {
     1585787867: document.getElementById("vault-class"),
   };
 
-  Object.values(containers).forEach((c) => (c.innerHTML = ""));
+  for (const key in containers) {
+    if (containers[key]) containers[key].innerHTML = "";
+  }
 
   items.forEach((item) => {
     const container = containers[item.definition.inventory.bucketTypeHash];
@@ -722,7 +726,7 @@ function createUniversalItemElement(item) {
 
   // Add power level if it exists
   if (item.power) {
-    itemHtml = `<div class="armor-power">${item.power}</div>` + itemHtml;
+    itemHtml += `<div class="armor-power">${item.power}</div>`;
   }
 
   // Add stats for armor items
