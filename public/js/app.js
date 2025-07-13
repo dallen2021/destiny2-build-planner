@@ -641,15 +641,13 @@ function displayCharacterItems(items) {
 function displayVaultItems(items) {
   console.log("=== DISPLAYING VAULT ITEMS ===");
   console.log(`Total vault items to display: ${items.length}`);
-  const vaultSection = document.getElementById("vault-inventory");
   const vaultContainer = document.getElementById("vault-items-container");
-  if (!vaultContainer || !vaultSection) {
+  if (!vaultContainer) {
     console.error("Vault container not found!");
     return;
   }
 
   vaultContainer.innerHTML = "";
-  vaultSection.style.display = "block";
   const itemsGrid = document.createElement("div");
   itemsGrid.className = "armor-grid";
   items.forEach((item) => {
