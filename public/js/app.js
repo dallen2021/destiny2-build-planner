@@ -349,7 +349,6 @@ function updateAuthUI(authStatus) {
     const destinyMembership = authStatus.destinyMembership;
 
     // --- Start of Debugging Display Block ---
-
     // Create a list of all possible names to try.
     const potentialNames = [
       {
@@ -358,24 +357,12 @@ function updateAuthUI(authStatus) {
       },
       {
         label: "BungieGlobalDisplayName",
-        value: bungieNetUser?.bungieGlobalDisplayName,
-      },
-      {
-        label: "XboxDisplayName",
-        value: bungieNetUser?.xboxDisplayName,
-      },
-      {
-        label: "PsnDisplayName",
-        value: bungieNetUser?.psnDisplayName,
-      },
-      {
-        label: "SteamDisplayName",
-        value: bungieNetUser?.steamDisplayName,
-      },
-      {
-        label: "EgsDisplayName",
-        value: bungieNetUser?.egsDisplayName,
-      },
+        value: bungieNetUser?.cachedBungieGlobalDisplayName,
+      }, // Fixed field name
+      { label: "XboxDisplayName", value: bungieNetUser?.xboxDisplayName },
+      { label: "PsnDisplayName", value: bungieNetUser?.psnDisplayName },
+      { label: "SteamDisplayName", value: bungieNetUser?.steamDisplayName },
+      { label: "EgsDisplayName", value: bungieNetUser?.egsDisplayName },
       { label: "DisplayName", value: bungieNetUser?.displayName },
       { label: "UniqueName", value: bungieNetUser?.uniqueName },
     ];
@@ -384,16 +371,15 @@ function updateAuthUI(authStatus) {
     const availableNames = potentialNames.filter(
       (n) => n.value && n.value.trim() !== ""
     );
-
     console.log("Available Usernames Found:", availableNames);
-
     // Display the list of names for debugging
     if (availableNames.length > 0) {
       const primaryName =
-        bungieNetUser?.bungieGlobalDisplayName || availableNames[0].value;
-      usernameEl.textContent = `DEBUG: ${primaryName}`;
-      sideMenuUsernameEl.textContent = `DEBUG: ${primaryName}`;
-
+        bungieNetUser?.cachedBungieGlobalDisplayName ||
+        bungieNetUser?.displayName ||
+        availableNames[0].value; // Prioritize global names
+      usernameEl.textContent = primaryName; // Removed DEBUG: prefix; add it back if needed for testing
+      sideMenuUsernameEl.textContent = primaryName;
       // Add a tooltip to show all names on hover
       const allNamesText = availableNames
         .map((n) => `${n.label}: ${n.value}`)
@@ -404,7 +390,6 @@ function updateAuthUI(authStatus) {
       sideMenuUsernameEl.textContent = "Guardian";
       console.error("No valid display names found in the API response.");
     }
-
     // --- End of Debugging Display Block ---
 
     const activeTab = document.querySelector(".nav-tab.active");
