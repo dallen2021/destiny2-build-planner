@@ -629,8 +629,6 @@ function displayCharacterItems(items) {
 
   const itemsGrid = document.createElement("div");
   itemsGrid.className = "armor-grid";
-  itemsGrid.style.cssText =
-    "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;";
 
   items.forEach((item) => {
     const itemElement = createUniversalItemElement(item);
@@ -701,40 +699,33 @@ function createUniversalItemElement(item) {
   const wrapper = document.createElement("div");
   wrapper.className = `armor-item ${rarityClass}`;
   wrapper.dataset.itemId = item.itemInstanceId || item.itemHash;
-  wrapper.addEventListener("click", () => selectArmorItem(item.itemInstanceId));
+  wrapper.addEventListener("click", (e) => {
+    e.currentTarget.classList.toggle("expanded");
+  });
 
   // Determine if this is armor
-  const armorBuckets = [
-    138197802, // Vault Armor
-    3448274439, // Helmet
-    3551918588, // Gauntlets
-    14239492, // Chest Armor
-    20886954, // Leg Armor
-    1585787867, // Class Armor
-  ];
   const isArmor = item.definition?.itemType === 2;
 
   // Basic item info that all items have
   let itemHtml = `
-    <div class="armor-header">
       <div class="armor-icon">
         ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
       </div>
-      <div class="armor-info">
-        <div class="armor-name">${name}</div>
-        <div class="armor-type">${itemType}</div>
-        ${
-          item.quantity > 1
-            ? `<div style="color: #8af295;">Quantity: ${item.quantity}</div>`
-            : ""
-        }
-      </div>
-    </div>
+      <div class="armor-details">
+        <div class="armor-info">
+            <div class="armor-name">${name}</div>
+            <div class="armor-type">${itemType}</div>
+            ${
+              item.quantity > 1
+                ? `<div style="color: #8af295;">Quantity: ${item.quantity}</div>`
+                : ""
+            }
+        </div>
   `;
 
   // Add power level if it exists
   if (item.power) {
-    itemHtml = `<div class="armor-power">${item.power}</div>` + itemHtml;
+    itemHtml += `<div class="armor-power">${item.power}</div>`;
   }
 
   // Add stats for armor items
@@ -756,22 +747,9 @@ function createUniversalItemElement(item) {
         <span class="armor-tag">Total: ${totalStats}</span>
       </div>
     `;
-  } else {
-    // For non-armor items, show basic tags
-    itemHtml += `
-      <div class="armor-tags">
-        <span class="armor-tag">${tierType || "Common"}</span>
-        ${
-          item.isEquipped
-            ? '<span class="armor-tag" style="background: #8af295; color: #000;">EQUIPPED</span>'
-            : ""
-        }
-        <span class="armor-tag" style="background: rgba(138, 43, 226, 0.5);">
-          ${item.location === 2 ? "Vault" : "Character"}
-        </span>
-      </div>
-    `;
   }
+
+  itemHtml += `</div>`;
 
   wrapper.innerHTML = itemHtml;
 
