@@ -351,7 +351,7 @@ function updateAuthUI(authStatus) {
 
     // Clear armor display when not authenticated
     armorLoaded = false;
-    armorItems = [];
+    allItems = []; // Changed from armorItems
     displayNoArmorMessage();
   }
 }
@@ -414,7 +414,7 @@ function openSettings() {
 }
 
 /* -------- ARMOR DISPLAY FUNCTIONS -------- */
-let armorItems = [];
+let allItems = []; // Store ALL items, not just armor
 let filteredArmorItems = [];
 let armorLoaded = false;
 let armorLoading = false;
@@ -423,26 +423,87 @@ const armorItemsPerPage = 20;
 let classDefinitions = {};
 
 function combineInventoryItems(inventoryData) {
+  console.log("=== COMBINING INVENTORY ITEMS ===");
   let all = [];
+
+  // Log the entire inventory data structure
+  console.log("Full inventory data structure:", inventoryData);
+
+  // Check vault items (profileInventory)
   if (inventoryData.profileInventory?.data?.items) {
     console.log(
-      `Vault items fetched: ${inventoryData.profileInventory.data.items.length}`
+      `Vault items found: ${inventoryData.profileInventory.data.items.length}`
     );
-    all = all.concat(inventoryData.profileInventory.data.items);
+    console.log(
+      "First 5 vault items:",
+      inventoryData.profileInventory.data.items.slice(0, 5)
+    );
+
+    // Add location property to vault items
+    const vaultItems = inventoryData.profileInventory.data.items.map(
+      (item) => ({
+        ...item,
+        location: 2, // Vault location
+      })
+    );
+
+    all = all.concat(vaultItems);
+  } else {
+    console.log("No vault items found in profileInventory");
   }
 
+  // Check character inventories
   if (inventoryData.characterInventories?.data) {
-    Object.values(inventoryData.characterInventories.data).forEach((inv) => {
-      all = all.concat(inv.items || []);
-    });
+    console.log(
+      "Character inventories found:",
+      Object.keys(inventoryData.characterInventories.data)
+    );
+    Object.entries(inventoryData.characterInventories.data).forEach(
+      ([charId, inv]) => {
+        console.log(`Character ${charId} has ${inv.items?.length || 0} items`);
+        if (inv.items) {
+          // Add location property to character inventory items
+          const charItems = inv.items.map((item) => ({
+            ...item,
+            location: 1, // Character inventory location
+            characterId: charId,
+          }));
+          all = all.concat(charItems);
+        }
+      }
+    );
+  } else {
+    console.log("No character inventories found");
   }
 
+  // Check equipped items
   if (inventoryData.characterEquipment?.data) {
-    Object.values(inventoryData.characterEquipment.data).forEach((equip) => {
-      all = all.concat(equip.items || []);
-    });
+    console.log(
+      "Character equipment found:",
+      Object.keys(inventoryData.characterEquipment.data)
+    );
+    Object.entries(inventoryData.characterEquipment.data).forEach(
+      ([charId, equip]) => {
+        console.log(
+          `Character ${charId} has ${equip.items?.length || 0} equipped items`
+        );
+        if (equip.items) {
+          // Add location property to equipped items
+          const equipItems = equip.items.map((item) => ({
+            ...item,
+            location: 1, // Character location (equipped)
+            characterId: charId,
+            isEquipped: true,
+          }));
+          all = all.concat(equipItems);
+        }
+      }
+    );
+  } else {
+    console.log("No character equipment found");
   }
 
+  console.log(`Total combined items: ${all.length}`);
   return all;
 }
 
@@ -450,7 +511,7 @@ async function loadArmorInventory() {
   const armorGrid = document.getElementById("character-inventories");
   if (!armorGrid) return;
 
-  if (armorLoaded && armorItems.length > 0) {
+  if (armorLoaded && allItems.length > 0) {
     applyArmorFilters();
     return;
   }
@@ -468,26 +529,33 @@ async function loadArmorInventory() {
     classDefinitions = await Manifest.getClasses();
 
     const itemComponents = inventoryData.itemComponents || {};
-    const allItems = combineInventoryItems(inventoryData);
+    allItems = combineInventoryItems(inventoryData); // Store ALL items
 
-    const armorBuckets = [
-      3448274439, 3551918588, 14239492, 20886954, 1585787867,
-    ];
-    armorItems = allItems.filter((item) =>
-      armorBuckets.includes(item.bucketHash)
-    );
+    console.log("=== ANALYZING ALL ITEMS ===");
+    console.log(`Total items before any filtering: ${allItems.length}`);
 
-    if (armorItems.length === 0) {
-      displayNoArmorMessage("No armor items found in your inventory or vault.");
-      armorLoading = false;
-      showLoading(false);
-      return;
-    }
+    // Log bucket distribution
+    const bucketCounts = {};
+    allItems.forEach((item) => {
+      bucketCounts[item.bucketHash] = (bucketCounts[item.bucketHash] || 0) + 1;
+    });
+    console.log("Items by bucket hash:", bucketCounts);
 
-    const uniqueHashes = [...new Set(armorItems.map((item) => item.itemHash))];
+    // Log location distribution
+    const locationCounts = {};
+    allItems.forEach((item) => {
+      locationCounts[item.location] = (locationCounts[item.location] || 0) + 1;
+    });
+    console.log("Items by location:", locationCounts);
+
+    // Get unique hashes for ALL items
+    const uniqueHashes = [...new Set(allItems.map((item) => item.itemHash))];
+    console.log(`Unique item hashes: ${uniqueHashes.length}`);
+
     const itemDefinitions = await Manifest.getItems(uniqueHashes);
 
-    armorItems = armorItems.map((item) => {
+    // Process ALL items, not just armor
+    allItems = allItems.map((item) => {
       const definition = itemDefinitions[item.itemHash];
       const stats =
         itemComponents.stats?.data?.[item.itemInstanceId]?.stats || {};
@@ -503,6 +571,20 @@ async function loadArmorInventory() {
             ?.value || 0,
       };
     });
+
+    // Log some vault items to see what they are
+    const vaultItems = allItems.filter((item) => item.location === 2);
+    console.log(`Vault items after processing: ${vaultItems.length}`);
+    if (vaultItems.length > 0) {
+      console.log("Sample vault items (first 10):");
+      vaultItems.slice(0, 10).forEach((item, index) => {
+        console.log(
+          `${index + 1}. ${item.definition?.displayProperties?.name} (${
+            item.definition?.itemTypeDisplayName
+          })`
+        );
+      });
+    }
 
     armorLoaded = true;
     armorLoading = false;
@@ -531,6 +613,9 @@ async function loadArmorInventory() {
 }
 
 function displayArmorItems(armorItems) {
+  console.log("=== DISPLAYING ARMOR ITEMS ===");
+  console.log(`Total armor items to display: ${armorItems.length}`);
+
   const charactersContainer = document.getElementById("character-inventories");
   if (!charactersContainer) {
     console.error("Character inventories container not found!");
@@ -547,16 +632,15 @@ function displayArmorItems(armorItems) {
   const characters = Object.values(window.inventory.characterInventories.data);
   const characterEquipment = window.inventory.characterEquipment.data;
 
+  // Display character inventories
   characters.forEach((character) => {
     const characterItems = armorItems.filter((item) => {
-      const inInventory = character.items.some(
-        (charItem) => charItem.itemInstanceId === item.itemInstanceId
-      );
-      const isEquipped = characterEquipment[character.characterId]?.items.some(
-        (equipItem) => equipItem.itemInstanceId === item.itemInstanceId
-      );
-      return inInventory || isEquipped;
+      return item.characterId === character.characterId && item.location === 1;
     });
+
+    console.log(
+      `Character ${character.characterId} has ${characterItems.length} armor items`
+    );
 
     if (characterItems.length > 0) {
       const characterDiv = document.createElement("div");
@@ -578,20 +662,57 @@ function displayArmorItems(armorItems) {
     }
   });
 
+  // Always display vault items
   displayVaultItems(armorItems);
 }
 
 function displayVaultItems(armorItems) {
+  console.log("=== DISPLAYING VAULT ITEMS ===");
+
   const vaultContainer = document.getElementById("vault-items-container");
-  if (!vaultContainer) return;
+  if (!vaultContainer) {
+    console.error("Vault container not found!");
+    return;
+  }
+
   vaultContainer.innerHTML = "";
 
-  const vaultItems = armorItems.filter((item) => item.location === 2);
+  // Get ALL vault items from the original unfiltered list
+  const allVaultItems = allItems.filter((item) => item.location === 2);
+  console.log(`Total vault items (unfiltered): ${allVaultItems.length}`);
 
-  vaultItems.forEach((item) => {
-    const itemElement = createItemElement(item);
-    vaultContainer.appendChild(itemElement);
-  });
+  // Now filter vault items based on current armor filters
+  const filteredVaultItems = armorItems.filter((item) => item.location === 2);
+  console.log(`Filtered vault armor items: ${filteredVaultItems.length}`);
+
+  // For debugging, let's display ALL vault items temporarily
+  if (allVaultItems.length > 0 && filteredVaultItems.length === 0) {
+    console.log("No armor in vault, showing first 50 vault items of any type:");
+
+    // Display first 50 vault items regardless of type
+    allVaultItems.slice(0, 50).forEach((item) => {
+      const itemElement = createItemElement(item);
+      vaultContainer.appendChild(itemElement);
+    });
+
+    // Add a message
+    const messageDiv = document.createElement("div");
+    messageDiv.className = "vault-message";
+    messageDiv.style.cssText =
+      "padding: 20px; text-align: center; color: #ffd700;";
+    messageDiv.innerHTML = `<p>Showing first 50 of ${allVaultItems.length} vault items (all types)</p>`;
+    vaultContainer.insertBefore(messageDiv, vaultContainer.firstChild);
+  } else {
+    // Display filtered armor items
+    filteredVaultItems.forEach((item) => {
+      const itemElement = createItemElement(item);
+      vaultContainer.appendChild(itemElement);
+    });
+
+    if (filteredVaultItems.length === 0 && allVaultItems.length > 0) {
+      vaultContainer.innerHTML = `<div class="empty-state">No armor items in vault (${allVaultItems.length} other items)</div>`;
+    }
+  }
 }
 
 function getCharacterName(characterId) {
@@ -632,32 +753,54 @@ function createItemElement(item) {
   wrapper.dataset.itemId = item.itemInstanceId;
   wrapper.addEventListener("click", () => selectArmorItem(item.itemInstanceId));
 
-  wrapper.innerHTML = `
-    <div class="armor-power">${item.power}</div>
-    <div class="armor-header">
-      <div class="armor-icon">
-        ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
-      </div>
-      <div class="armor-info">
-        <div class="armor-name">${name}</div>
-        <div class="armor-type">${itemType}</div>
-      </div>
-    </div>
-    <div class="armor-stats">
-      ${Object.entries(Manifest.statHashes)
-        .map(
-          ([hash, statName]) => `
-        <div class="stat-item">
-          <div class="stat-name">${statName.substring(0, 3)}</div>
-          <div class="stat-value">${statValues[hash] || 0}</div>
+  // For non-armor items, show simplified view
+  const isArmor = [
+    3448274439, 3551918588, 14239492, 20886954, 1585787867,
+  ].includes(item.bucketHash);
+
+  if (!isArmor) {
+    wrapper.innerHTML = `
+      <div class="armor-header">
+        <div class="armor-icon">
+          ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
         </div>
-      `
-        )
-        .join("")}
-    </div>
-    <div class="armor-tags">
-      <span class="armor-tag">Total: ${totalStats}</span>
-    </div>`;
+        <div class="armor-info">
+          <div class="armor-name">${name}</div>
+          <div class="armor-type">${itemType}</div>
+        </div>
+      </div>
+      <div class="armor-tags">
+        <span class="armor-tag">${tierType}</span>
+      </div>`;
+  } else {
+    // Full armor display
+    wrapper.innerHTML = `
+      <div class="armor-power">${item.power}</div>
+      <div class="armor-header">
+        <div class="armor-icon">
+          ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
+        </div>
+        <div class="armor-info">
+          <div class="armor-name">${name}</div>
+          <div class="armor-type">${itemType}</div>
+        </div>
+      </div>
+      <div class="armor-stats">
+        ${Object.entries(Manifest.statHashes)
+          .map(
+            ([hash, statName]) => `
+          <div class="stat-item">
+            <div class="stat-name">${statName.substring(0, 3)}</div>
+            <div class="stat-value">${statValues[hash] || 0}</div>
+          </div>
+        `
+          )
+          .join("")}
+      </div>
+      <div class="armor-tags">
+        <span class="armor-tag">Total: ${totalStats}</span>
+      </div>`;
+  }
 
   return wrapper;
 }
@@ -759,13 +902,32 @@ function applyArmorFilters() {
     document.getElementById("armorClassFilter")?.value || "all";
   const slotValue = document.getElementById("armorSlotFilter")?.value || "all";
 
-  console.log("Applying filters:", {
+  console.log("=== APPLYING FILTERS ===");
+  console.log("Filters:", {
     searchValue,
     classValue,
     slotValue,
-    totalItems: armorItems.length,
+    totalItems: allItems.length,
   });
 
+  // First, filter for armor items only (from ALL items)
+  const armorBuckets = [3448274439, 3551918588, 14239492, 20886954, 1585787867];
+  const armorItems = allItems.filter((item) =>
+    armorBuckets.includes(item.bucketHash)
+  );
+
+  console.log(
+    `Armor items: ${armorItems.length} (from ${allItems.length} total)`
+  );
+
+  // Log armor items by location
+  const armorByLocation = {};
+  armorItems.forEach((item) => {
+    armorByLocation[item.location] = (armorByLocation[item.location] || 0) + 1;
+  });
+  console.log("Armor items by location:", armorByLocation);
+
+  // Then apply additional filters
   filteredArmorItems = armorItems.filter((item) => {
     // Search filter
     if (searchValue) {
@@ -797,7 +959,16 @@ function applyArmorFilters() {
     return true;
   });
 
-  console.log(`Filtered to ${filteredArmorItems.length} items`);
+  console.log(`Filtered to ${filteredArmorItems.length} armor items`);
+
+  // Log filtered armor by location
+  const filteredByLocation = {};
+  filteredArmorItems.forEach((item) => {
+    filteredByLocation[item.location] =
+      (filteredByLocation[item.location] || 0) + 1;
+  });
+  console.log("Filtered armor by location:", filteredByLocation);
+
   armorCurrentPage = 1;
   renderArmorPage();
 }
@@ -827,7 +998,7 @@ function debounce(func, wait) {
 function selectArmorItem(itemId) {
   // TODO: Implement armor item selection logic
   // For now, just show item details
-  const item = armorItems.find((i) => i.itemInstanceId === itemId);
+  const item = allItems.find((i) => i.itemInstanceId === itemId);
   if (item) {
     showNotification(
       `Selected: ${item.definition?.displayProperties?.name || "Unknown Item"}`,
@@ -894,176 +1065,39 @@ window.debugInventory = async function () {
   }
 };
 
-// Debug function to check specific armor
-window.debugArmor = function () {
-  console.log("=== ARMOR DEBUG ===");
-  console.log("Loaded armor items:", armorItems.length);
-  console.log("First 5 armor items:", armorItems.slice(0, 5));
-  console.log(
-    "Armor bucket hashes:",
-    [3448274439, 3551918588, 14239492, 20886954, 1585787867]
-  );
-  console.log("Armor loaded flag:", armorLoaded);
-  console.log("Currently loading:", armorLoading);
-};
+// Debug vault items specifically
+window.debugVault = function () {
+  console.log("=== VAULT DEBUG ===");
 
-// Manual reload function
-window.reloadArmor = async function () {
-  console.log("=== MANUAL ARMOR RELOAD ===");
-  armorLoaded = false;
-  armorLoading = false;
-  armorItems = [];
-  await loadArmorInventory();
-  console.log("Reload complete. Items loaded:", armorItems.length);
-};
+  const vaultItems = allItems.filter((item) => item.location === 2);
+  console.log(`Total vault items: ${vaultItems.length}`);
 
-// Test API connection
-window.testAPI = async function () {
-  console.log("=== API CONNECTION TEST ===");
+  // Group by item type
+  const itemTypes = {};
+  vaultItems.forEach((item) => {
+    const type = item.definition?.itemTypeDisplayName || "Unknown";
+    itemTypes[type] = (itemTypes[type] || 0) + 1;
+  });
 
-  try {
-    // Test auth status
-    console.log("Testing auth status...");
-    const authStatus = await API.auth.checkStatus();
-    console.log("Auth status:", authStatus);
-
-    if (!authStatus.authenticated) {
-      console.log("Not authenticated. Please sign in first.");
-      return;
-    }
-
-    // Test basic API call
-    console.log("Testing inventory API...");
-    const inventory = await API.inventory.getInventory();
-    console.log("Inventory response received:", inventory);
-
-    return inventory;
-  } catch (error) {
-    console.error("API test failed:", error);
-    throw error;
-  }
-};
-
-// Simple test to check if anything works
-window.quickTest = async function () {
-  console.log("=== QUICK TEST ===");
-
-  // 1. Check if we're on the armor tab
-  const activeTab = document.querySelector(".nav-tab.active");
-  console.log("Active tab:", activeTab?.textContent);
-
-  // 2. Check if armor grid exists
-  const grid = document.getElementById("character-inventories");
-  console.log("Armor grid found:", !!grid);
-
-  // 3. Try to fetch inventory directly
-  try {
-    const response = await fetch("/api/inventory", {
-      credentials: "include",
+  console.log("Vault items by type:");
+  Object.entries(itemTypes)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([type, count]) => {
+      console.log(`  ${type}: ${count}`);
     });
-    console.log("Raw response status:", response.status);
-    const data = await response.json();
-    console.log("Raw response data:", data);
-  } catch (err) {
-    console.error("Raw fetch failed:", err);
-  }
 
-  // 4. Check current armor state
-  console.log("Current armor items:", armorItems.length);
-  console.log("Is authenticated:", isAuthenticated);
+  // Show first 20 vault items with details
+  console.log("\nFirst 20 vault items:");
+  vaultItems.slice(0, 20).forEach((item, index) => {
+    console.log(`${index + 1}. ${item.definition?.displayProperties?.name}`);
+    console.log(`   Type: ${item.definition?.itemTypeDisplayName}`);
+    console.log(`   Tier: ${item.definition?.inventory?.tierTypeName}`);
+    console.log(`   Bucket: ${item.bucketHash}`);
+    console.log(`   Location: ${item.location}`);
+  });
 };
 
-// Full diagnostic function
-window.diagnoseArmor = async function () {
-  console.log("=== FULL ARMOR DIAGNOSTIC ===");
-  console.log("1. Checking authentication...");
-
-  try {
-    const authStatus = await API.auth.checkStatus();
-    console.log(
-      "✓ Auth status:",
-      authStatus.authenticated ? "Logged in" : "Not logged in"
-    );
-
-    if (!authStatus.authenticated) {
-      console.log("✗ You need to sign in first!");
-      return;
-    }
-
-    console.log("\n2. Testing API connection...");
-    API.debug = true; // Enable debug logging
-    const inventory = await API.inventory.getInventory();
-    API.debug = false; // Disable debug logging
-
-    console.log("✓ API responded successfully");
-
-    console.log("\n3. Checking inventory structure...");
-    console.log(
-      "- Has characterInventories?",
-      !!inventory.characterInventories
-    );
-    console.log("- Has characterEquipment?", !!inventory.characterEquipment);
-    console.log("- Has profileInventory?", !!inventory.profileInventory);
-    console.log("- Has itemComponents?", !!inventory.itemComponents);
-
-    console.log("\n4. Forcing armor reload...");
-    armorLoaded = false;
-    armorLoading = false;
-    await loadArmorInventory();
-
-    console.log("\n5. Final status:");
-    console.log("- Armor items loaded:", armorItems.length);
-    console.log(
-      "- Grid container exists?",
-      !!document.getElementById("character-inventories")
-    );
-
-    if (armorItems.length > 0) {
-      console.log("\n✓ SUCCESS: Armor loaded!");
-      console.log("First armor item:", armorItems[0]);
-    } else {
-      console.log("\n✗ FAILED: No armor items found");
-      console.log("Please check the logs above for issues");
-    }
-  } catch (error) {
-    console.error("✗ Diagnostic failed:", error);
-  }
-};
-
-// Test display with dummy data
-window.testArmorDisplay = function () {
-  console.log("=== TEST ARMOR DISPLAY ===");
-  const dummyItems = [
-    {
-      itemInstanceId: "test123",
-      itemHash: 123456,
-      bucketHash: 3448274439, // Helmet
-      definition: {
-        displayProperties: {
-          name: "Test Helmet",
-          icon: "/common/destiny2_content/icons/test.jpg",
-        },
-        inventory: {
-          tierTypeName: "Legendary",
-        },
-        itemTypeDisplayName: "Helmet",
-      },
-      stats: {
-        2996146975: { value: 10 }, // Mobility
-        392767087: { value: 20 }, // Resilience
-        1943323491: { value: 15 }, // Recovery
-        1735777505: { value: 10 }, // Discipline
-        144602215: { value: 25 }, // Intellect
-        4244567218: { value: 12 }, // Strength
-      },
-      power: 1810,
-    },
-  ];
-
-  displayArmorItems(dummyItems);
-  console.log("Test display complete");
-};
-
+// Rest of the code remains the same...
 /* ---------------- Stat allocator via BOXES ---------------- */
 function initStatAllocator() {
   const alloc = document.getElementById("statAllocator");
