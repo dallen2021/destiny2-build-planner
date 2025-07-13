@@ -1185,6 +1185,7 @@ async function loadArmorInventory() {
   const armorGrid = document.getElementById("character-inventories");
   if (!armorGrid) return;
 
+<<<<<<< HEAD
   // If already loaded, just display appropriate tab
   if (armorLoaded && allItems.length > 0) {
     const activeTab = document.querySelector(".nav-tab.active");
@@ -1196,6 +1197,10 @@ async function loadArmorInventory() {
         displayWeaponArsenal();
       }
     }
+=======
+  if (armorLoaded && allItems.length > 0) {
+    applyArmorFilters();
+>>>>>>> 6d98d7a90d850b1f1bd774c9de24e0080ad1b9e3
     return;
   }
 
@@ -1252,12 +1257,15 @@ async function loadArmorInventory() {
         power:
           itemComponents.instances?.data?.[item.itemInstanceId]?.primaryStat
             ?.value || 0,
+<<<<<<< HEAD
         energy:
           itemComponents.instances?.data?.[item.itemInstanceId]?.energy || null,
         sockets:
           itemComponents.sockets?.data?.[item.itemInstanceId]?.sockets || [],
         state:
           itemComponents.instances?.data?.[item.itemInstanceId]?.state || 0,
+=======
+>>>>>>> 6d98d7a90d850b1f1bd774c9de24e0080ad1b9e3
       };
     });
 
@@ -1275,6 +1283,7 @@ async function loadArmorInventory() {
       });
     }
 
+<<<<<<< HEAD
     // NOW set loaded flag after successful load
     armorLoaded = true;
     armorLoading = false;
@@ -1292,6 +1301,12 @@ async function loadArmorInventory() {
         displayWeaponArsenal();
       }
     }
+=======
+    armorLoaded = true;
+    armorLoading = false;
+    applyArmorFilters();
+    setupArmorFilters();
+>>>>>>> 6d98d7a90d850b1f1bd774c9de24e0080ad1b9e3
 
     showLoading(false);
   } catch (error) {
@@ -1310,7 +1325,10 @@ async function loadArmorInventory() {
       showNotification("Failed to load armor inventory", "error");
       displayNoArmorMessage("Failed to load armor. Please try refreshing.");
     }
+<<<<<<< HEAD
 
+=======
+>>>>>>> 6d98d7a90d850b1f1bd774c9de24e0080ad1b9e3
     showLoading(false);
   }
 }
