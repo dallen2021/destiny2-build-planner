@@ -653,7 +653,7 @@ function displayVaultItems(items) {
   vaultContainer.innerHTML = "";
   vaultSection.style.display = "block";
   const itemsGrid = document.createElement("div");
-  itemsGrid.className = "items-container";
+  itemsGrid.className = "armor-grid";
   items.forEach((item) => {
     const itemElement = createUniversalItemElement(item);
     itemsGrid.appendChild(itemElement);
@@ -712,7 +712,7 @@ function createUniversalItemElement(item) {
     20886954, // Leg Armor
     1585787867, // Class Armor
   ];
-  const isArmor = armorBuckets.includes(item.bucketHash);
+  const isArmor = item.definition?.itemType === 2;
 
   // Basic item info that all items have
   let itemHtml = `
@@ -937,20 +937,9 @@ function applyArmorFilters() {
   const characterItems = [];
   const vaultItems = [];
 
-  const armorBuckets = [
-    138197802, // Vault Armor
-    3448274439, // Helmet
-    3551918588, // Gauntlets
-    14239492, // Chest Armor
-    20886954, // Leg Armor
-    1585787867, // Class Armor
-  ];
-
   allItems.forEach((item) => {
-    // Armor only filter
-    if (!armorBuckets.includes(item.bucketHash)) {
-      return;
-    }
+    const isArmor = item.definition?.itemType === 2;
+    if (!isArmor) return;
 
     // Search filter
     if (searchValue) {
@@ -976,8 +965,15 @@ function applyArmorFilters() {
 
     // Slot filter
     if (slotValue !== "all") {
-      if (item.bucketHash !== parseInt(slotValue)) {
-        return;
+      if (item.location === 2) {
+        // Vault
+        if (item.definition?.inventory?.bucketTypeHash != parseInt(slotValue)) {
+          return;
+        }
+      } else {
+        if (item.bucketHash !== parseInt(slotValue)) {
+          return;
+        }
       }
     }
 
