@@ -225,6 +225,14 @@ const statBonusData = {
     damage_increase_pve: { 100: 0, 200: 30 },
     damage_increase_pvp: { 100: 0, 200: 20 },
   },
+  // Profile methods
+  profile: {
+    async get(membershipType, membershipId, components = "200") {
+      return API.request(
+        `/Destiny2/${membershipType}/Profile/${membershipId}/?components=${components}`
+      );
+    },
+  },
 };
 
 /* Define exotic class item combinations for each class */
@@ -363,37 +371,124 @@ function updateAuthUI(authStatus) {
 /* -------- CHARACTER SELECTOR FUNCTIONS -------- */
 async function loadCharacters() {
   try {
-    // Get characters from the inventory data
-    if (!window.inventory || !window.inventory.characters) {
-      console.log("No character data available");
+    // Get auth status first
+    const authStatus = await API.auth.checkStatus();
+    if (!authStatus.authenticated || !authStatus.destinyMembership) {
+      console.log("Not authenticated or no destiny membership");
       return;
     }
 
-    const characters = window.inventory.characters.data;
-    const characterSelector = document.getElementById("characterSelector");
+    const { membershipType, membershipId } = authStatus.destinyMembership;
 
-    if (!characters || Object.keys(characters).length === 0) {
-      console.log("No characters found");
-      return;
+    try {
+      // Try to get full character data from the API
+      const profileData = await API.request(
+        `/api/profile/${membershipType}/${membershipId}?components=200`
+      );
+
+      if (profileData.characters?.data) {
+        const characterSelector = document.getElementById("characterSelector");
+        characterSelector.innerHTML = "";
+
+        // Create emblem for each character
+        for (const [characterId, character] of Object.entries(
+          profileData.characters.data
+        )) {
+          charactersData[characterId] = character;
+
+          const characterEmblem = createCharacterEmblem(characterId, character);
+          characterSelector.appendChild(characterEmblem);
+        }
+
+        // Select first character by default
+        const firstCharacterId = Object.keys(profileData.characters.data)[0];
+        selectCharacter(firstCharacterId);
+
+        // Show the character selector
+        characterSelector.style.display = "flex";
+
+        // Hide the class filter dropdown since we're using character selector
+        const classFilter = document.getElementById("armorClassFilter");
+        if (classFilter) {
+          classFilter.style.display = "none";
+        }
+      }
+    } catch (profileError) {
+      console.log("Failed to get profile data, using inventory data instead");
+
+      // Fallback to using inventory data
+      const characterInventories = window.inventory?.characterInventories?.data;
+      const characterEquipment = window.inventory?.characterEquipment?.data;
+
+      if (
+        !characterInventories ||
+        Object.keys(characterInventories).length === 0
+      ) {
+        console.log("No character inventories found");
+        return;
+      }
+
+      const characterSelector = document.getElementById("characterSelector");
+      characterSelector.innerHTML = "";
+
+      // Create basic character emblems for each character
+      let index = 0;
+      for (const characterId of Object.keys(characterInventories)) {
+        // Determine class based on index (this is a guess)
+        let classType = index % 3; // Cycles through 0=Titan, 1=Hunter, 2=Warlock
+        let power = 0;
+
+        // Calculate average power from equipped items
+        if (characterEquipment?.[characterId]?.items) {
+          let totalPower = 0;
+          let itemCount = 0;
+
+          characterEquipment[characterId].items.forEach((item) => {
+            const instanceData =
+              window.inventory.itemComponents?.instances?.data?.[
+                item.itemInstanceId
+              ];
+            if (instanceData?.primaryStat?.value) {
+              totalPower += instanceData.primaryStat.value;
+              itemCount++;
+            }
+          });
+
+          if (itemCount > 0) {
+            power = Math.floor(totalPower / itemCount);
+          }
+        }
+
+        // Create a basic character object
+        const character = {
+          characterId,
+          classType,
+          light: power,
+          emblemBackgroundPath:
+            "/common/destiny2_content/icons/b6b06d21b15083d353be98ef714158a1.jpg", // Default emblem
+        };
+
+        charactersData[characterId] = character;
+
+        const characterEmblem = createCharacterEmblem(characterId, character);
+        characterSelector.appendChild(characterEmblem);
+
+        index++;
+      }
+
+      // Select first character by default
+      const firstCharacterId = Object.keys(characterInventories)[0];
+      selectCharacter(firstCharacterId);
+
+      // Show the character selector
+      characterSelector.style.display = "flex";
+
+      // Hide the class filter dropdown since we're using character selector
+      const classFilter = document.getElementById("armorClassFilter");
+      if (classFilter) {
+        classFilter.style.display = "none";
+      }
     }
-
-    // Clear existing character emblems
-    characterSelector.innerHTML = "";
-
-    // Create emblem for each character
-    for (const [characterId, character] of Object.entries(characters)) {
-      charactersData[characterId] = character;
-
-      const characterEmblem = createCharacterEmblem(characterId, character);
-      characterSelector.appendChild(characterEmblem);
-    }
-
-    // Select first character by default
-    const firstCharacterId = Object.keys(characters)[0];
-    selectCharacter(firstCharacterId);
-
-    // Show the character selector
-    characterSelector.style.display = "flex";
   } catch (error) {
     console.error("Failed to load characters:", error);
   }

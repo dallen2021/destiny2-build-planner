@@ -351,4 +351,31 @@ router.get("/vendors", ensureAuthenticated, async (req, res) => {
   }
 });
 
+// Get profile with character data
+router.get(
+  "/profile/:membershipType/:membershipId",
+  ensureAuthenticated,
+  async (req, res) => {
+    try {
+      const { membershipType, membershipId } = req.params;
+      const { components = "200" } = req.query;
+
+      const data = await makeApiRequest(
+        `/Destiny2/${membershipType}/Profile/${membershipId}/`,
+        {
+          params: { components },
+          session: req.session,
+        }
+      );
+
+      res.json(data);
+    } catch (error) {
+      console.error("Profile fetch error:", error);
+      res.status(error.response?.status || 500).json({
+        error: error.message || "Failed to fetch profile data",
+      });
+    }
+  }
+);
+
 module.exports = router;
