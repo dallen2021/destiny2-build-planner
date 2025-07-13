@@ -704,7 +704,14 @@ function createUniversalItemElement(item) {
   wrapper.addEventListener("click", () => selectArmorItem(item.itemInstanceId));
 
   // Determine if this is armor
-  const armorBuckets = [3448274439, 3551918588, 14239492, 20886954, 1585787867];
+  const armorBuckets = [
+    138197802, // Vault Armor
+    3448274439, // Helmet
+    3551918588, // Gauntlets
+    14239492, // Chest Armor
+    20886954, // Leg Armor
+    1585787867, // Class Armor
+  ];
   const isArmor = armorBuckets.includes(item.bucketHash);
 
   // Basic item info that all items have
@@ -931,6 +938,7 @@ function applyArmorFilters() {
   const vaultItems = [];
 
   const armorBuckets = [
+    138197802, // Vault Armor
     3448274439, // Helmet
     3551918588, // Gauntlets
     14239492, // Chest Armor
