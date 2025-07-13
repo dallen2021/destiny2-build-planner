@@ -152,7 +152,7 @@ const artifactMods = [
       type: "Ultimate Mod",
       name: "Radiant Shrapnel",
       description:
-        "Dealing sustained weapon damage while Radiant or defeating a scorched combatant with a weapon causes the target to release Solar projectiles that deal damage and scorch on impact",
+        "Dealing sustained weapon damage while Radiant or defeating a scorched combatant with a weapon causes the target to release a Solar projectile that deal damage and scorch on impact",
       elements: ["solar"],
     },
     {
@@ -612,9 +612,9 @@ async function loadArmorInventory() {
   }
 }
 
-function displayArmorItems(items) {
-  console.log("=== DISPLAYING ALL ITEMS ===");
-  console.log(`Total items to display: ${items.length}`);
+function displayCharacterItems(items) {
+  console.log("=== DISPLAYING CHARACTER ITEMS ===");
+  console.log(`Total character items to display: ${items.length}`);
 
   const charactersContainer = document.getElementById("character-inventories");
   if (!charactersContainer) {
@@ -624,30 +624,42 @@ function displayArmorItems(items) {
 
   charactersContainer.innerHTML = "";
 
-  // Create a grid to display all items
   const itemsGrid = document.createElement("div");
   itemsGrid.className = "armor-grid";
   itemsGrid.style.cssText =
     "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;";
 
-  // Display each item
   items.forEach((item) => {
     const itemElement = createUniversalItemElement(item);
     itemsGrid.appendChild(itemElement);
   });
 
   charactersContainer.appendChild(itemsGrid);
-
-  // Hide the vault section since we're showing everything here
-  const vaultSection = document.getElementById("vault-inventory");
-  if (vaultSection) {
-    vaultSection.style.display = "none";
-  }
 }
 
-function displayVaultItems(armorItems) {
-  // We're not using this function anymore since everything is displayed in the main grid
-  return;
+function displayVaultItems(items) {
+  console.log("=== DISPLAYING VAULT ITEMS ===");
+  console.log(`Total vault items to display: ${items.length}`);
+  const vaultSection = document.getElementById("vault-inventory");
+  const vaultContainer = document.getElementById("vault-items-container");
+  if (!vaultContainer || !vaultSection) {
+    console.error("Vault container not found!");
+    return;
+  }
+
+  vaultContainer.innerHTML = "";
+  if (items.length > 0) {
+    vaultSection.style.display = "block";
+    const itemsGrid = document.createElement("div");
+    itemsGrid.className = "items-container";
+    items.forEach((item) => {
+      const itemElement = createUniversalItemElement(item);
+      itemsGrid.appendChild(itemElement);
+    });
+    vaultContainer.appendChild(itemsGrid);
+  } else {
+    vaultSection.style.display = "none";
+  }
 }
 
 function getCharacterName(characterId) {
@@ -684,8 +696,8 @@ function createUniversalItemElement(item) {
     tierType.toLowerCase() === "exotic"
       ? "exotic"
       : tierType.toLowerCase() === "legendary"
-      ? "legendary"
-      : "";
+        ? "legendary"
+        : "";
 
   const wrapper = document.createElement("div");
   wrapper.className = `armor-item ${rarityClass}`;
@@ -799,7 +811,7 @@ function renderArmorPage() {
   const start = (armorCurrentPage - 1) * armorItemsPerPage;
   const end = start + armorItemsPerPage;
   const pageItems = filteredArmorItems.slice(start, end);
-  displayArmorItems(pageItems);
+  displayCharacterItems(pageItems);
   updateArmorPagination(totalPages);
 }
 
@@ -870,15 +882,17 @@ function applyArmorFilters() {
     totalItems: allItems.length,
   });
 
-  // For now, just show ALL items without filtering by armor type
-  filteredArmorItems = allItems.filter((item) => {
+  const characterItems = [];
+  const vaultItems = [];
+
+  allItems.forEach((item) => {
     // Search filter
     if (searchValue) {
       const name =
         item.definition?.displayProperties?.name?.toLowerCase() || "";
       const type = item.definition?.itemTypeDisplayName?.toLowerCase() || "";
       if (!name.includes(searchValue) && !type.includes(searchValue)) {
-        return false;
+        return;
       }
     }
 
@@ -893,24 +907,33 @@ function applyArmorFilters() {
         itemClass !== parseInt(classValue) &&
         itemClass !== 3 // 3 = all classes
       ) {
-        return false;
+        return;
       }
     }
 
     // Slot filter - only apply to items in armor slots
     if (slotValue !== "all" && armorBuckets.includes(parseInt(slotValue))) {
       if (item.bucketHash !== parseInt(slotValue)) {
-        return false;
+        return;
       }
     }
 
-    return true;
+    if (item.location === 2) {
+      vaultItems.push(item);
+    } else {
+      characterItems.push(item);
+    }
   });
 
-  console.log(`Filtered to ${filteredArmorItems.length} items`);
+  console.log(
+    `Filtered to ${characterItems.length} character items and ${vaultItems.length} vault items`
+  );
 
+  //For now, we will just display the character items to keep pagination simple
+  filteredArmorItems = characterItems;
   armorCurrentPage = 1;
   renderArmorPage();
+  displayVaultItems(vaultItems);
 }
 
 async function refreshData() {
