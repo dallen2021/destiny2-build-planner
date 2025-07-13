@@ -110,49 +110,28 @@
         </div>
         <div id="armorGridContainer" class="armor-grid">
           <div class="inventory-container">
-            <div id="character-inventories" class="character-inventories">
-              <div class="armor-category">
-                <h3>Helmets</h3>
-                <div id="character-helmets" class="items-container"></div>
-              </div>
-              <div class="armor-category">
-                <h3>Gauntlets</h3>
-                <div id="character-gauntlets" class="items-container"></div>
-              </div>
-              <div class="armor-category">
-                <h3>Chest Armor</h3>
-                <div id="character-chest" class="items-container"></div>
-              </div>
-              <div class="armor-category">
-                <h3>Leg Armor</h3>
-                <div id="character-legs" class="items-container"></div>
-              </div>
-              <div class="armor-category">
-                <h3>Class Items</h3>
-                <div id="character-class" class="items-container"></div>
-              </div>
+            <div id="character-inventories" class="character-inventories"></div>
+            <div
+              id="armorPagination"
+              class="pagination-controls"
+              style="display: none"
+            >
+              <button id="armorPrevPage">Previous</button>
+              <span id="armorPageInfo"></span>
+              <button id="armorNextPage">Next</button>
             </div>
+
             <div id="vault-inventory" class="vault-inventory">
               <h2>Vault</h2>
-              <div class="armor-category">
-                <h3>Helmets</h3>
-                <div id="vault-helmets" class="items-container"></div>
-              </div>
-              <div class="armor-category">
-                <h3>Gauntlets</h3>
-                <div id="vault-gauntlets" class="items-container"></div>
-              </div>
-              <div class="armor-category">
-                <h3>Chest Armor</h3>
-                <div id="vault-chest" class="items-container"></div>
-              </div>
-              <div class="armor-category">
-                <h3>Leg Armor</h3>
-                <div id="vault-legs" class="items-container"></div>
-              </div>
-              <div class="armor-category">
-                <h3>Class Items</h3>
-                <div id="vault-class" class="items-container"></div>
+              <div id="vault-items-container" class="items-container"></div>
+              <div
+                id="vaultPagination"
+                class="pagination-controls"
+                style="display: none"
+              >
+                <button id="vaultPrevPage">Previous</button>
+                <span id="vaultPageInfo"></span>
+                <button id="vaultNextPage">Next</button>
               </div>
             </div>
           </div>
