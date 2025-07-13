@@ -416,10 +416,13 @@ function openSettings() {
 /* -------- ARMOR DISPLAY FUNCTIONS -------- */
 let allItems = []; // Store ALL items, not just armor
 let filteredArmorItems = [];
+let filteredVaultItems = [];
 let armorLoaded = false;
 let armorLoading = false;
 let armorCurrentPage = 1;
 const armorItemsPerPage = 20;
+let vaultCurrentPage = 1;
+const vaultItemsPerPage = 20;
 let classDefinitions = {};
 
 function combineInventoryItems(inventoryData) {
@@ -648,18 +651,16 @@ function displayVaultItems(items) {
   }
 
   vaultContainer.innerHTML = "";
-  if (items.length > 0) {
-    vaultSection.style.display = "block";
-    const itemsGrid = document.createElement("div");
-    itemsGrid.className = "items-container";
-    items.forEach((item) => {
-      const itemElement = createUniversalItemElement(item);
-      itemsGrid.appendChild(itemElement);
-    });
-    vaultContainer.appendChild(itemsGrid);
-  } else {
-    vaultSection.style.display = "none";
-  }
+  vaultSection.style.display = "block";
+  const itemsGrid = document.createElement("div");
+  itemsGrid.className = "armor-grid";
+  itemsGrid.style.cssText =
+    "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;";
+  items.forEach((item) => {
+    const itemElement = createUniversalItemElement(item);
+    itemsGrid.appendChild(itemElement);
+  });
+  vaultContainer.appendChild(itemsGrid);
 }
 
 function getCharacterName(characterId) {
@@ -803,6 +804,19 @@ function updateArmorPagination(totalPages) {
   container.style.display = totalPages > 1 ? "flex" : "none";
 }
 
+function updateVaultPagination(totalPages) {
+  const info = document.getElementById("vaultPageInfo");
+  const prev = document.getElementById("vaultPrevPage");
+  const next = document.getElementById("vaultNextPage");
+  const container = document.getElementById("vaultPagination");
+  if (!info || !prev || !next || !container) return;
+
+  info.textContent = `Page ${vaultCurrentPage} of ${totalPages}`;
+  prev.disabled = vaultCurrentPage <= 1;
+  next.disabled = vaultCurrentPage >= totalPages;
+  container.style.display = totalPages > 1 ? "flex" : "none";
+}
+
 function renderArmorPage() {
   const totalPages =
     Math.ceil(filteredArmorItems.length / armorItemsPerPage) || 1;
@@ -815,6 +829,18 @@ function renderArmorPage() {
   updateArmorPagination(totalPages);
 }
 
+function renderVaultPage() {
+  const totalPages =
+    Math.ceil(filteredVaultItems.length / vaultItemsPerPage) || 1;
+  if (vaultCurrentPage > totalPages) vaultCurrentPage = totalPages;
+  if (vaultCurrentPage < 1) vaultCurrentPage = 1;
+  const start = (vaultCurrentPage - 1) * vaultItemsPerPage;
+  const end = start + vaultItemsPerPage;
+  const pageItems = filteredVaultItems.slice(start, end);
+  displayVaultItems(pageItems);
+  updateVaultPagination(totalPages);
+}
+
 function goToNextArmorPage() {
   armorCurrentPage++;
   renderArmorPage();
@@ -823,6 +849,16 @@ function goToNextArmorPage() {
 function goToPrevArmorPage() {
   armorCurrentPage--;
   renderArmorPage();
+}
+
+function goToNextVaultPage() {
+  vaultCurrentPage++;
+  renderVaultPage();
+}
+
+function goToPrevVaultPage() {
+  vaultCurrentPage--;
+  renderVaultPage();
 }
 
 function setupArmorFilters() {
@@ -864,6 +900,17 @@ function setupArmorFilters() {
   if (next && !next.dataset.initialized) {
     next.addEventListener("click", () => goToNextArmorPage());
     next.dataset.initialized = "true";
+  }
+
+  const vaultPrev = document.getElementById("vaultPrevPage");
+  const vaultNext = document.getElementById("vaultNextPage");
+  if (vaultPrev && !vaultPrev.dataset.initialized) {
+    vaultPrev.addEventListener("click", () => goToPrevVaultPage());
+    vaultPrev.dataset.initialized = "true";
+  }
+  if (vaultNext && !vaultNext.dataset.initialized) {
+    vaultNext.addEventListener("click", () => goToNextVaultPage());
+    vaultNext.dataset.initialized = "true";
   }
 }
 
@@ -929,11 +976,13 @@ function applyArmorFilters() {
     `Filtered to ${characterItems.length} character items and ${vaultItems.length} vault items`
   );
 
-  //For now, we will just display the character items to keep pagination simple
   filteredArmorItems = characterItems;
   armorCurrentPage = 1;
   renderArmorPage();
-  displayVaultItems(vaultItems);
+
+  filteredVaultItems = vaultItems;
+  vaultCurrentPage = 1;
+  renderVaultPage();
 }
 
 async function refreshData() {

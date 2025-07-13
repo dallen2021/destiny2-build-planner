@@ -18,14 +18,12 @@
       </div>
     </div>
 
-    <!-- Hamburger Menu -->
     <div class="hamburger-menu" onclick="toggleSideMenu()">
       <span></span>
       <span></span>
       <span></span>
     </div>
 
-    <!-- Side Menu -->
     <div id="sideMenu" class="side-menu">
       <div class="side-menu-header">
         <h3 id="sideMenuUsername">Guardian</h3>
@@ -113,17 +111,30 @@
         <div id="armorGridContainer" class="armor-grid">
           <div class="inventory-container">
             <div id="character-inventories" class="character-inventories"></div>
+            <div
+              id="armorPagination"
+              class="pagination-controls"
+              style="display: none"
+            >
+              <button id="armorPrevPage">Previous</button>
+              <span id="armorPageInfo"></span>
+              <button id="armorNextPage">Next</button>
+            </div>
 
             <div id="vault-inventory" class="vault-inventory">
               <h2>Vault</h2>
               <div id="vault-items-container" class="items-container"></div>
+              <div
+                id="vaultPagination"
+                class="pagination-controls"
+                style="display: none"
+              >
+                <button id="vaultPrevPage">Previous</button>
+                <span id="vaultPageInfo"></span>
+                <button id="vaultNextPage">Next</button>
+              </div>
             </div>
           </div>
-        </div>
-        <div id="armorPagination" class="pagination-controls" style="display:none">
-          <button id="armorPrevPage">Previous</button>
-          <span id="armorPageInfo"></span>
-          <button id="armorNextPage">Next</button>
         </div>
       </div>
     </div>
@@ -877,7 +888,6 @@
       </div>
     </div>
 
-    <!-- Load JavaScript files -->
     <script src="/js/api.js"></script>
     <script src="/js/manifest.js"></script>
     <script src="/js/app.js"></script>
