@@ -243,6 +243,680 @@ const exoticClassItemCombinations = {
   },
 };
 
+// Add these new functions at the beginning of your app.js file (after the constants)
+
+/* -------- ARMOR/WEAPON DISPLAY FUNCTIONS -------- */
+let currentArmorSort = "power-desc";
+let currentWeaponSort = "power-desc";
+
+// Define bucket hashes
+const BUCKET_HASHES = {
+  // Armor
+  helmet: 3448274439,
+  gauntlets: 3551918588,
+  chest: 14239492,
+  legs: 20886954,
+  classItem: 1585787867,
+
+  // Weapons
+  kinetic: 1498876634,
+  energy: 2465295065,
+  power: 953998645,
+
+  // Other important buckets
+  vault: 138197802,
+  consumables: 1469714392,
+};
+
+const ARMOR_BUCKETS = [
+  BUCKET_HASHES.helmet,
+  BUCKET_HASHES.gauntlets,
+  BUCKET_HASHES.chest,
+  BUCKET_HASHES.legs,
+  BUCKET_HASHES.classItem,
+];
+
+const WEAPON_BUCKETS = [
+  BUCKET_HASHES.kinetic,
+  BUCKET_HASHES.energy,
+  BUCKET_HASHES.power,
+];
+
+// Weapon archetype detection based on item type display name
+function getWeaponArchetype(itemTypeDisplayName) {
+  if (!itemTypeDisplayName) return "other";
+
+  const type = itemTypeDisplayName.toLowerCase();
+
+  if (type.includes("auto rifle")) return "auto";
+  if (type.includes("pulse rifle")) return "pulse";
+  if (type.includes("scout rifle")) return "scout";
+  if (type.includes("hand cannon")) return "hc";
+  if (type.includes("submachine gun") || type.includes("smg")) return "smg";
+  if (type.includes("sidearm")) return "sidearm";
+  if (type.includes("bow")) return "bow";
+  if (type.includes("fusion rifle") && !type.includes("linear"))
+    return "fusion";
+  if (type.includes("sniper rifle")) return "sniper";
+  if (type.includes("shotgun")) return "shotgun";
+  if (type.includes("trace rifle")) return "trace";
+  if (type.includes("grenade launcher")) return "gl";
+  if (type.includes("rocket launcher")) return "rocket";
+  if (type.includes("machine gun")) return "lmg";
+  if (type.includes("linear fusion rifle")) return "lfr";
+  if (type.includes("sword")) return "sword";
+
+  return "other";
+}
+
+// Get weapon slot type
+function getWeaponSlot(bucketHash) {
+  if (bucketHash === BUCKET_HASHES.kinetic) return "kinetic";
+  if (bucketHash === BUCKET_HASHES.energy) return "energy";
+  if (bucketHash === BUCKET_HASHES.power) return "power";
+  return "unknown";
+}
+
+// Update the switchTab function to load appropriate data
+function switchTab(tabName) {
+  document
+    .querySelectorAll(".nav-tab")
+    .forEach((tab) => tab.classList.remove("active"));
+  document
+    .querySelectorAll(".content-section")
+    .forEach((section) => section.classList.remove("active"));
+  document
+    .querySelector(`.nav-tab[onclick="switchTab('${tabName}')"]`)
+    .classList.add("active");
+  document.getElementById(tabName).classList.add("active");
+
+  // Load appropriate data when switching tabs
+  if (
+    (tabName === "armorDisplay" || tabName === "weaponDisplay") &&
+    isAuthenticated &&
+    armorLoaded
+  ) {
+    if (tabName === "armorDisplay") {
+      displayArmorCollection();
+    } else {
+      displayWeaponArsenal();
+    }
+  } else if (
+    (tabName === "armorDisplay" || tabName === "weaponDisplay") &&
+    isAuthenticated &&
+    !armorLoaded
+  ) {
+    loadArmorInventory();
+  }
+}
+
+// Display armor collection
+function displayArmorCollection() {
+  console.log("=== DISPLAYING ARMOR COLLECTION ===");
+
+  // Filter for armor items only
+  const armorItems = allItems.filter(
+    (item) =>
+      ARMOR_BUCKETS.includes(item.bucketHash) ||
+      (item.bucketHash === BUCKET_HASHES.vault &&
+        ARMOR_BUCKETS.includes(item.definition?.inventory?.bucketTypeHash))
+  );
+
+  console.log(`Total armor items: ${armorItems.length}`);
+
+  // Apply filters
+  const filteredArmor = applyArmorFilters(armorItems);
+
+  // Sort items
+  const sortedArmor = sortItems(filteredArmor, currentArmorSort);
+
+  // Separate by location
+  const characterArmor = sortedArmor.filter((item) => item.location === 1);
+  const vaultArmor = sortedArmor.filter(
+    (item) => item.location === 2 || item.bucketHash === BUCKET_HASHES.vault
+  );
+
+  // Update stats
+  updateArmorStats(sortedArmor);
+
+  // Display items
+  displayItemGrid("armorCharacterGrid", characterArmor, "armor");
+  displayItemGrid("armorVaultGrid", vaultArmor, "armor");
+}
+
+// Display weapon arsenal
+function displayWeaponArsenal() {
+  console.log("=== DISPLAYING WEAPON ARSENAL ===");
+
+  // Filter for weapon items only
+  const weaponItems = allItems.filter(
+    (item) =>
+      WEAPON_BUCKETS.includes(item.bucketHash) ||
+      (item.bucketHash === BUCKET_HASHES.vault &&
+        WEAPON_BUCKETS.includes(item.definition?.inventory?.bucketTypeHash))
+  );
+
+  console.log(`Total weapon items: ${weaponItems.length}`);
+
+  // Apply filters
+  const filteredWeapons = applyWeaponFilters(weaponItems);
+
+  // Sort items
+  const sortedWeapons = sortItems(filteredWeapons, currentWeaponSort);
+
+  // Separate by location
+  const characterWeapons = sortedWeapons.filter((item) => item.location === 1);
+  const vaultWeapons = sortedWeapons.filter(
+    (item) => item.location === 2 || item.bucketHash === BUCKET_HASHES.vault
+  );
+
+  // Update stats
+  updateWeaponStats(sortedWeapons);
+
+  // Display items
+  displayItemGrid("weaponCharacterGrid", characterWeapons, "weapon");
+  displayItemGrid("weaponVaultGrid", vaultWeapons, "weapon");
+}
+
+// Apply armor filters
+function applyArmorFilters(items) {
+  const searchValue =
+    document.getElementById("armorSearchInput")?.value.toLowerCase() || "";
+  const classFilter =
+    document.getElementById("armorClassFilter")?.value || "all";
+  const slotFilter = document.getElementById("armorSlotFilter")?.value || "all";
+  const locationFilter =
+    document.getElementById("armorLocationFilter")?.value || "all";
+  const tierFilter = document.getElementById("armorTierFilter")?.value || "all";
+
+  return items.filter((item) => {
+    // Search filter
+    if (searchValue) {
+      const name =
+        item.definition?.displayProperties?.name?.toLowerCase() || "";
+      const type = item.definition?.itemTypeDisplayName?.toLowerCase() || "";
+      if (!name.includes(searchValue) && !type.includes(searchValue)) {
+        return false;
+      }
+    }
+
+    // Class filter
+    if (classFilter !== "all") {
+      const itemClass = item.definition?.classType;
+      if (
+        itemClass !== undefined &&
+        itemClass !== parseInt(classFilter) &&
+        itemClass !== 3
+      ) {
+        return false;
+      }
+    }
+
+    // Slot filter
+    if (slotFilter !== "all") {
+      const itemBucket =
+        item.definition?.inventory?.bucketTypeHash || item.bucketHash;
+      if (itemBucket !== parseInt(slotFilter)) {
+        return false;
+      }
+    }
+
+    // Location filter
+    if (locationFilter !== "all") {
+      if (locationFilter === "character" && item.location !== 1) return false;
+      if (
+        locationFilter === "vault" &&
+        item.location !== 2 &&
+        item.bucketHash !== BUCKET_HASHES.vault
+      )
+        return false;
+    }
+
+    // Tier filter
+    if (tierFilter !== "all") {
+      const tier =
+        item.definition?.inventory?.tierTypeName?.toLowerCase() || "";
+      if (tier !== tierFilter) return false;
+    }
+
+    return true;
+  });
+}
+
+// Apply weapon filters
+function applyWeaponFilters(items) {
+  const searchValue =
+    document.getElementById("weaponSearchInput")?.value.toLowerCase() || "";
+  const typeFilter =
+    document.getElementById("weaponTypeFilter")?.value || "all";
+  const archetypeFilter =
+    document.getElementById("weaponArchetypeFilter")?.value || "all";
+  const locationFilter =
+    document.getElementById("weaponLocationFilter")?.value || "all";
+  const tierFilter =
+    document.getElementById("weaponTierFilter")?.value || "all";
+
+  return items.filter((item) => {
+    // Search filter
+    if (searchValue) {
+      const name =
+        item.definition?.displayProperties?.name?.toLowerCase() || "";
+      const type = item.definition?.itemTypeDisplayName?.toLowerCase() || "";
+      if (!name.includes(searchValue) && !type.includes(searchValue)) {
+        return false;
+      }
+    }
+
+    // Type filter (kinetic/energy/power)
+    if (typeFilter !== "all") {
+      const slot = getWeaponSlot(
+        item.definition?.inventory?.bucketTypeHash || item.bucketHash
+      );
+      if (slot !== typeFilter) return false;
+    }
+
+    // Archetype filter
+    if (archetypeFilter !== "all") {
+      const archetype = getWeaponArchetype(
+        item.definition?.itemTypeDisplayName
+      );
+      if (archetype !== archetypeFilter) return false;
+    }
+
+    // Location filter
+    if (locationFilter !== "all") {
+      if (locationFilter === "character" && item.location !== 1) return false;
+      if (
+        locationFilter === "vault" &&
+        item.location !== 2 &&
+        item.bucketHash !== BUCKET_HASHES.vault
+      )
+        return false;
+    }
+
+    // Tier filter
+    if (tierFilter !== "all") {
+      const tier =
+        item.definition?.inventory?.tierTypeName?.toLowerCase() || "";
+      if (tier !== tierFilter) return false;
+    }
+
+    return true;
+  });
+}
+
+// Sort items
+function sortItems(items, sortType) {
+  const sorted = [...items];
+
+  switch (sortType) {
+    case "power-desc":
+      return sorted.sort((a, b) => (b.power || 0) - (a.power || 0));
+    case "power-asc":
+      return sorted.sort((a, b) => (a.power || 0) - (b.power || 0));
+    case "name-asc":
+      return sorted.sort((a, b) => {
+        const nameA = a.definition?.displayProperties?.name || "";
+        const nameB = b.definition?.displayProperties?.name || "";
+        return nameA.localeCompare(nameB);
+      });
+    case "name-desc":
+      return sorted.sort((a, b) => {
+        const nameA = a.definition?.displayProperties?.name || "";
+        const nameB = b.definition?.displayProperties?.name || "";
+        return nameB.localeCompare(nameA);
+      });
+    case "rarity":
+      return sorted.sort((a, b) => {
+        const rarityOrder = {
+          exotic: 0,
+          legendary: 1,
+          rare: 2,
+          uncommon: 3,
+          common: 4,
+        };
+        const rarityA =
+          rarityOrder[a.definition?.inventory?.tierTypeName?.toLowerCase()] ||
+          5;
+        const rarityB =
+          rarityOrder[b.definition?.inventory?.tierTypeName?.toLowerCase()] ||
+          5;
+        return rarityA - rarityB;
+      });
+    case "total-stats":
+      return sorted.sort((a, b) => {
+        const totalA = calculateTotalStats(a);
+        const totalB = calculateTotalStats(b);
+        return totalB - totalA;
+      });
+    default:
+      return sorted;
+  }
+}
+
+// Calculate total stats for armor
+function calculateTotalStats(item) {
+  if (!item.stats) return 0;
+
+  let total = 0;
+  const mainStatHashes = Object.keys(Manifest.statHashes);
+
+  for (const statHash of mainStatHashes) {
+    total += item.stats[statHash]?.value || 0;
+  }
+
+  return total;
+}
+
+// Update armor stats display
+function updateArmorStats(items) {
+  const totalCount = document.getElementById("totalArmorCount");
+  const exoticCount = document.getElementById("exoticArmorCount");
+  const masterworkCount = document.getElementById("masterworkArmorCount");
+
+  if (totalCount) totalCount.textContent = items.length;
+
+  if (exoticCount) {
+    const exotics = items.filter(
+      (item) =>
+        item.definition?.inventory?.tierTypeName?.toLowerCase() === "exotic"
+    );
+    exoticCount.textContent = exotics.length;
+  }
+
+  if (masterworkCount) {
+    const masterworked = items.filter(
+      (item) =>
+        item.energy?.energyCapacity === 10 || // Armor 2.0 masterwork
+        item.masterwork === true // Legacy masterwork
+    );
+    masterworkCount.textContent = masterworked.length;
+  }
+}
+
+// Update weapon stats display
+function updateWeaponStats(items) {
+  const totalCount = document.getElementById("totalWeaponCount");
+  const exoticCount = document.getElementById("exoticWeaponCount");
+  const craftedCount = document.getElementById("craftedWeaponCount");
+
+  if (totalCount) totalCount.textContent = items.length;
+
+  if (exoticCount) {
+    const exotics = items.filter(
+      (item) =>
+        item.definition?.inventory?.tierTypeName?.toLowerCase() === "exotic"
+    );
+    exoticCount.textContent = exotics.length;
+  }
+
+  if (craftedCount) {
+    // Check for crafted weapons (they have specific state flags)
+    const crafted = items.filter(
+      (item) => item.state && (item.state & 8) !== 0 // State flag 8 indicates crafted
+    );
+    craftedCount.textContent = crafted.length;
+  }
+}
+
+// Display items in a grid
+function displayItemGrid(gridId, items, type) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+
+  grid.innerHTML = "";
+
+  if (items.length === 0) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">${type === "armor" ? "🛡️" : "⚔️"}</div>
+        <p>No ${type} items found</p>
+      </div>
+    `;
+    return;
+  }
+
+  items.forEach((item) => {
+    const itemCard = createEnhancedItemCard(item, type);
+    grid.appendChild(itemCard);
+  });
+}
+
+// Create enhanced item card
+function createEnhancedItemCard(item, type) {
+  const name = item.definition?.displayProperties?.name || "Unknown Item";
+  const icon = item.definition?.displayProperties?.icon
+    ? `https://www.bungie.net${item.definition.displayProperties.icon}`
+    : "";
+  const tierType = item.definition?.inventory?.tierTypeName || "";
+  const itemType = item.definition?.itemTypeDisplayName || "";
+
+  const card = document.createElement("div");
+  card.className = `item-card ${tierType.toLowerCase()}`;
+
+  // Check for masterwork
+  const isMasterworked =
+    item.energy?.energyCapacity === 10 || item.masterwork === true;
+  if (isMasterworked) {
+    card.classList.add("masterworked");
+  }
+
+  // Build card content
+  let cardHtml = `
+    <div class="item-header">
+      <div class="item-icon ${isMasterworked ? "masterworked" : ""}">
+        ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
+      </div>
+      <div class="item-info">
+        <div class="item-name">${name}</div>
+        <div class="item-type">${itemType}</div>
+      </div>
+      <div class="item-power">${item.power || ""}</div>
+    </div>
+  `;
+
+  if (type === "armor" && item.stats) {
+    // Add armor stats
+    const totalStats = calculateTotalStats(item);
+
+    cardHtml += `
+      <div class="item-stats">
+        <div class="stat-grid">
+          ${Object.entries(Manifest.statHashes)
+            .map(([hash, statName]) => {
+              const value = item.stats[hash]?.value || 0;
+              const percentage = Math.min((value / 42) * 100, 100); // 42 is max single stat
+              return `
+              <div class="stat-box">
+                <div class="stat-name">${statName.substring(0, 3)}</div>
+                <div class="stat-value">${value}</div>
+                <div class="stat-bar">
+                  <div class="stat-fill" style="width: ${percentage}%"></div>
+                </div>
+              </div>
+            `;
+            })
+            .join("")}
+        </div>
+      </div>
+    `;
+
+    cardHtml += `
+      <div class="item-tags">
+        <span class="item-tag total-stats">Total: ${totalStats}</span>
+        ${
+          item.isEquipped
+            ? '<span class="item-tag equipped">Equipped</span>'
+            : ""
+        }
+        <span class="item-tag location">${
+          item.location === 2 ? "Vault" : "Character"
+        }</span>
+      </div>
+    `;
+  } else if (type === "weapon") {
+    // Add weapon perks if available
+    if (item.sockets && item.sockets.length > 0) {
+      const perkSockets = item.sockets
+        .filter((socket) => socket.plugHash && socket.isVisible !== false)
+        .slice(0, 2); // Show first 2 perks
+
+      if (perkSockets.length > 0) {
+        cardHtml += `
+          <div class="weapon-perks">
+            ${perkSockets
+              .map(
+                (socket) => `
+              <div class="perk-row">
+                <div class="perk-icon">
+                  <!-- Perk icon would go here if we had the definitions -->
+                </div>
+              </div>
+            `
+              )
+              .join("")}
+          </div>
+        `;
+      }
+    }
+
+    cardHtml += `
+      <div class="item-tags">
+        <span class="item-tag">${getWeaponSlot(
+          item.bucketHash || item.definition?.inventory?.bucketTypeHash
+        )}</span>
+        ${
+          item.isEquipped
+            ? '<span class="item-tag equipped">Equipped</span>'
+            : ""
+        }
+        <span class="item-tag location">${
+          item.location === 2 ? "Vault" : "Character"
+        }</span>
+      </div>
+    `;
+  }
+
+  card.innerHTML = cardHtml;
+  card.dataset.itemId = item.itemInstanceId;
+
+  // Add click handler
+  card.addEventListener("click", () => {
+    selectItem(item.itemInstanceId, type);
+  });
+
+  return card;
+}
+
+// Handle item selection
+function selectItem(itemId, type) {
+  const item = allItems.find((i) => i.itemInstanceId === itemId);
+  if (item) {
+    showNotification(
+      `Selected: ${item.definition?.displayProperties?.name || "Unknown Item"}`,
+      "info"
+    );
+    // TODO: Add item detail modal or transfer functionality
+  }
+}
+
+// Toggle sort functions
+function toggleArmorSort() {
+  const sortLabel = document.getElementById("armorSortLabel");
+
+  // Cycle through sort options
+  const sortOptions = [
+    { value: "power-desc", label: "Power ↓" },
+    { value: "power-asc", label: "Power ↑" },
+    { value: "name-asc", label: "Name A-Z" },
+    { value: "name-desc", label: "Name Z-A" },
+    { value: "total-stats", label: "Total Stats ↓" },
+    { value: "rarity", label: "Rarity" },
+  ];
+
+  const currentIndex = sortOptions.findIndex(
+    (opt) => opt.value === currentArmorSort
+  );
+  const nextIndex = (currentIndex + 1) % sortOptions.length;
+
+  currentArmorSort = sortOptions[nextIndex].value;
+  if (sortLabel) sortLabel.textContent = sortOptions[nextIndex].label;
+
+  displayArmorCollection();
+}
+
+function toggleWeaponSort() {
+  const sortLabel = document.getElementById("weaponSortLabel");
+
+  // Cycle through sort options
+  const sortOptions = [
+    { value: "power-desc", label: "Power ↓" },
+    { value: "power-asc", label: "Power ↑" },
+    { value: "name-asc", label: "Name A-Z" },
+    { value: "name-desc", label: "Name Z-A" },
+    { value: "rarity", label: "Rarity" },
+  ];
+
+  const currentIndex = sortOptions.findIndex(
+    (opt) => opt.value === currentWeaponSort
+  );
+  const nextIndex = (currentIndex + 1) % sortOptions.length;
+
+  currentWeaponSort = sortOptions[nextIndex].value;
+  if (sortLabel) sortLabel.textContent = sortOptions[nextIndex].label;
+
+  displayWeaponArsenal();
+}
+
+// Update the existing setupArmorFilters function to setup both armor and weapon filters
+function setupFilters() {
+  // Armor filters
+  const armorSearch = document.getElementById("armorSearchInput");
+  if (armorSearch && !armorSearch.dataset.initialized) {
+    armorSearch.addEventListener(
+      "input",
+      debounce(() => displayArmorCollection(), 300)
+    );
+    armorSearch.dataset.initialized = "true";
+  }
+
+  [
+    "armorClassFilter",
+    "armorSlotFilter",
+    "armorLocationFilter",
+    "armorTierFilter",
+  ].forEach((id) => {
+    const element = document.getElementById(id);
+    if (element && !element.dataset.initialized) {
+      element.addEventListener("change", () => displayArmorCollection());
+      element.dataset.initialized = "true";
+    }
+  });
+
+  // Weapon filters
+  const weaponSearch = document.getElementById("weaponSearchInput");
+  if (weaponSearch && !weaponSearch.dataset.initialized) {
+    weaponSearch.addEventListener(
+      "input",
+      debounce(() => displayWeaponArsenal(), 300)
+    );
+    weaponSearch.dataset.initialized = "true";
+  }
+
+  [
+    "weaponTypeFilter",
+    "weaponArchetypeFilter",
+    "weaponLocationFilter",
+    "weaponTierFilter",
+  ].forEach((id) => {
+    const element = document.getElementById(id);
+    if (element && !element.dataset.initialized) {
+      element.addEventListener("change", () => displayWeaponArsenal());
+      element.dataset.initialized = "true";
+    }
+  });
+}
+
 /* ------------------- GLOBAL STATE ------------------- */
 let selectedMods = new Set();
 let columnCounts = [0, 0, 0, 0, 0];
@@ -511,8 +1185,17 @@ async function loadArmorInventory() {
   const armorGrid = document.getElementById("character-inventories");
   if (!armorGrid) return;
 
+  // If already loaded, just display appropriate tab
   if (armorLoaded && allItems.length > 0) {
-    applyArmorFilters();
+    const activeTab = document.querySelector(".nav-tab.active");
+    if (activeTab) {
+      const tabText = activeTab.textContent.trim();
+      if (tabText === "Armor Collection") {
+        displayArmorCollection();
+      } else if (tabText === "Weapon Arsenal") {
+        displayWeaponArsenal();
+      }
+    }
     return;
   }
 
@@ -569,6 +1252,12 @@ async function loadArmorInventory() {
         power:
           itemComponents.instances?.data?.[item.itemInstanceId]?.primaryStat
             ?.value || 0,
+        energy:
+          itemComponents.instances?.data?.[item.itemInstanceId]?.energy || null,
+        sockets:
+          itemComponents.sockets?.data?.[item.itemInstanceId]?.sockets || [],
+        state:
+          itemComponents.instances?.data?.[item.itemInstanceId]?.state || 0,
       };
     });
 
@@ -586,10 +1275,23 @@ async function loadArmorInventory() {
       });
     }
 
+    // NOW set loaded flag after successful load
     armorLoaded = true;
     armorLoading = false;
-    applyArmorFilters();
-    setupArmorFilters();
+
+    // Setup filters
+    setupFilters();
+
+    // Display appropriate tab
+    const activeTab = document.querySelector(".nav-tab.active");
+    if (activeTab) {
+      const tabText = activeTab.textContent.trim();
+      if (tabText === "Armor Collection") {
+        displayArmorCollection();
+      } else if (tabText === "Weapon Arsenal") {
+        displayWeaponArsenal();
+      }
+    }
 
     showLoading(false);
   } catch (error) {
@@ -608,6 +1310,7 @@ async function loadArmorInventory() {
       showNotification("Failed to load armor inventory", "error");
       displayNoArmorMessage("Failed to load armor. Please try refreshing.");
     }
+
     showLoading(false);
   }
 }
@@ -684,8 +1387,8 @@ function createUniversalItemElement(item) {
     tierType.toLowerCase() === "exotic"
       ? "exotic"
       : tierType.toLowerCase() === "legendary"
-      ? "legendary"
-      : "";
+        ? "legendary"
+        : "";
 
   const wrapper = document.createElement("div");
   wrapper.className = `armor-item ${rarityClass}`;
