@@ -87,29 +87,33 @@ router.get("/callback", async (req, res) => {
     );
 
     req.session.user = userResponse.data.Response;
+    const bungieNetUser = req.session.user.bungieNetUser;
 
-    // Use the Bungie global display name and code
-    const bungieNetUser = userResponse.data.Response.bungieNetUser;
-    const bungieName = bungieNetUser.bungieGlobalDisplayName;
+    // --- START: MODIFIED BLOCK ---
+    // Construct the definitive Bungie display name from the bungieNetUser object
+    const bungieName =
+      bungieNetUser.bungieGlobalDisplayName || bungieNetUser.displayName;
     const bungieCode = bungieNetUser.bungieGlobalDisplayNameCode;
-    const displayName = bungieCode ? `${bungieName}#${bungieCode}` : bungieName;
+    const fullBungieName = bungieCode
+      ? `${bungieName}#${bungieCode}`
+      : bungieName;
 
     // Find primary Destiny membership
-    const destinyMemberships = userResponse.data.Response.destinyMemberships;
+    const destinyMemberships = req.session.user.destinyMemberships;
     if (destinyMemberships && destinyMemberships.length > 0) {
-      // Prefer the last played membership
-      const primaryMembership = destinyMemberships.reduce((prev, current) => {
-        const prevDate = new Date(prev.dateLastPlayed);
-        const currentDate = new Date(current.dateLastPlayed);
-        return currentDate > prevDate ? current : prev;
-      });
+      // Prefer the membership with a crossSaveOverride or the primary one
+      const primaryMembership =
+        destinyMemberships.find(
+          (m) => m.membershipId === req.session.user.primaryMembershipId
+        ) || destinyMemberships[0];
 
       req.session.destinyMembership = {
         membershipType: primaryMembership.membershipType,
         membershipId: primaryMembership.membershipId,
-        displayName: displayName, // Use the constructed Bungie name
+        displayName: fullBungieName, // Use the correctly constructed Bungie name
       };
     }
+    // --- END: MODIFIED BLOCK ---
 
     // Redirect to success page
     res.redirect(process.env.CLIENT_URL + "?auth=success");
@@ -197,7 +201,7 @@ router.get("/status", (req, res) => {
 
   res.json({
     authenticated: isAuthenticated && !tokenExpired,
-    user: req.session.user || null, // This contains the full user response from Bungie
+    user: req.session.user || null,
     destinyMembership: req.session.destinyMembership || null,
   });
 });
