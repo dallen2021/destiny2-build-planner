@@ -619,44 +619,46 @@ function displayCharacterItems(items) {
   console.log("=== DISPLAYING CHARACTER ITEMS ===");
   console.log(`Total character items to display: ${items.length}`);
 
-  const charactersContainer = document.getElementById("character-inventories");
-  if (!charactersContainer) {
-    console.error("Character inventories container not found!");
-    return;
-  }
+  const containers = {
+    3448274439: document.getElementById("character-helmets"),
+    3551918588: document.getElementById("character-gauntlets"),
+    14239492: document.getElementById("character-chest"),
+    20886954: document.getElementById("character-legs"),
+    1585787867: document.getElementById("character-class"),
+  };
 
-  charactersContainer.innerHTML = "";
-
-  const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
+  Object.values(containers).forEach((c) => (c.innerHTML = ""));
 
   items.forEach((item) => {
-    const itemElement = createUniversalItemElement(item);
-    itemsGrid.appendChild(itemElement);
+    const container = containers[item.bucketHash];
+    if (container) {
+      const itemElement = createUniversalItemElement(item);
+      container.appendChild(itemElement);
+    }
   });
-
-  charactersContainer.appendChild(itemsGrid);
 }
 
 function displayVaultItems(items) {
   console.log("=== DISPLAYING VAULT ITEMS ===");
   console.log(`Total vault items to display: ${items.length}`);
-  const vaultSection = document.getElementById("vault-inventory");
-  const vaultContainer = document.getElementById("vault-items-container");
-  if (!vaultContainer || !vaultSection) {
-    console.error("Vault container not found!");
-    return;
-  }
 
-  vaultContainer.innerHTML = "";
-  vaultSection.style.display = "block";
-  const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
+  const containers = {
+    3448274439: document.getElementById("vault-helmets"),
+    3551918588: document.getElementById("vault-gauntlets"),
+    14239492: document.getElementById("vault-chest"),
+    20886954: document.getElementById("vault-legs"),
+    1585787867: document.getElementById("vault-class"),
+  };
+
+  Object.values(containers).forEach((c) => (c.innerHTML = ""));
+
   items.forEach((item) => {
-    const itemElement = createUniversalItemElement(item);
-    itemsGrid.appendChild(itemElement);
+    const container = containers[item.definition.inventory.bucketTypeHash];
+    if (container) {
+      const itemElement = createUniversalItemElement(item);
+      container.appendChild(itemElement);
+    }
   });
-  vaultContainer.appendChild(itemsGrid);
 }
 
 function getCharacterName(characterId) {
@@ -715,17 +717,12 @@ function createUniversalItemElement(item) {
         <div class="armor-info">
             <div class="armor-name">${name}</div>
             <div class="armor-type">${itemType}</div>
-            ${
-              item.quantity > 1
-                ? `<div style="color: #8af295;">Quantity: ${item.quantity}</div>`
-                : ""
-            }
         </div>
   `;
 
   // Add power level if it exists
   if (item.power) {
-    itemHtml += `<div class="armor-power">${item.power}</div>`;
+    itemHtml = `<div class="armor-power">${item.power}</div>` + itemHtml;
   }
 
   // Add stats for armor items
