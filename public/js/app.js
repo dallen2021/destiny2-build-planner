@@ -336,16 +336,14 @@ function updateAuthUI(authStatus) {
     authButton.textContent = "Sign Out";
     authButton.onclick = handleSignOut;
 
-    if (authStatus.user?.destinyMemberships?.length) {
-      const displayName = authStatus.user.destinyMemberships[0].displayName;
+    // --- Start of Changed Block ---
+    if (authStatus.destinyMembership) {
+      // Use the displayName from the destinyMembership object, which is the Bungie name.
+      const displayName = authStatus.destinyMembership.displayName;
       username.textContent = displayName || "Guardian";
       sideMenuUsername.textContent = displayName || "Guardian";
-    } else if (authStatus.destinyMembership) {
-      username.textContent =
-        authStatus.destinyMembership.displayName || "Guardian";
-      sideMenuUsername.textContent =
-        authStatus.destinyMembership.displayName || "Guardian";
     }
+    // --- End of Changed Block ---
 
     userInfo.style.display = "flex";
 
@@ -363,7 +361,7 @@ function updateAuthUI(authStatus) {
 
     // Clear armor display when not authenticated
     armorLoaded = false;
-    allItems = []; // Changed from armorItems
+    allItems = [];
     displayNoArmorMessage();
   }
 }
