@@ -33,7 +33,10 @@
       </div>
       <div class="side-menu-content">
         <a href="#" onclick="switchTab('armorDisplay'); toggleSideMenu();"
-          >Armor Inventory</a
+          >Armor</a
+        >
+        <a href="#" onclick="switchTab('weaponsDisplay'); toggleSideMenu();"
+          >Weapons</a
         >
         <a href="#" onclick="switchTab('armor'); toggleSideMenu();"
           >Stat Allocator</a
@@ -75,8 +78,9 @@
 
     <div class="nav-tabs">
       <div class="nav-tab active" onclick="switchTab('armorDisplay')">
-        Armor Inventory
+        Armor
       </div>
+      <div class="nav-tab" onclick="switchTab('weaponsDisplay')">Weapons</div>
       <div class="nav-tab" onclick="switchTab('armor')">Stat Allocator</div>
       <div class="nav-tab" onclick="switchTab('artifact')">Artifact Mods</div>
       <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
@@ -86,7 +90,7 @@
     <div id="armorDisplay" class="content-section active">
       <div class="armor-display-container">
         <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
-          Armor Inventory
+          Armor
         </h2>
         <div class="armor-filters">
           <input
@@ -94,36 +98,97 @@
             id="armorSearchInput"
             placeholder="Search armor..."
             class="armor-search"
+            style="min-width: 400px"
           />
-          <select id="armorClassFilter" class="filter-select">
-            <option value="all">All Classes</option>
-            <option value="0">Titan</option>
-            <option value="1">Hunter</option>
-            <option value="2">Warlock</option>
-          </select>
-          <select id="armorSlotFilter" class="filter-select">
-            <option value="all">All Slots</option>
-            <option value="3448274439">Helmet</option>
-            <option value="3551918588">Gauntlets</option>
-            <option value="14239492">Chest</option>
-            <option value="20886954">Legs</option>
-            <option value="1585787867">Class Item</option>
-          </select>
-        </div>
-        <div id="armorGridContainer" class="armor-grid">
-          <div class="inventory-container">
-            <div id="character-inventories" class="character-inventories"></div>
-
-            <div id="vault-inventory" class="vault-inventory">
-              <h2>Vault</h2>
-              <div id="vault-items-container" class="items-container"></div>
-            </div>
+          <div class="class-selector">
+            <button
+              class="class-button"
+              id="armorHunterClass"
+              data-class="hunter"
+              onclick="selectCharacterClass('hunter')"
+            >
+              Hunter
+            </button>
+            <button
+              class="class-button"
+              id="armorTitanClass"
+              data-class="titan"
+              onclick="selectCharacterClass('titan')"
+            >
+              Titan
+            </button>
+            <button
+              class="class-button"
+              id="armorWarlockClass"
+              data-class="warlock"
+              onclick="selectCharacterClass('warlock')"
+            >
+              Warlock
+            </button>
           </div>
         </div>
-        <div id="armorPagination" class="pagination-controls" style="display:none">
-          <button id="armorPrevPage">Previous</button>
-          <span id="armorPageInfo"></span>
-          <button id="armorNextPage">Next</button>
+        <div class="inventory-split-container">
+          <div class="character-armor-section">
+            <h3>Character</h3>
+            <div id="character-armor-slots"></div>
+          </div>
+          <div class="vault-armor-section">
+            <h3>Vault</h3>
+            <div id="vault-armor-items"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="weaponsDisplay" class="content-section">
+      <div class="weapons-display-container">
+        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+          Weapons
+        </h2>
+        <div class="weapons-filters">
+          <input
+            type="text"
+            id="weaponsSearchInput"
+            placeholder="Search weapons..."
+            class="armor-search"
+            style="min-width: 400px"
+          />
+          <div class="class-selector">
+            <button
+              class="class-button"
+              id="weaponsHunterClass"
+              data-class="hunter"
+              onclick="selectCharacterClass('hunter')"
+            >
+              Hunter
+            </button>
+            <button
+              class="class-button"
+              id="weaponsTitanClass"
+              data-class="titan"
+              onclick="selectCharacterClass('titan')"
+            >
+              Titan
+            </button>
+            <button
+              class="class-button"
+              id="weaponsWarlockClass"
+              data-class="warlock"
+              onclick="selectCharacterClass('warlock')"
+            >
+              Warlock
+            </button>
+          </div>
+        </div>
+        <div class="inventory-split-container">
+          <div class="character-weapons-section">
+            <h3>Character</h3>
+            <div id="character-weapon-slots"></div>
+          </div>
+          <div class="vault-weapons-section">
+            <h3>Vault</h3>
+            <div id="vault-weapon-items"></div>
+          </div>
         </div>
       </div>
     </div>
