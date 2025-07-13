@@ -511,35 +511,15 @@ function combineInventoryItems(inventoryData) {
 
   // Check vault items (profileInventory)
   // Important: profileInventory contains BOTH vault items AND consumables
-  // We need to identify which items are actually vault equipment
+  // Only items with bucketHash: 138197802 are actual vault items
   if (inventoryData.profileInventory?.data?.items) {
-    console.log(
-      `Profile inventory items found: ${inventoryData.profileInventory.data.items.length}`
-    );
-
-    const vaultItems = inventoryData.profileInventory.data.items.map((item) => {
-      // Check if this is an equipment item (armor or weapon)
-      const isArmor = Object.keys(ARMOR_BUCKETS).includes(
-        String(item.bucketHash)
-      );
-      const isWeapon = Object.keys(WEAPON_BUCKETS).includes(
-        String(item.bucketHash)
-      );
-      const isEquipment = isArmor || isWeapon;
-
-      return {
+    const vaultItems = inventoryData.profileInventory.data.items.map(
+      (item) => ({
         ...item,
-        // Only mark equipment items as vault items
-        location: isEquipment ? 2 : 3, // 2 = Vault equipment, 3 = Consumables/Other
-      };
-    });
-
-    // Log how many are actual vault equipment
-    const vaultEquipmentCount = vaultItems.filter(
-      (item) => item.location === 2
-    ).length;
-    console.log(`Actual vault equipment items: ${vaultEquipmentCount}`);
-
+        // Only mark items with vault bucket hash as vault items
+        location: item.bucketHash === 138197802 ? 2 : 3, // 2 = Vault, 3 = Consumables/Other
+      })
+    );
     all = all.concat(vaultItems);
   }
 
@@ -1206,67 +1186,6 @@ function selectArmorItem(itemId) {
     );
   }
 }
-
-// Debug function to check vault items specifically
-window.debugVaultItems = function () {
-  console.log("=== VAULT ITEMS DEBUG ===");
-
-  // Show all items marked as vault
-  const vaultItems = allItems.filter((item) => item.location === 2);
-  console.log(`Total items marked as vault (location=2): ${vaultItems.length}`);
-
-  // Show breakdown by type
-  const vaultArmor = vaultItems.filter((item) =>
-    Object.keys(ARMOR_BUCKETS).includes(String(item.bucketHash))
-  );
-  const vaultWeapons = vaultItems.filter((item) =>
-    Object.keys(WEAPON_BUCKETS).includes(String(item.bucketHash))
-  );
-
-  console.log(`Vault armor pieces: ${vaultArmor.length}`);
-  console.log(`Vault weapons: ${vaultWeapons.length}`);
-
-  // Show first 5 vault armor pieces
-  console.log("\nFirst 5 vault armor pieces:");
-  vaultArmor.slice(0, 5).forEach((item, index) => {
-    console.log(`${index + 1}. ${item.definition?.displayProperties?.name}`);
-    console.log(`   Type: ${item.definition?.itemTypeDisplayName}`);
-    console.log(
-      `   Bucket: ${item.bucketHash} (${ARMOR_BUCKETS[item.bucketHash]})`
-    );
-  });
-
-  // Show first 5 vault weapons
-  console.log("\nFirst 5 vault weapons:");
-  vaultWeapons.slice(0, 5).forEach((item, index) => {
-    console.log(`${index + 1}. ${item.definition?.displayProperties?.name}`);
-    console.log(`   Type: ${item.definition?.itemTypeDisplayName}`);
-    console.log(
-      `   Bucket: ${item.bucketHash} (${WEAPON_BUCKETS[item.bucketHash]})`
-    );
-  });
-
-  // Check profileInventory raw data
-  if (window.inventory?.profileInventory?.data?.items) {
-    console.log("\n=== RAW PROFILE INVENTORY DATA ===");
-    const profileItems = window.inventory.profileInventory.data.items;
-    console.log(`Total profileInventory items: ${profileItems.length}`);
-
-    // Group by bucket hash to see what's in there
-    const bucketCounts = {};
-    profileItems.forEach((item) => {
-      bucketCounts[item.bucketHash] = (bucketCounts[item.bucketHash] || 0) + 1;
-    });
-
-    console.log("\nItems by bucket hash in profileInventory:");
-    Object.entries(bucketCounts).forEach(([hash, count]) => {
-      const armorName = ARMOR_BUCKETS[hash];
-      const weaponName = WEAPON_BUCKETS[hash];
-      const name = armorName || weaponName || "Unknown";
-      console.log(`  ${hash}: ${count} items (${name})`);
-    });
-  }
-};
 
 /* ---- ARTIFACT / DAMAGE / CLASS functions ---- */
 /* ---------------- Stat allocator via BOXES ---------------- */
