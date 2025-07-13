@@ -349,7 +349,7 @@ body {
   justify-content: center;
   align-items: center;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 20px;
 }
 
 .pagination-controls button {
@@ -1257,24 +1257,31 @@ body {
 }
 
 /* Inventory Layout */
-.inventory-container {
-  display: flex;
-  justify-content: space-between;
-}
-
-.character-inventories {
-  width: 65%;
-}
-
-.vault-inventory {
-  width: 30%;
-}
-
-.items-container {
+.inventory-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
+
+.inventory-column {
+  background: rgba(20, 20, 30, 0.8);
+  border-radius: 15px;
+  padding: 20px;
+  border: 1px solid rgba(138, 43, 226, 0.2);
+}
+
+.inventory-column h2 {
+  text-align: center;
+  color: #ffd700;
+  margin-bottom: 20px;
+}
+
+.armor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 15px;
+}
+
 
 @media (max-width: 1200px) {
   .calc-row {
@@ -1319,6 +1326,9 @@ body {
   }
   .side-menu {
     width: 250px;
+  }
+  .inventory-layout {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -83,9 +83,6 @@
 
     <div id="armorDisplay" class="content-section active">
       <div class="armor-display-container">
-        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
-          Armor Inventory
-        </h2>
         <div class="armor-filters">
           <input
             type="text"
@@ -108,9 +105,10 @@
             <option value="1585787867">Class Item</option>
           </select>
         </div>
-        <div id="armorGridContainer" class="armor-grid">
-          <div class="inventory-container">
-            <div id="character-inventories" class="character-inventories"></div>
+        <div class="inventory-layout">
+          <div class="inventory-column">
+            <h2>Character</h2>
+            <div id="character-inventories" class="armor-grid"></div>
             <div
               id="armorPagination"
               class="pagination-controls"
@@ -120,19 +118,18 @@
               <span id="armorPageInfo"></span>
               <button id="armorNextPage">Next</button>
             </div>
-
-            <div id="vault-inventory" class="vault-inventory">
-              <h2>Vault</h2>
-              <div id="vault-items-container" class="items-container"></div>
-              <div
-                id="vaultPagination"
-                class="pagination-controls"
-                style="display: none"
-              >
-                <button id="vaultPrevPage">Previous</button>
-                <span id="vaultPageInfo"></span>
-                <button id="vaultNextPage">Next</button>
-              </div>
+          </div>
+          <div class="inventory-column">
+            <h2>Vault</h2>
+            <div id="vault-items-container" class="armor-grid"></div>
+            <div
+              id="vaultPagination"
+              class="pagination-controls"
+              style="display: none"
+            >
+              <button id="vaultPrevPage">Previous</button>
+              <span id="vaultPageInfo"></span>
+              <button id="vaultNextPage">Next</button>
             </div>
           </div>
         </div>
