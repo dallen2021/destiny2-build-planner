@@ -336,11 +336,7 @@ function updateAuthUI(authStatus) {
     authButton.textContent = "Sign Out";
     authButton.onclick = handleSignOut;
 
-    if (authStatus.user?.destinyMemberships?.length) {
-      const displayName = authStatus.user.destinyMemberships[0].displayName;
-      username.textContent = displayName || "Guardian";
-      sideMenuUsername.textContent = displayName || "Guardian";
-    } else if (authStatus.destinyMembership) {
+    if (authStatus.destinyMembership) {
       username.textContent =
         authStatus.destinyMembership.displayName || "Guardian";
       sideMenuUsername.textContent =
