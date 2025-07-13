@@ -262,6 +262,10 @@ const state = {
   },
 };
 
+/* -------- CHARACTER SELECTOR VARIABLES -------- */
+let currentCharacterId = null;
+let charactersData = {};
+
 window.addEventListener("DOMContentLoaded", async () => {
   console.log("DOM Content Loaded - initializing app");
 
@@ -339,7 +343,7 @@ function updateAuthUI(authStatus) {
 
     // Load armor inventory when authenticated if on armor display tab
     const activeTab = document.querySelector(".nav-tab.active");
-    if (activeTab && activeTab.textContent.trim() === "Armor Inventory") {
+    if (activeTab && activeTab.textContent.trim() === "Armor") {
       loadArmorInventory();
     }
   } else {
@@ -353,6 +357,138 @@ function updateAuthUI(authStatus) {
     armorLoaded = false;
     allItems = []; // Changed from armorItems
     displayNoArmorMessage();
+  }
+}
+
+/* -------- CHARACTER SELECTOR FUNCTIONS -------- */
+async function loadCharacters() {
+  try {
+    // Get characters from the inventory data
+    if (!window.inventory || !window.inventory.characters) {
+      console.log("No character data available");
+      return;
+    }
+
+    const characters = window.inventory.characters.data;
+    const characterSelector = document.getElementById("characterSelector");
+
+    if (!characters || Object.keys(characters).length === 0) {
+      console.log("No characters found");
+      return;
+    }
+
+    // Clear existing character emblems
+    characterSelector.innerHTML = "";
+
+    // Create emblem for each character
+    for (const [characterId, character] of Object.entries(characters)) {
+      charactersData[characterId] = character;
+
+      const characterEmblem = createCharacterEmblem(characterId, character);
+      characterSelector.appendChild(characterEmblem);
+    }
+
+    // Select first character by default
+    const firstCharacterId = Object.keys(characters)[0];
+    selectCharacter(firstCharacterId);
+
+    // Show the character selector
+    characterSelector.style.display = "flex";
+  } catch (error) {
+    console.error("Failed to load characters:", error);
+  }
+}
+
+function createCharacterEmblem(characterId, character) {
+  const emblemDiv = document.createElement("div");
+  emblemDiv.className = "character-emblem";
+  emblemDiv.dataset.characterId = characterId;
+
+  // Get class name
+  const className = getClassName(character.classType);
+
+  // Create emblem background
+  const emblemBg = document.createElement("div");
+  emblemBg.className = "character-emblem-bg";
+  if (character.emblemBackgroundPath) {
+    emblemBg.style.backgroundImage = `url('https://www.bungie.net${character.emblemBackgroundPath}')`;
+  }
+
+  // Create content overlay
+  const emblemContent = document.createElement("div");
+  emblemContent.className = "character-emblem-content";
+
+  // Character info
+  const emblemInfo = document.createElement("div");
+  emblemInfo.className = "character-emblem-info";
+
+  const classDiv = document.createElement("div");
+  classDiv.className = "character-emblem-class";
+  classDiv.textContent = className;
+
+  const lightDiv = document.createElement("div");
+  lightDiv.className = "character-emblem-light";
+  lightDiv.innerHTML = "<span>⚡</span><span>Power</span>";
+
+  emblemInfo.appendChild(classDiv);
+  emblemInfo.appendChild(lightDiv);
+
+  // Power level
+  const powerDiv = document.createElement("div");
+  powerDiv.className = "character-emblem-power";
+  powerDiv.textContent = character.light || "0";
+
+  emblemContent.appendChild(emblemInfo);
+  emblemContent.appendChild(powerDiv);
+
+  emblemDiv.appendChild(emblemBg);
+  emblemDiv.appendChild(emblemContent);
+
+  // Add click handler
+  emblemDiv.addEventListener("click", () => selectCharacter(characterId));
+
+  return emblemDiv;
+}
+
+function getClassName(classType) {
+  const classNames = {
+    0: "Titan",
+    1: "Hunter",
+    2: "Warlock",
+  };
+  return classNames[classType] || "Unknown";
+}
+
+function selectCharacter(characterId) {
+  currentCharacterId = characterId;
+
+  // Update active state
+  document.querySelectorAll(".character-emblem").forEach((emblem) => {
+    emblem.classList.toggle(
+      "active",
+      emblem.dataset.characterId === characterId
+    );
+  });
+
+  // Update side menu username with character class
+  const character = charactersData[characterId];
+  if (character) {
+    const className = getClassName(character.classType);
+    const username = document.getElementById("username");
+    const sideMenuUsername = document.getElementById("sideMenuUsername");
+
+    if (username && username.textContent !== "Guardian") {
+      const displayName = username.textContent.split(" - ")[0]; // Remove any existing class suffix
+      username.textContent = `${displayName} - ${className}`;
+      if (sideMenuUsername) {
+        sideMenuUsername.textContent = `${displayName} - ${className}`;
+      }
+    }
+  }
+
+  // Reapply armor filters to show only selected character's items
+  if (armorLoaded) {
+    applyArmorFilters();
   }
 }
 
@@ -593,6 +729,9 @@ async function loadArmorInventory() {
     armorLoading = false;
     applyArmorFilters();
     setupArmorFilters();
+
+    // Load character selector
+    loadCharacters();
 
     showLoading(false);
   } catch (error) {
@@ -943,6 +1082,7 @@ function applyArmorFilters() {
     searchValue,
     classValue,
     slotValue,
+    currentCharacterId,
     totalItems: allItems.length,
   });
 
@@ -992,7 +1132,10 @@ function applyArmorFilters() {
     if (item.location === 2) {
       vaultItems.push(item);
     } else {
-      characterItems.push(item);
+      // Filter character items by selected character
+      if (!currentCharacterId || item.characterId === currentCharacterId) {
+        characterItems.push(item);
+      }
     }
   });
 

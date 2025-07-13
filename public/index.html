@@ -31,7 +31,7 @@
       </div>
       <div class="side-menu-content">
         <a href="#" onclick="switchTab('armorDisplay'); toggleSideMenu();"
-          >Armor Inventory</a
+          >Armor</a
         >
         <a href="#" onclick="switchTab('armor'); toggleSideMenu();"
           >Stat Allocator</a
@@ -72,8 +72,15 @@
     </div>
 
     <div class="nav-tabs">
+      <div
+        id="characterSelector"
+        class="character-selector"
+        style="display: none"
+      >
+        <!-- Character emblems will be dynamically inserted here -->
+      </div>
       <div class="nav-tab active" onclick="switchTab('armorDisplay')">
-        Armor Inventory
+        Armor
       </div>
       <div class="nav-tab" onclick="switchTab('armor')">Stat Allocator</div>
       <div class="nav-tab" onclick="switchTab('artifact')">Artifact Mods</div>
