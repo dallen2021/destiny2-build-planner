@@ -296,6 +296,9 @@ async function initializeApp() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
+    // Load class definitions for character names
+    classDefinitions = await Manifest.getClasses();
+
     // Check authentication status
     const authStatus = await API.auth.checkStatus();
     updateAuthUI(authStatus);
@@ -321,7 +324,11 @@ function updateAuthUI(authStatus) {
     authButton.textContent = "Sign Out";
     authButton.onclick = handleSignOut;
 
-    if (authStatus.destinyMembership) {
+    if (authStatus.user?.destinyMemberships?.length) {
+      const displayName = authStatus.user.destinyMemberships[0].displayName;
+      username.textContent = displayName || "Guardian";
+      sideMenuUsername.textContent = displayName || "Guardian";
+    } else if (authStatus.destinyMembership) {
       username.textContent =
         authStatus.destinyMembership.displayName || "Guardian";
       sideMenuUsername.textContent =
@@ -413,6 +420,7 @@ let armorLoaded = false;
 let armorLoading = false;
 let armorCurrentPage = 1;
 const armorItemsPerPage = 20;
+let classDefinitions = {};
 
 function combineInventoryItems(inventoryData) {
   let all = [];
@@ -456,6 +464,7 @@ async function loadArmorInventory() {
 
     const inventoryData = await API.inventory.getInventory();
     window.inventory = inventoryData;
+    classDefinitions = await Manifest.getClasses();
 
     const itemComponents = inventoryData.itemComponents || {};
     const allItems = combineInventoryItems(inventoryData);
@@ -521,30 +530,34 @@ function displayArmorItems(armorItems) {
   }
 
   const characters = Object.values(window.inventory.characterInventories.data);
+  const characterEquipment = window.inventory.characterEquipment.data;
 
   characters.forEach((character) => {
     const characterItems = armorItems.filter((item) => {
-      const invMatch = character.items?.some(
+      const inInventory = character.items.some(
         (charItem) => charItem.itemInstanceId === item.itemInstanceId
       );
-      const equipMatch = window.inventory.characterEquipment.data[
-        character.characterId
-      ]?.items?.some(
+      const isEquipped = characterEquipment[character.characterId]?.items.some(
         (equipItem) => equipItem.itemInstanceId === item.itemInstanceId
       );
-      return invMatch || equipMatch;
+      return inInventory || isEquipped;
     });
 
     if (characterItems.length > 0) {
       const characterDiv = document.createElement("div");
       characterDiv.className = "character-inventory";
-      characterDiv.innerHTML = `<h3>Character ${character.characterId}</h3>`;
+
+      const characterName = getCharacterName(character.characterId);
+      characterDiv.innerHTML = `<h3>${characterName}</h3>`;
+
       const itemsContainer = document.createElement("div");
       itemsContainer.className = "items-container";
+
       characterItems.forEach((item) => {
         const itemElement = createItemElement(item);
         itemsContainer.appendChild(itemElement);
       });
+
       characterDiv.appendChild(itemsContainer);
       charactersContainer.appendChild(characterDiv);
     }
@@ -558,14 +571,21 @@ function displayVaultItems(armorItems) {
   if (!vaultContainer) return;
   vaultContainer.innerHTML = "";
 
-  const vaultItems = armorItems.filter(
-    (item) => item.bucketHash === 138197650
-  );
+  const vaultItems = armorItems.filter((item) => item.location === 2);
 
   vaultItems.forEach((item) => {
     const itemElement = createItemElement(item);
     vaultContainer.appendChild(itemElement);
   });
+}
+
+function getCharacterName(characterId) {
+  const characterData = window.inventory.characters?.data?.[characterId];
+  if (characterData) {
+    const classDef = classDefinitions[characterData.classHash];
+    return classDef ? classDef.displayProperties.name : `Character ${characterId}`;
+  }
+  return `Character ${characterId}`;
 }
 
 function createItemElement(item) {
