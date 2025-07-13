@@ -14,12 +14,6 @@ function generateState() {
 
 // OAuth login route
 router.get("/login", (req, res) => {
-  // --- Start of Debugging Code ---
-  console.log("--- DEBUG: /auth/login route hit ---");
-  console.log("BUNGIE_CLIENT_ID:", process.env.BUNGIE_CLIENT_ID);
-  console.log("OAUTH_REDIRECT_URI:", process.env.OAUTH_REDIRECT_URI);
-  // --- End of Debugging Code ---
-
   const state = generateState();
   req.session.oauthState = state;
 
@@ -30,13 +24,7 @@ router.get("/login", (req, res) => {
     state: state,
   });
 
-  const finalRedirectUrl = `${BUNGIE_AUTH_URL}?${params.toString()}`;
-
-  // --- More Debugging ---
-  console.log("Final Redirect URL being sent to browser:", finalRedirectUrl);
-  // --- End More Debugging ---
-
-  res.redirect(finalRedirectUrl);
+  res.redirect(`${BUNGIE_AUTH_URL}?${params.toString()}`);
 });
 
 // OAuth callback route

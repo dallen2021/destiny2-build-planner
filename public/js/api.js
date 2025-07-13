@@ -1,14 +1,7 @@
 // api.js - Frontend API wrapper for Bungie API calls
 const API = {
   // Base configuration
-  // Determine base URL. If the page is opened directly from the filesystem,
-  // window.location.origin will be "null" which breaks API calls.
-  // Fallback to localhost in that case so the app still works when the
-  // backend is running locally.
-  baseURL:
-    window.location.origin && window.location.origin !== "null"
-      ? window.location.origin
-      : "http://localhost:3000",
+  baseURL: window.location.origin,
   isAuthenticated: false,
 
   // Helper method for API calls
@@ -62,52 +55,8 @@ const API = {
 
   // Inventory methods
   inventory: {
-    async getInventory() {
-      const response = await fetch(`${API.baseURL}/api/inventory`, {
-        credentials: "include",
-      });
-      const inventoryData = await response.json();
-      const itemComponents = inventoryData.itemComponents || {};
-
-      const mergeData = (items) => {
-        if (!items) return [];
-        return items.map((item) => {
-          const instance = itemComponents.instances?.data?.[item.itemInstanceId];
-          const stats = itemComponents.stats?.data?.[item.itemInstanceId]?.stats;
-          const sockets =
-            itemComponents.sockets?.data?.[item.itemInstanceId]?.sockets;
-          const power = instance?.primaryStat?.value;
-          return { ...item, ...instance, stats, sockets, power };
-        });
-      };
-
-      if (inventoryData.profileInventory?.data) {
-        inventoryData.profileInventory.data.items = mergeData(
-          inventoryData.profileInventory.data.items
-        );
-      }
-
-      if (inventoryData.characterInventories?.data) {
-        for (const charId in inventoryData.characterInventories.data) {
-          inventoryData.characterInventories.data[charId].items = mergeData(
-            inventoryData.characterInventories.data[charId].items
-          );
-        }
-      }
-
-      if (inventoryData.characterEquipment?.data) {
-        for (const charId in inventoryData.characterEquipment.data) {
-          inventoryData.characterEquipment.data[charId].items = mergeData(
-            inventoryData.characterEquipment.data[charId].items
-          );
-        }
-      }
-
-      return inventoryData;
-    },
-
     async getAll() {
-      return API.inventory.getInventory();
+      return API.request("/api/inventory");
     },
 
     async getCharacter(characterId, components = "200") {

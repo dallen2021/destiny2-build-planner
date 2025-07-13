@@ -7,60 +7,55 @@ const {
 } = require("../middleware/bungie");
 const { getDefinition } = require("../services/manifestService");
 
-/**
- * Merges item component data from a source response into a target response.
- * This is crucial for combining paginated API results.
- */
-function mergeItemComponents(target, source) {
-  if (!source || !target) {
-    return;
-  }
-
-  for (const componentName in source) {
-    if (
-      Object.prototype.hasOwnProperty.call(source, componentName) &&
-      source[componentName].data
-    ) {
-      if (!target[componentName]) {
-        target[componentName] = {
-          data: {},
-          privacy: source[componentName].privacy,
-        };
-      }
-      Object.assign(target[componentName].data, source[componentName].data);
-    }
-  }
-}
-
-/**
- * Grab every character item *and* every vault page,
- * merging item-components as we go.
- */
-async function getProfileWithAllItems(membershipType, membershipId, session) {
-  // components: 102 = ProfileInventory (vault), 201 = CharacterInventories, 205 = CharacterEquipment
-  //            300+  = Item component sets we need for stats & sockets
-  const CORE = "102,201,205,300,301,302,304,305,307";
-
-  // Destiny profile inventories are returned in a single response. Fetch once
-  // and return the result.
-  const profile = await makeApiRequest(
-    `/Destiny2/${membershipType}/Profile/${membershipId}/`,
-    { params: { components: CORE }, session }
-  );
-
-  return profile;
-}
-
-// Get all character and vault inventory
+// Get character inventory
 router.get("/inventory", ensureAuthenticated, async (req, res) => {
   try {
     const { membershipType, membershipId } = req.session.destinyMembership;
 
-    const profileData = await getProfileWithAllItems(
+    // Components: 102=Inventory, 201=Character inventories, 205=Equipment,
+    // 300=Item instances, 304=Item stats, 305=Item sockets
+    const components = "102,201,205,300,304,305";
+
+    // Fetch profile data (character inventories, profile inventory)
+    const profileData = await makeApiRequest(
+      `/Destiny2/${membershipType}/Profile/${membershipId}/`,
+      {
+        params: { components },
+        session: req.session,
+      }
+    );
+
+    // Fetch vault inventory (characterId 0)
+    const vaultData = await getCharacter(
       membershipType,
       membershipId,
+      0,
+      "201,205,300,304,305",
       req.session
     );
+
+    // Merge vault items into profile inventory
+    if (vaultData.inventory?.data?.items) {
+      if (!profileData.profileInventory) {
+        profileData.profileInventory = { data: { items: [] } };
+      }
+      profileData.profileInventory.data.items =
+        profileData.profileInventory.data.items.concat(
+          vaultData.inventory.data.items
+        );
+    }
+
+    // Merge item components
+    const mergeComponents = (target, source) => {
+      if (!source) return;
+      Object.entries(source).forEach(([key, val]) => {
+        if (!val?.data) return;
+        if (!target[key]) target[key] = { data: {} };
+        target[key].data = { ...target[key].data, ...val.data };
+      });
+    };
+
+    mergeComponents(profileData.itemComponents, vaultData.itemComponents);
 
     res.json(profileData);
   } catch (error) {
