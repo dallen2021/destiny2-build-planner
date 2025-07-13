@@ -489,19 +489,32 @@ function selectCharacterClass(className) {
 }
 
 function filterArmorItems(items) {
-  return items.filter((item) =>
-    Object.keys(ARMOR_BUCKETS).includes(String(item.bucketHash))
-  );
+  return items.filter((item) => {
+    const bucketHash = Number(item.bucketHash);
+    return Object.keys(ARMOR_BUCKETS).map(Number).includes(bucketHash);
+  });
 }
 
 function filterWeaponItems(items) {
-  return items.filter((item) =>
-    Object.keys(WEAPON_BUCKETS).includes(String(item.bucketHash))
-  );
+  return items.filter((item) => {
+    const bucketHash = Number(item.bucketHash);
+    return Object.keys(WEAPON_BUCKETS).map(Number).includes(bucketHash);
+  });
 }
 
 function combineInventoryItems(inventoryData) {
   console.log("=== COMBINING INVENTORY ITEMS ===");
+
+  // Log expected bucket hashes
+  console.log(
+    "Expected ARMOR bucket hashes:",
+    Object.keys(ARMOR_BUCKETS).map(Number)
+  );
+  console.log(
+    "Expected WEAPON bucket hashes:",
+    Object.keys(WEAPON_BUCKETS).map(Number)
+  );
+
   let all = [];
 
   // Store characters data for class filtering
@@ -515,6 +528,14 @@ function combineInventoryItems(inventoryData) {
       `Profile inventory items found: ${inventoryData.profileInventory.data.items.length}`
     );
 
+    // Log first few items to check bucket hashes
+    console.log("Sample vault items (first 3):");
+    inventoryData.profileInventory.data.items.slice(0, 3).forEach((item, i) => {
+      console.log(
+        `  Item ${i + 1}: bucketHash=${item.bucketHash} (type: ${typeof item.bucketHash})`
+      );
+    });
+
     // Simply mark ALL vault items with location 2
     const vaultItems = inventoryData.profileInventory.data.items.map(
       (item) => ({
@@ -525,12 +546,14 @@ function combineInventoryItems(inventoryData) {
 
     // Log vault equipment vs other items for debugging
     const vaultEquipment = vaultItems.filter((item) => {
-      const isArmor = Object.keys(ARMOR_BUCKETS).includes(
-        String(item.bucketHash)
-      );
-      const isWeapon = Object.keys(WEAPON_BUCKETS).includes(
-        String(item.bucketHash)
-      );
+      // Convert bucket hash to number for comparison
+      const bucketHash = Number(item.bucketHash);
+      const isArmor = Object.keys(ARMOR_BUCKETS)
+        .map(Number)
+        .includes(bucketHash);
+      const isWeapon = Object.keys(WEAPON_BUCKETS)
+        .map(Number)
+        .includes(bucketHash);
       return isArmor || isWeapon;
     });
 
@@ -541,6 +564,22 @@ function combineInventoryItems(inventoryData) {
     );
 
     all = all.concat(vaultItems);
+  }
+
+  // Check character inventories
+  if (inventoryData.characterInventories?.data) {
+    Object.entries(inventoryData.characterInventories.data).forEach(
+      ([charId, inv]) => {
+        if (inv.items) {
+          const charItems = inv.items.map((item) => ({
+            ...item,
+            location: 1, // Character inventory location
+            characterId: charId,
+          }));
+          all = all.concat(charItems);
+        }
+      }
+    );
   }
 
   // Check equipped items
@@ -608,6 +647,9 @@ async function loadArmorInventory() {
     // Filter armor and weapons
     armorItems = filterArmorItems(allItems);
     weaponItems = filterWeaponItems(allItems);
+
+    console.log(`Filtered armor items: ${armorItems.length}`);
+    console.log(`Filtered weapon items: ${weaponItems.length}`);
 
     armorLoaded = true;
     armorLoading = false;
@@ -693,7 +735,7 @@ function displayArmorInventory() {
   const armorBySlot = {};
   Object.keys(ARMOR_BUCKETS).forEach((bucketHash) => {
     armorBySlot[bucketHash] = characterArmor.filter(
-      (item) => String(item.bucketHash) === bucketHash
+      (item) => Number(item.bucketHash) === Number(bucketHash)
     );
   });
 
@@ -767,11 +809,13 @@ function displayVaultArmor(container, searchValue) {
     return true;
   });
 
+  console.log(`Displaying ${vaultArmor.length} vault armor items`);
+
   // Group by slot and sort by rarity
   const categories = {};
   Object.entries(ARMOR_BUCKETS).forEach(([bucketHash, slotName]) => {
     const slotItems = vaultArmor.filter(
-      (item) => String(item.bucketHash) === bucketHash
+      (item) => Number(item.bucketHash) === Number(bucketHash)
     );
 
     // Sort: Exotics first, then by power level
@@ -847,7 +891,7 @@ function displayWeaponsInventory() {
   const weaponsBySlot = {};
   Object.keys(WEAPON_BUCKETS).forEach((bucketHash) => {
     weaponsBySlot[bucketHash] = characterWeapons.filter(
-      (item) => String(item.bucketHash) === bucketHash
+      (item) => Number(item.bucketHash) === Number(bucketHash)
     );
   });
 
@@ -903,11 +947,13 @@ function displayVaultWeapons(container, searchValue) {
     return true;
   });
 
+  console.log(`Displaying ${vaultWeapons.length} vault weapon items`);
+
   // Group by slot and sort by rarity
   const categories = {};
   Object.entries(WEAPON_BUCKETS).forEach(([bucketHash, slotName]) => {
     const slotItems = vaultWeapons.filter(
-      (item) => String(item.bucketHash) === bucketHash
+      (item) => Number(item.bucketHash) === Number(bucketHash)
     );
 
     // Sort: Exotics first, then by power level
@@ -1015,7 +1061,8 @@ function showItemDetails(item, iconElement) {
   popup.className = "item-details-popup";
 
   const tierType = item.definition?.inventory?.tierTypeName?.toLowerCase();
-  const isArmor = Object.keys(ARMOR_BUCKETS).includes(String(item.bucketHash));
+  const bucketHash = Number(item.bucketHash);
+  const isArmor = Object.keys(ARMOR_BUCKETS).map(Number).includes(bucketHash);
 
   let detailsHtml = `
     <div class="item-details-header">
@@ -1199,16 +1246,27 @@ window.debugVaultItems = function () {
   const vaultItems = allItems.filter((item) => item.location === 2);
   console.log(`Total items marked as vault (location=2): ${vaultItems.length}`);
 
-  // Show breakdown by type
-  const vaultArmor = vaultItems.filter((item) =>
-    Object.keys(ARMOR_BUCKETS).includes(String(item.bucketHash))
-  );
-  const vaultWeapons = vaultItems.filter((item) =>
-    Object.keys(WEAPON_BUCKETS).includes(String(item.bucketHash))
-  );
+  // Show breakdown by type (with numeric comparison)
+  const vaultArmor = vaultItems.filter((item) => {
+    const bucketHash = Number(item.bucketHash);
+    return Object.keys(ARMOR_BUCKETS).map(Number).includes(bucketHash);
+  });
+  const vaultWeapons = vaultItems.filter((item) => {
+    const bucketHash = Number(item.bucketHash);
+    return Object.keys(WEAPON_BUCKETS).map(Number).includes(bucketHash);
+  });
+  const vaultOther = vaultItems.filter((item) => {
+    const bucketHash = Number(item.bucketHash);
+    const isArmor = Object.keys(ARMOR_BUCKETS).map(Number).includes(bucketHash);
+    const isWeapon = Object.keys(WEAPON_BUCKETS)
+      .map(Number)
+      .includes(bucketHash);
+    return !isArmor && !isWeapon;
+  });
 
   console.log(`Vault armor pieces: ${vaultArmor.length}`);
   console.log(`Vault weapons: ${vaultWeapons.length}`);
+  console.log(`Vault other items: ${vaultOther.length}`);
 
   // Show first 5 vault armor pieces
   console.log("\nFirst 5 vault armor pieces:");
@@ -1218,6 +1276,7 @@ window.debugVaultItems = function () {
     console.log(
       `   Bucket: ${item.bucketHash} (${ARMOR_BUCKETS[item.bucketHash]})`
     );
+    console.log(`   Power: ${item.power || "N/A"}`);
   });
 
   // Show first 5 vault weapons
@@ -1228,6 +1287,7 @@ window.debugVaultItems = function () {
     console.log(
       `   Bucket: ${item.bucketHash} (${WEAPON_BUCKETS[item.bucketHash]})`
     );
+    console.log(`   Power: ${item.power || "N/A"}`);
   });
 
   // Check profileInventory raw data
@@ -1243,12 +1303,82 @@ window.debugVaultItems = function () {
     });
 
     console.log("\nItems by bucket hash in profileInventory:");
-    Object.entries(bucketCounts).forEach(([hash, count]) => {
-      const armorName = ARMOR_BUCKETS[hash];
-      const weaponName = WEAPON_BUCKETS[hash];
-      const name = armorName || weaponName || "Unknown";
-      console.log(`  ${hash}: ${count} items (${name})`);
+    Object.entries(bucketCounts)
+      .sort((a, b) => b[1] - a[1]) // Sort by count
+      .forEach(([hash, count]) => {
+        const armorName = ARMOR_BUCKETS[hash];
+        const weaponName = WEAPON_BUCKETS[hash];
+        const name = armorName || weaponName || "Unknown";
+        console.log(`  ${hash}: ${count} items (${name})`);
+      });
+  }
+
+  // Check what's in armorItems and weaponItems arrays
+  console.log("\n=== FILTERED ARRAYS ===");
+  console.log(`armorItems array length: ${armorItems.length}`);
+  console.log(`weaponItems array length: ${weaponItems.length}`);
+
+  const armorVaultCount = armorItems.filter(
+    (item) => item.location === 2
+  ).length;
+  const weaponVaultCount = weaponItems.filter(
+    (item) => item.location === 2
+  ).length;
+  console.log(`Armor items in vault: ${armorVaultCount}`);
+  console.log(`Weapon items in vault: ${weaponVaultCount}`);
+};
+
+// Debug vault items specifically
+window.debugVault = function () {
+  console.log("=== VAULT DEBUG ===");
+
+  const vaultItems = allItems.filter((item) => item.location === 2);
+  console.log(`Total vault items: ${vaultItems.length}`);
+
+  // Group by item type
+  const itemTypes = {};
+  vaultItems.forEach((item) => {
+    const type = item.definition?.itemTypeDisplayName || "Unknown";
+    itemTypes[type] = (itemTypes[type] || 0) + 1;
+  });
+
+  console.log("Vault items by type:");
+  Object.entries(itemTypes)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([type, count]) => {
+      console.log(`  ${type}: ${count}`);
     });
+
+  // Show first 20 vault items with details
+  console.log("\nFirst 20 vault items:");
+  vaultItems.slice(0, 20).forEach((item, index) => {
+    console.log(`${index + 1}. ${item.definition?.displayProperties?.name}`);
+    console.log(`   Type: ${item.definition?.itemTypeDisplayName}`);
+    console.log(`   Tier: ${item.definition?.inventory?.tierTypeName}`);
+    console.log(`   Bucket: ${item.bucketHash}`);
+    console.log(`   Location: ${item.location}`);
+  });
+
+  // Check bucket hash types
+  console.log("\n=== BUCKET HASH TYPE CHECK ===");
+  console.log("ARMOR_BUCKETS keys:", Object.keys(ARMOR_BUCKETS));
+  console.log("WEAPON_BUCKETS keys:", Object.keys(WEAPON_BUCKETS));
+
+  if (vaultItems.length > 0) {
+    const firstItem = vaultItems[0];
+    console.log("\nFirst vault item bucket hash:");
+    console.log("  Value:", firstItem.bucketHash);
+    console.log("  Type:", typeof firstItem.bucketHash);
+    console.log(
+      "  Is in ARMOR_BUCKETS (string):",
+      Object.keys(ARMOR_BUCKETS).includes(String(firstItem.bucketHash))
+    );
+    console.log(
+      "  Is in ARMOR_BUCKETS (number):",
+      Object.keys(ARMOR_BUCKETS)
+        .map(Number)
+        .includes(Number(firstItem.bucketHash))
+    );
   }
 };
 
