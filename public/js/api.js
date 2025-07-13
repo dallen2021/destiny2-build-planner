@@ -72,10 +72,8 @@ const API = {
       const mergeData = (items) => {
         if (!items) return [];
         return items.map((item) => {
-          const instance =
-            itemComponents.instances?.data?.[item.itemInstanceId];
-          const stats =
-            itemComponents.stats?.data?.[item.itemInstanceId]?.stats;
+          const instance = itemComponents.instances?.data?.[item.itemInstanceId];
+          const stats = itemComponents.stats?.data?.[item.itemInstanceId]?.stats;
           const sockets =
             itemComponents.sockets?.data?.[item.itemInstanceId]?.sockets;
           const power = instance?.primaryStat?.value;

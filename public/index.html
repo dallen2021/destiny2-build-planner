@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Destiny 2: Edge of Fate – Build Planner & Damage Calculator</title>
+    <title>
+      Destiny 2: Edge of Fate – Build Planner & Damage Calculator (Stat‑Box
+      Revamp)
+    </title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="stylesheet" href="/css/styles.css" />
   </head>
@@ -30,10 +33,7 @@
       </div>
       <div class="side-menu-content">
         <a href="#" onclick="switchTab('armorDisplay'); toggleSideMenu();"
-          >Armor Collection</a
-        >
-        <a href="#" onclick="switchTab('weaponDisplay'); toggleSideMenu();"
-          >Weapon Arsenal</a
+          >Armor Inventory</a
         >
         <a href="#" onclick="switchTab('armor'); toggleSideMenu();"
           >Stat Allocator</a
@@ -75,10 +75,7 @@
 
     <div class="nav-tabs">
       <div class="nav-tab active" onclick="switchTab('armorDisplay')">
-        Armor Collection
-      </div>
-      <div class="nav-tab" onclick="switchTab('weaponDisplay')">
-        Weapon Arsenal
+        Armor Inventory
       </div>
       <div class="nav-tab" onclick="switchTab('armor')">Stat Allocator</div>
       <div class="nav-tab" onclick="switchTab('artifact')">Artifact Mods</div>
@@ -86,167 +83,47 @@
       <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
     </div>
 
-    <!-- Armor Collection Tab -->
     <div id="armorDisplay" class="content-section active">
-      <div class="collection-container">
-        <div class="collection-header">
-          <h2 class="collection-title">Armor Collection</h2>
-          <div class="collection-stats" id="armorStats">
-            <div class="stat-card">
-              <div class="stat-value" id="totalArmorCount">0</div>
-              <div class="stat-label">Total Pieces</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" id="exoticArmorCount">0</div>
-              <div class="stat-label">Exotics</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" id="masterworkArmorCount">0</div>
-              <div class="stat-label">Masterworked</div>
+      <div class="armor-display-container">
+        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+          Armor Inventory
+        </h2>
+        <div class="armor-filters">
+          <input
+            type="text"
+            id="armorSearchInput"
+            placeholder="Search armor..."
+            class="armor-search"
+          />
+          <select id="armorClassFilter" class="filter-select">
+            <option value="all">All Classes</option>
+            <option value="0">Titan</option>
+            <option value="1">Hunter</option>
+            <option value="2">Warlock</option>
+          </select>
+          <select id="armorSlotFilter" class="filter-select">
+            <option value="all">All Slots</option>
+            <option value="3448274439">Helmet</option>
+            <option value="3551918588">Gauntlets</option>
+            <option value="14239492">Chest</option>
+            <option value="20886954">Legs</option>
+            <option value="1585787867">Class Item</option>
+          </select>
+        </div>
+        <div id="armorGridContainer" class="armor-grid">
+          <div class="inventory-container">
+            <div id="character-inventories" class="character-inventories"></div>
+
+            <div id="vault-inventory" class="vault-inventory">
+              <h2>Vault</h2>
+              <div id="vault-items-container" class="items-container"></div>
             </div>
           </div>
         </div>
-
-        <div class="filter-bar">
-          <div class="filter-group">
-            <input
-              type="text"
-              id="armorSearchInput"
-              placeholder="Search armor..."
-              class="search-input"
-            />
-          </div>
-          <div class="filter-group">
-            <select id="armorClassFilter" class="filter-select">
-              <option value="all">All Classes</option>
-              <option value="0">Titan</option>
-              <option value="1">Hunter</option>
-              <option value="2">Warlock</option>
-            </select>
-            <select id="armorSlotFilter" class="filter-select">
-              <option value="all">All Slots</option>
-              <option value="3448274439">Helmet</option>
-              <option value="3551918588">Gauntlets</option>
-              <option value="14239492">Chest</option>
-              <option value="20886954">Legs</option>
-              <option value="1585787867">Class Item</option>
-            </select>
-            <select id="armorLocationFilter" class="filter-select">
-              <option value="all">All Locations</option>
-              <option value="character">Characters</option>
-              <option value="vault">Vault</option>
-            </select>
-            <select id="armorTierFilter" class="filter-select">
-              <option value="all">All Rarities</option>
-              <option value="exotic">Exotic</option>
-              <option value="legendary">Legendary</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <button class="sort-button" onclick="toggleArmorSort()">
-              Sort: <span id="armorSortLabel">Power ↓</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="inventory-layout">
-          <div id="armorCharacterSection" class="inventory-section">
-            <h3 class="section-title">Character Inventories</h3>
-            <div id="armorCharacterGrid" class="item-grid"></div>
-          </div>
-
-          <div id="armorVaultSection" class="inventory-section">
-            <h3 class="section-title">Vault</h3>
-            <div id="armorVaultGrid" class="item-grid"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Weapon Arsenal Tab -->
-    <div id="weaponDisplay" class="content-section">
-      <div class="collection-container">
-        <div class="collection-header">
-          <h2 class="collection-title">Weapon Arsenal</h2>
-          <div class="collection-stats" id="weaponStats">
-            <div class="stat-card">
-              <div class="stat-value" id="totalWeaponCount">0</div>
-              <div class="stat-label">Total Weapons</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" id="exoticWeaponCount">0</div>
-              <div class="stat-label">Exotics</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-value" id="craftedWeaponCount">0</div>
-              <div class="stat-label">Crafted</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="filter-bar">
-          <div class="filter-group">
-            <input
-              type="text"
-              id="weaponSearchInput"
-              placeholder="Search weapons..."
-              class="search-input"
-            />
-          </div>
-          <div class="filter-group">
-            <select id="weaponTypeFilter" class="filter-select">
-              <option value="all">All Types</option>
-              <option value="kinetic">Kinetic</option>
-              <option value="energy">Energy</option>
-              <option value="power">Power</option>
-            </select>
-            <select id="weaponArchetypeFilter" class="filter-select">
-              <option value="all">All Archetypes</option>
-              <option value="auto">Auto Rifle</option>
-              <option value="pulse">Pulse Rifle</option>
-              <option value="scout">Scout Rifle</option>
-              <option value="hc">Hand Cannon</option>
-              <option value="smg">SMG</option>
-              <option value="sidearm">Sidearm</option>
-              <option value="bow">Bow</option>
-              <option value="fusion">Fusion Rifle</option>
-              <option value="sniper">Sniper Rifle</option>
-              <option value="shotgun">Shotgun</option>
-              <option value="trace">Trace Rifle</option>
-              <option value="gl">Grenade Launcher</option>
-              <option value="rocket">Rocket Launcher</option>
-              <option value="lmg">Machine Gun</option>
-              <option value="lfr">Linear Fusion</option>
-              <option value="sword">Sword</option>
-            </select>
-            <select id="weaponLocationFilter" class="filter-select">
-              <option value="all">All Locations</option>
-              <option value="character">Characters</option>
-              <option value="vault">Vault</option>
-            </select>
-            <select id="weaponTierFilter" class="filter-select">
-              <option value="all">All Rarities</option>
-              <option value="exotic">Exotic</option>
-              <option value="legendary">Legendary</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <button class="sort-button" onclick="toggleWeaponSort()">
-              Sort: <span id="weaponSortLabel">Power ↓</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="inventory-layout">
-          <div id="weaponCharacterSection" class="inventory-section">
-            <h3 class="section-title">Character Inventories</h3>
-            <div id="weaponCharacterGrid" class="item-grid"></div>
-          </div>
-
-          <div id="weaponVaultSection" class="inventory-section">
-            <h3 class="section-title">Vault</h3>
-            <div id="weaponVaultGrid" class="item-grid"></div>
-          </div>
+        <div id="armorPagination" class="pagination-controls" style="display:none">
+          <button id="armorPrevPage">Previous</button>
+          <span id="armorPageInfo"></span>
+          <button id="armorNextPage">Next</button>
         </div>
       </div>
     </div>
