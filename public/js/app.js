@@ -699,9 +699,6 @@ function createUniversalItemElement(item) {
   const wrapper = document.createElement("div");
   wrapper.className = `armor-item ${rarityClass}`;
   wrapper.dataset.itemId = item.itemInstanceId || item.itemHash;
-  wrapper.addEventListener("click", (e) => {
-    e.currentTarget.classList.toggle("expanded");
-  });
 
   // Determine if this is armor
   const isArmor = item.definition?.itemType === 2;
@@ -711,50 +708,89 @@ function createUniversalItemElement(item) {
       <div class="armor-icon">
         ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
       </div>
-      <div class="armor-details">
-        <div class="armor-info">
-            <div class="armor-name">${name}</div>
-            <div class="armor-type">${itemType}</div>
-            ${
-              item.quantity > 1
-                ? `<div style="color: #8af295;">Quantity: ${item.quantity}</div>`
-                : ""
-            }
-        </div>
   `;
-
-  // Add power level if it exists
-  if (item.power) {
-    itemHtml += `<div class="armor-power">${item.power}</div>`;
-  }
-
-  // Add stats for armor items
-  if (isArmor && item.stats) {
-    itemHtml += `
-      <div class="armor-stats">
-        ${Object.entries(Manifest.statHashes)
-          .map(
-            ([hash, statName]) => `
-          <div class="stat-item">
-            <div class="stat-name">${statName.substring(0, 3)}</div>
-            <div class="stat-value">${statValues[hash] || 0}</div>
-          </div>
-        `
-          )
-          .join("")}
-      </div>
-      <div class="armor-tags">
-        <span class="armor-tag">Total: ${totalStats}</span>
-      </div>
-    `;
-  }
-
-  itemHtml += `</div>`;
 
   wrapper.innerHTML = itemHtml;
 
+  wrapper.addEventListener("click", (e) => {
+    e.stopPropagation(); // Prevent the document click listener from firing immediately
+
+    // Close any existing tooltips
+    const existingTooltip = document.querySelector(".armor-tooltip");
+    if (existingTooltip) {
+      existingTooltip.remove();
+      // If the click is on the same item that's already open, just close it.
+      if (existingTooltip.dataset.itemId === wrapper.dataset.itemId) {
+        return;
+      }
+    }
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "armor-tooltip";
+    tooltip.dataset.itemId = wrapper.dataset.itemId; // Associate tooltip with item
+
+    let tooltipContent = `
+        <div class="armor-details">
+          <div class="armor-info">
+              <div class="armor-name">${name}</div>
+              <div class="armor-type">${itemType}</div>
+              ${
+                item.quantity > 1
+                  ? `<div style="color: #8af295;">Quantity: ${item.quantity}</div>`
+                  : ""
+              }
+          </div>
+    `;
+
+    if (item.power) {
+      tooltipContent += `<div class="armor-power">${item.power}</div>`;
+    }
+
+    if (isArmor && item.stats) {
+      tooltipContent += `
+        <div class="armor-stats">
+          ${Object.entries(Manifest.statHashes)
+            .map(
+              ([hash, statName]) => `
+            <div class="stat-item">
+              <div class="stat-name">${statName.substring(0, 3)}</div>
+              <div class="stat-value">${statValues[hash] || 0}</div>
+            </div>
+          `
+            )
+            .join("")}
+        </div>
+        <div class="armor-tags">
+          <span class="armor-tag">Total: ${totalStats}</span>
+        </div>
+      `;
+    }
+
+    tooltipContent += `</div>`;
+    tooltip.innerHTML = tooltipContent;
+
+    document.body.appendChild(tooltip);
+
+    const rect = wrapper.getBoundingClientRect();
+    tooltip.style.left = `${rect.right + 10}px`;
+    tooltip.style.top = `${rect.top}px`;
+    tooltip.style.display = "block";
+  });
+
   return wrapper;
 }
+
+// Add a global listener to close tooltips when clicking anywhere else
+document.addEventListener("click", (e) => {
+  const tooltip = document.querySelector(".armor-tooltip");
+  if (
+    tooltip &&
+    !tooltip.contains(e.target) &&
+    !e.target.closest(".armor-item")
+  ) {
+    tooltip.remove();
+  }
+});
 
 function createItemElement(item) {
   // Redirect to universal element creator
