@@ -197,7 +197,7 @@ router.get("/status", (req, res) => {
 
   res.json({
     authenticated: isAuthenticated && !tokenExpired,
-    user: req.session.user || null,
+    user: req.session.user || null, // This contains the full user response from Bungie
     destinyMembership: req.session.destinyMembership || null,
   });
 });
