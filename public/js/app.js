@@ -515,7 +515,7 @@ function combineInventoryItems(inventoryData) {
       `Profile inventory items found: ${inventoryData.profileInventory.data.items.length}`
     );
 
-    // Add location property to vault items
+    // Simply mark ALL vault items with location 2
     const vaultItems = inventoryData.profileInventory.data.items.map(
       (item) => ({
         ...item,
@@ -523,25 +523,24 @@ function combineInventoryItems(inventoryData) {
       })
     );
 
-    all = all.concat(vaultItems);
-  } else {
-    console.log("No vault items found in profileInventory");
-  }
+    // Log vault equipment vs other items for debugging
+    const vaultEquipment = vaultItems.filter((item) => {
+      const isArmor = Object.keys(ARMOR_BUCKETS).includes(
+        String(item.bucketHash)
+      );
+      const isWeapon = Object.keys(WEAPON_BUCKETS).includes(
+        String(item.bucketHash)
+      );
+      return isArmor || isWeapon;
+    });
 
-  // Check character inventories
-  if (inventoryData.characterInventories?.data) {
-    Object.entries(inventoryData.characterInventories.data).forEach(
-      ([charId, inv]) => {
-        if (inv.items) {
-          const charItems = inv.items.map((item) => ({
-            ...item,
-            location: 1, // Character inventory location
-            characterId: charId,
-          }));
-          all = all.concat(charItems);
-        }
-      }
+    console.log(`Total vault items: ${vaultItems.length}`);
+    console.log(`Vault equipment (armor/weapons): ${vaultEquipment.length}`);
+    console.log(
+      `Other vault items: ${vaultItems.length - vaultEquipment.length}`
     );
+
+    all = all.concat(vaultItems);
   }
 
   // Check equipped items
@@ -605,6 +604,10 @@ async function loadArmorInventory() {
             ?.value || 0,
       };
     });
+
+    // Filter armor and weapons
+    armorItems = filterArmorItems(allItems);
+    weaponItems = filterWeaponItems(allItems);
 
     armorLoaded = true;
     armorLoading = false;
