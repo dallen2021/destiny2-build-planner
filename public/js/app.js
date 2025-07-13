@@ -653,9 +653,7 @@ function displayVaultItems(items) {
   vaultContainer.innerHTML = "";
   vaultSection.style.display = "block";
   const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
-  itemsGrid.style.cssText =
-    "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px;";
+  itemsGrid.className = "items-container";
   items.forEach((item) => {
     const itemElement = createUniversalItemElement(item);
     itemsGrid.appendChild(itemElement);
@@ -932,7 +930,20 @@ function applyArmorFilters() {
   const characterItems = [];
   const vaultItems = [];
 
+  const armorBuckets = [
+    3448274439, // Helmet
+    3551918588, // Gauntlets
+    14239492, // Chest Armor
+    20886954, // Leg Armor
+    1585787867, // Class Armor
+  ];
+
   allItems.forEach((item) => {
+    // Armor only filter
+    if (!armorBuckets.includes(item.bucketHash)) {
+      return;
+    }
+
     // Search filter
     if (searchValue) {
       const name =
@@ -943,11 +954,8 @@ function applyArmorFilters() {
       }
     }
 
-    // Class filter - only apply to armor items
-    const armorBuckets = [
-      3448274439, 3551918588, 14239492, 20886954, 1585787867,
-    ];
-    if (classValue !== "all" && armorBuckets.includes(item.bucketHash)) {
+    // Class filter
+    if (classValue !== "all") {
       const itemClass = item.definition?.classType;
       if (
         itemClass !== undefined &&
@@ -958,8 +966,8 @@ function applyArmorFilters() {
       }
     }
 
-    // Slot filter - only apply to items in armor slots
-    if (slotValue !== "all" && armorBuckets.includes(parseInt(slotValue))) {
+    // Slot filter
+    if (slotValue !== "all") {
       if (item.bucketHash !== parseInt(slotValue)) {
         return;
       }
