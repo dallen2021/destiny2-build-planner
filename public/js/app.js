@@ -439,7 +439,7 @@ function combineInventoryItems(inventoryData) {
 }
 
 async function loadArmorInventory() {
-  const armorGrid = document.getElementById("armorGridContainer");
+  const armorGrid = document.getElementById("character-inventories");
   if (!armorGrid) return;
 
   if (armorLoaded && armorItems.length > 0) {
@@ -455,6 +455,7 @@ async function loadArmorInventory() {
     armorGrid.innerHTML = '<div class="loading-spinner" style="margin: 40px auto;"></div>';
 
     const inventoryData = await API.inventory.getInventory();
+    window.inventory = inventoryData;
 
     const itemComponents = inventoryData.itemComponents || {};
     const allItems = combineInventoryItems(inventoryData);
@@ -505,80 +506,133 @@ async function loadArmorInventory() {
   }
 }
 
-function displayArmorItems(items) {
-  const armorGrid = document.getElementById("armorGridContainer");
-  if (!armorGrid) {
-    console.error("Armor grid container not found!");
+function displayArmorItems(armorItems) {
+  const charactersContainer = document.getElementById("character-inventories");
+  if (!charactersContainer) {
+    console.error("Character inventories container not found!");
     return;
   }
-  
-  console.log(`Displaying ${items.length} armor items`);
-  
-  if (!items || items.length === 0) {
-    displayNoArmorMessage("No armor items found matching your filters.");
+
+  charactersContainer.innerHTML = "";
+
+  if (!window.inventory || !window.inventory.characterInventories) {
+    console.error("Inventory data not loaded");
     return;
   }
-  
-  // Display first few items for debugging
-  console.log("First armor item:", items[0]);
-  
-  armorGrid.innerHTML = items.map(item => {
-    const name = item.definition?.displayProperties?.name || "Unknown Item";
-    const icon = item.definition?.displayProperties?.icon 
-      ? `https://www.bungie.net${item.definition.displayProperties.icon}` 
-      : "";
-    const tierType = item.definition?.inventory?.tierTypeName || "";
-    const itemType = item.definition?.itemTypeDisplayName || "";
-    
-    // Calculate total stats
-    let totalStats = 0;
-    const statValues = {};
-    
-    if (item.stats) {
-      // Only count the main 6 stats
-      const mainStatHashes = Object.keys(Manifest.statHashes);
-      for (const statHash of mainStatHashes) {
-        const statValue = item.stats[statHash]?.value || 0;
-        totalStats += statValue;
-        statValues[statHash] = statValue;
-      }
+
+  const characters = Object.values(window.inventory.characterInventories.data);
+
+  characters.forEach((character) => {
+    const characterItems = armorItems.filter((item) => {
+      const invMatch = character.items?.some(
+        (charItem) => charItem.itemInstanceId === item.itemInstanceId
+      );
+      const equipMatch = window.inventory.characterEquipment.data[
+        character.characterId
+      ]?.items?.some(
+        (equipItem) => equipItem.itemInstanceId === item.itemInstanceId
+      );
+      return invMatch || equipMatch;
+    });
+
+    if (characterItems.length > 0) {
+      const characterDiv = document.createElement("div");
+      characterDiv.className = "character-inventory";
+      characterDiv.innerHTML = `<h3>Character ${character.characterId}</h3>`;
+      const itemsContainer = document.createElement("div");
+      itemsContainer.className = "items-container";
+      characterItems.forEach((item) => {
+        const itemElement = createItemElement(item);
+        itemsContainer.appendChild(itemElement);
+      });
+      characterDiv.appendChild(itemsContainer);
+      charactersContainer.appendChild(characterDiv);
     }
-    
-    // Determine rarity class
-    const rarityClass = tierType.toLowerCase() === "exotic" ? "exotic" : "legendary";
-    
-    return `
-      <div class="armor-item ${rarityClass}" data-item-id="${item.itemInstanceId}" onclick="selectArmorItem('${item.itemInstanceId}')">
-        <div class="armor-power">${item.power}</div>
-        <div class="armor-header">
-          <div class="armor-icon">
-            ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
-          </div>
-          <div class="armor-info">
-            <div class="armor-name">${name}</div>
-            <div class="armor-type">${itemType}</div>
-          </div>
-        </div>
-        <div class="armor-stats">
-          ${Object.entries(Manifest.statHashes).map(([hash, statName]) => `
-            <div class="stat-item">
-              <div class="stat-name">${statName.substring(0, 3)}</div>
-              <div class="stat-value">${statValues[hash] || 0}</div>
-            </div>
-          `).join("")}
-        </div>
-        <div class="armor-tags">
-          <span class="armor-tag">Total: ${totalStats}</span>
-        </div>
+  });
+
+  displayVaultItems(armorItems);
+}
+
+function displayVaultItems(armorItems) {
+  const vaultContainer = document.getElementById("vault-items-container");
+  if (!vaultContainer) return;
+  vaultContainer.innerHTML = "";
+
+  const vaultItems = armorItems.filter(
+    (item) => item.bucketHash === 138197650
+  );
+
+  vaultItems.forEach((item) => {
+    const itemElement = createItemElement(item);
+    vaultContainer.appendChild(itemElement);
+  });
+}
+
+function createItemElement(item) {
+  const name = item.definition?.displayProperties?.name || "Unknown Item";
+  const icon = item.definition?.displayProperties?.icon
+    ? `https://www.bungie.net${item.definition.displayProperties.icon}`
+    : "";
+  const tierType = item.definition?.inventory?.tierTypeName || "";
+  const itemType = item.definition?.itemTypeDisplayName || "";
+
+  let totalStats = 0;
+  const statValues = {};
+  if (item.stats) {
+    const mainStatHashes = Object.keys(Manifest.statHashes);
+    for (const statHash of mainStatHashes) {
+      const statValue = item.stats[statHash]?.value || 0;
+      totalStats += statValue;
+      statValues[statHash] = statValue;
+    }
+  }
+
+  const rarityClass =
+    tierType.toLowerCase() === "exotic" ? "exotic" : "legendary";
+
+  const wrapper = document.createElement("div");
+  wrapper.className = `armor-item ${rarityClass}`;
+  wrapper.dataset.itemId = item.itemInstanceId;
+  wrapper.addEventListener("click", () => selectArmorItem(item.itemInstanceId));
+
+  wrapper.innerHTML = `
+    <div class="armor-power">${item.power}</div>
+    <div class="armor-header">
+      <div class="armor-icon">
+        ${icon ? `<img src="${icon}" alt="${name}" />` : ""}
       </div>
-    `;
-  }).join("");
+      <div class="armor-info">
+        <div class="armor-name">${name}</div>
+        <div class="armor-type">${itemType}</div>
+      </div>
+    </div>
+    <div class="armor-stats">
+      ${Object.entries(Manifest.statHashes)
+        .map(
+          ([hash, statName]) => `
+        <div class="stat-item">
+          <div class="stat-name">${statName.substring(0, 3)}</div>
+          <div class="stat-value">${statValues[hash] || 0}</div>
+        </div>
+      `
+        )
+        .join("")}
+    </div>
+    <div class="armor-tags">
+      <span class="armor-tag">Total: ${totalStats}</span>
+    </div>`;
+
+  return wrapper;
 }
 
 function displayNoArmorMessage(message = "Sign in with Bungie to view your armor collection") {
-  const armorGrid = document.getElementById("armorGridContainer");
-  if (armorGrid) {
-    armorGrid.innerHTML = `<div class="empty-state">${message}</div>`;
+  const container = document.getElementById("character-inventories");
+  if (container) {
+    container.innerHTML = `<div class="empty-state">${message}</div>`;
+  }
+  const vault = document.getElementById("vault-items-container");
+  if (vault) {
+    vault.innerHTML = "";
   }
 }
 
@@ -835,7 +889,7 @@ window.quickTest = async function() {
   console.log("Active tab:", activeTab?.textContent);
   
   // 2. Check if armor grid exists
-  const grid = document.getElementById("armorGridContainer");
+  const grid = document.getElementById("character-inventories");
   console.log("Armor grid found:", !!grid);
   
   // 3. Try to fetch inventory directly
@@ -889,7 +943,7 @@ window.diagnoseArmor = async function() {
     
     console.log("\n5. Final status:");
     console.log("- Armor items loaded:", armorItems.length);
-    console.log("- Grid container exists?", !!document.getElementById("armorGridContainer"));
+    console.log("- Grid container exists?", !!document.getElementById("character-inventories"));
     
     if (armorItems.length > 0) {
       console.log("\n✓ SUCCESS: Armor loaded!");
