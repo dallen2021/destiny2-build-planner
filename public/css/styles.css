@@ -1239,6 +1239,26 @@ body {
   box-shadow: 0 5px 15px rgba(76, 175, 80, 0.5);
 }
 
+/* Inventory Layout */
+.inventory-container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.character-inventories {
+  width: 65%;
+}
+
+.vault-inventory {
+  width: 30%;
+}
+
+.items-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
 @media (max-width: 1200px) {
   .calc-row {
     grid-template-columns: 1fr;
