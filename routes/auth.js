@@ -14,12 +14,6 @@ function generateState() {
 
 // OAuth login route
 router.get("/login", (req, res) => {
-  // --- Start of Debugging Code ---
-  console.log("--- DEBUG: /auth/login route hit ---");
-  console.log("BUNGIE_CLIENT_ID:", process.env.BUNGIE_CLIENT_ID);
-  console.log("OAUTH_REDIRECT_URI:", process.env.OAUTH_REDIRECT_URI);
-  // --- End of Debugging Code ---
-
   const state = generateState();
   req.session.oauthState = state;
 
@@ -31,10 +25,6 @@ router.get("/login", (req, res) => {
   });
 
   const finalRedirectUrl = `${BUNGIE_AUTH_URL}?${params.toString()}`;
-
-  // --- More Debugging ---
-  console.log("Final Redirect URL being sent to browser:", finalRedirectUrl);
-  // --- End More Debugging ---
 
   res.redirect(finalRedirectUrl);
 });
@@ -98,6 +88,12 @@ router.get("/callback", async (req, res) => {
 
     req.session.user = userResponse.data.Response;
 
+    // Use the Bungie global display name and code
+    const bungieNetUser = userResponse.data.Response.bungieNetUser;
+    const bungieName = bungieNetUser.bungieGlobalDisplayName;
+    const bungieCode = bungieNetUser.bungieGlobalDisplayNameCode;
+    const displayName = bungieCode ? `${bungieName}#${bungieCode}` : bungieName;
+
     // Find primary Destiny membership
     const destinyMemberships = userResponse.data.Response.destinyMemberships;
     if (destinyMemberships && destinyMemberships.length > 0) {
@@ -111,7 +107,7 @@ router.get("/callback", async (req, res) => {
       req.session.destinyMembership = {
         membershipType: primaryMembership.membershipType,
         membershipId: primaryMembership.membershipId,
-        displayName: primaryMembership.displayName,
+        displayName: displayName, // Use the constructed Bungie name
       };
     }
 
