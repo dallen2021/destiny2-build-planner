@@ -1799,11 +1799,11 @@ async function showLoadoutPopup(loadout) {
 
   const title = document.createElement("h2");
   title.className = "loadout-popup-title";
-  title.textContent = "Loadout Details";
+  title.textContent = "Optimal Build Configuration";
 
   const closeButton = document.createElement("button");
   closeButton.className = "loadout-popup-close";
-  closeButton.innerHTML = "&times;";
+  closeButton.innerHTML = "✕";
   closeButton.onclick = () => overlay.remove();
 
   header.appendChild(title);
@@ -1813,95 +1813,102 @@ async function showLoadoutPopup(loadout) {
   const body = document.createElement("div");
   body.className = "loadout-popup-body";
 
-  // Armor Grid
-  const armorGrid = document.createElement("div");
-  armorGrid.className = "loadout-armor-grid";
+  // Main viewer layout
+  const viewer = document.createElement("div");
+  viewer.className = "loadout-viewer";
 
-  // Render each armor piece with detailed info
+  // Left side - Equipment slots
+  const equipment = document.createElement("div");
+  equipment.className = "loadout-equipment";
+
+  // Stat icon mappings
+  const statIcons = {
+    Mobility:
+      "https://www.bungie.net/common/destiny2_content/icons/6ad08e37c9b8e87bb983f7173f8b95be.png",
+    Resilience:
+      "https://www.bungie.net/common/destiny2_content/icons/b9dd95500b9cedbdf95b3ac00b8132ad.png",
+    Recovery:
+      "https://www.bungie.net/common/destiny2_content/icons/81c178f0f188f5b318702b03501021f0.png",
+    Discipline:
+      "https://www.bungie.net/common/destiny2_content/icons/0b8f87e891831f7ca8e8e6f2c211b03f.png",
+    Intellect:
+      "https://www.bungie.net/common/destiny2_content/icons/d9d9c95c52f9da447b813446e2cd8dd9.png",
+    Strength:
+      "https://www.bungie.net/common/destiny2_content/icons/e0e153a6c240c9fb19e9d35701288e19.png",
+  };
+
+  // Render each armor piece
   for (const piece of loadout.set) {
-    const armorCard = document.createElement("div");
+    const slot = document.createElement("div");
     const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
-    armorCard.className = `popup-armor-card ${isExotic ? "exotic" : ""}`;
+    slot.className = `equipment-slot ${isExotic ? "exotic" : ""}`;
 
-    // Card Header
-    const cardHeader = document.createElement("div");
-    cardHeader.className = "armor-card-header";
+    // Header with icon and details
+    const header = document.createElement("div");
+    header.className = "equipment-header";
 
-    const cardTitle = document.createElement("div");
-    cardTitle.className = "armor-card-title";
-
+    const iconWrapper = document.createElement("div");
+    iconWrapper.className = `equipment-icon ${isExotic ? "exotic" : ""}`;
     const icon = document.createElement("img");
-    icon.className = `armor-card-icon ${isExotic ? "exotic" : ""}`;
     icon.src = `https://www.bungie.net${piece.definition.displayProperties.icon}`;
     icon.alt = piece.definition.displayProperties.name;
+    iconWrapper.appendChild(icon);
 
-    const cardInfo = document.createElement("div");
-    cardInfo.className = "armor-card-info";
+    const details = document.createElement("div");
+    details.className = "equipment-details";
 
     const name = document.createElement("div");
-    name.className = `armor-card-name ${isExotic ? "exotic" : ""}`;
+    name.className = `equipment-name ${isExotic ? "exotic" : ""}`;
     name.textContent = piece.definition.displayProperties.name;
 
     const type = document.createElement("div");
-    type.className = "armor-card-type";
-    type.textContent = piece.definition.itemTypeDisplayName;
+    type.className = "equipment-type";
+    type.innerHTML = `${piece.definition.itemTypeDisplayName}`;
 
-    cardInfo.appendChild(name);
-    cardInfo.appendChild(type);
+    details.appendChild(name);
+    details.appendChild(type);
 
     const power = document.createElement("div");
-    power.className = "armor-card-power";
+    power.className = "equipment-power";
     power.textContent = piece.power || "0";
 
-    cardTitle.appendChild(icon);
-    cardTitle.appendChild(cardInfo);
-    cardTitle.appendChild(power);
-    cardHeader.appendChild(cardTitle);
-
-    // Card Body
-    const cardBody = document.createElement("div");
-    cardBody.className = "armor-card-body";
+    header.appendChild(iconWrapper);
+    header.appendChild(details);
+    header.appendChild(power);
 
     // Stats
-    const statsGrid = document.createElement("div");
-    statsGrid.className = "armor-card-stats";
+    const stats = document.createElement("div");
+    stats.className = "equipment-stats";
 
     for (const statHash in piece.stats) {
       const statDef = Manifest.statHashes[statHash];
       if (statDef) {
-        const statItem = document.createElement("div");
-        statItem.className = "armor-stat-item";
+        const statEl = document.createElement("div");
+        statEl.className = "equipment-stat";
 
-        const statName = document.createElement("div");
-        statName.className = "armor-stat-name";
-        statName.textContent = statDef.substring(0, 3);
+        if (statIcons[statDef]) {
+          const statIcon = document.createElement("img");
+          statIcon.className = "equipment-stat-icon";
+          statIcon.src = statIcons[statDef];
+          statEl.appendChild(statIcon);
+        }
 
-        const statValue = document.createElement("div");
-        statValue.className = "armor-stat-value";
-        statValue.textContent = piece.stats[statHash].value;
+        const value = document.createElement("div");
+        value.className = "equipment-stat-value";
+        value.textContent = piece.stats[statHash].value;
 
-        statItem.appendChild(statName);
-        statItem.appendChild(statValue);
-        statsGrid.appendChild(statItem);
+        statEl.appendChild(value);
+        stats.appendChild(statEl);
       }
     }
 
-    // Mod Slots
-    const modSection = document.createElement("div");
-    modSection.className = "armor-mod-section";
+    // Mods
+    const mods = document.createElement("div");
+    mods.className = "equipment-mods";
 
-    const modTitle = document.createElement("div");
-    modTitle.className = "armor-mod-title";
-    modTitle.textContent = "Mods";
-
-    const modSlots = document.createElement("div");
-    modSlots.className = "armor-mod-slots";
-
-    // Get socket data
     const socketData =
       window.inventory?.itemComponents?.sockets?.data?.[piece.itemInstanceId];
     if (socketData && piece.definition.sockets) {
-      // Find armor mod sockets
       const armorModCategory = piece.definition.sockets.socketCategories.find(
         (c) =>
           c.socketCategoryHash === 4247225343 ||
@@ -1915,13 +1922,25 @@ async function showLoadoutPopup(loadout) {
           modSlot.className = "mod-slot";
 
           if (socket?.plugHash && socket.plugHash !== 0) {
-            // Mod is equipped
             const plugDef = await Manifest.getPlug(socket.plugHash);
             if (plugDef?.displayProperties?.icon) {
               const modIcon = document.createElement("img");
               modIcon.src = `https://www.bungie.net${plugDef.displayProperties.icon}`;
               modIcon.title = plugDef.displayProperties.name;
               modSlot.appendChild(modIcon);
+
+              // Check if it's a stat mod
+              if (
+                plugDef.displayProperties.name.includes("Mod") &&
+                (plugDef.displayProperties.name.includes("Mobility") ||
+                  plugDef.displayProperties.name.includes("Resilience") ||
+                  plugDef.displayProperties.name.includes("Recovery") ||
+                  plugDef.displayProperties.name.includes("Discipline") ||
+                  plugDef.displayProperties.name.includes("Intellect") ||
+                  plugDef.displayProperties.name.includes("Strength"))
+              ) {
+                modSlot.classList.add("stat-mod");
+              }
             } else {
               modSlot.classList.add("empty");
             }
@@ -1929,35 +1948,32 @@ async function showLoadoutPopup(loadout) {
             modSlot.classList.add("empty");
           }
 
-          modSlots.appendChild(modSlot);
+          mods.appendChild(modSlot);
         }
       }
     }
 
-    modSection.appendChild(modTitle);
-    modSection.appendChild(modSlots);
-
-    cardBody.appendChild(statsGrid);
-    cardBody.appendChild(modSection);
-
-    armorCard.appendChild(cardHeader);
-    armorCard.appendChild(cardBody);
-    armorGrid.appendChild(armorCard);
+    slot.appendChild(header);
+    slot.appendChild(stats);
+    slot.appendChild(mods);
+    equipment.appendChild(slot);
   }
 
-  // Summary Section
-  const summary = document.createElement("div");
-  summary.className = "loadout-summary";
+  // Right side - Details
+  const details = document.createElement("div");
+  details.className = "loadout-details";
 
-  // Total Stats
-  const totalStatsSection = document.createElement("div");
-  totalStatsSection.className = "summary-section";
-  const totalStatsTitle = document.createElement("h3");
-  totalStatsTitle.textContent = "Total Stats";
-  totalStatsSection.appendChild(totalStatsTitle);
+  // Stats Section
+  const statsSection = document.createElement("div");
+  statsSection.className = "details-section";
 
-  const statsContainer = document.createElement("div");
-  statsContainer.className = "summary-stats";
+  const statsTitle = document.createElement("h3");
+  statsTitle.className = "section-title";
+  statsTitle.textContent = "Build Statistics";
+  statsSection.appendChild(statsTitle);
+
+  const statGrid = document.createElement("div");
+  statGrid.className = "stat-grid";
 
   let totalWasted = 0;
   for (const statName in loadout.stats) {
@@ -1966,84 +1982,136 @@ async function showLoadoutPopup(loadout) {
     const wasted = total % 10;
     totalWasted += wasted;
 
-    const statEl = document.createElement("div");
-    statEl.className = "summary-stat";
+    const statCard = document.createElement("div");
+    statCard.className = "stat-card";
 
-    const nameEl = document.createElement("div");
-    nameEl.className = "summary-stat-name";
-    nameEl.textContent = statName;
+    const statIcon = document.createElement("div");
+    statIcon.className = "stat-icon";
+    if (statIcons[statName]) {
+      const img = document.createElement("img");
+      img.src = statIcons[statName];
+      statIcon.appendChild(img);
+    }
 
-    const valueEl = document.createElement("div");
-    valueEl.innerHTML = `<span class="summary-stat-value">${total}</span><span class="tier-indicator">T${tier}</span>`;
+    const statInfo = document.createElement("div");
+    statInfo.className = "stat-info";
 
-    statEl.appendChild(nameEl);
-    statEl.appendChild(valueEl);
-    statsContainer.appendChild(statEl);
+    const statName2 = document.createElement("div");
+    statName2.className = "stat-name";
+    statName2.textContent = statName;
+
+    const breakdown = document.createElement("div");
+    breakdown.className = "stat-breakdown";
+
+    const total2 = document.createElement("span");
+    total2.className = "stat-total";
+    total2.textContent = total;
+
+    const tierSpan = document.createElement("span");
+    tierSpan.className = "stat-tier";
+    tierSpan.textContent = `T${tier}`;
+
+    breakdown.appendChild(total2);
+    breakdown.appendChild(tierSpan);
+
+    statInfo.appendChild(statName2);
+    statInfo.appendChild(breakdown);
+
+    statCard.appendChild(statIcon);
+    statCard.appendChild(statInfo);
+    statGrid.appendChild(statCard);
   }
 
-  totalStatsSection.appendChild(statsContainer);
+  statsSection.appendChild(statGrid);
 
-  // Required Mods
+  // Mod Requirements Section
   const modsSection = document.createElement("div");
-  modsSection.className = "summary-section";
+  modsSection.className = "details-section";
+
   const modsTitle = document.createElement("h3");
-  modsTitle.textContent = "Required Mods";
+  modsTitle.className = "section-title";
+  modsTitle.textContent = "Required Modifications";
   modsSection.appendChild(modsTitle);
 
-  const modsContainer = document.createElement("div");
-  modsContainer.className = "mod-requirements";
+  const modPlanGrid = document.createElement("div");
+  modPlanGrid.className = "mod-plan-grid";
+
+  // Mod icon mappings
+  const modIcons = {
+    Weapons:
+      "https://www.bungie.net/common/destiny2_content/icons/6ad08e37c9b8e87bb983f7173f8b95be.png",
+    Health:
+      "https://www.bungie.net/common/destiny2_content/icons/b9dd95500b9cedbdf95b3ac00b8132ad.png",
+    Class:
+      "https://www.bungie.net/common/destiny2_content/icons/81c178f0f188f5b318702b03501021f0.png",
+    Grenade:
+      "https://www.bungie.net/common/destiny2_content/icons/0b8f87e891831f7ca8e8e6f2c211b03f.png",
+    Super:
+      "https://www.bungie.net/common/destiny2_content/icons/d9d9c95c52f9da447b813446e2cd8dd9.png",
+    Melee:
+      "https://www.bungie.net/common/destiny2_content/icons/e0e153a6c240c9fb19e9d35701288e19.png",
+  };
 
   for (const statName in loadout.modPlan) {
     if (loadout.modPlan[statName] > 0) {
-      const modReq = document.createElement("div");
-      modReq.className = "mod-requirement";
+      const modItem = document.createElement("div");
+      modItem.className = "mod-plan-item";
+
+      if (modIcons[statName]) {
+        const icon = document.createElement("img");
+        icon.className = "mod-plan-icon";
+        icon.src = modIcons[statName];
+        modItem.appendChild(icon);
+      }
+
+      const modDetails = document.createElement("div");
+      modDetails.className = "mod-plan-details";
 
       const modName = document.createElement("div");
-      modName.className = "mod-requirement-name";
+      modName.className = "mod-plan-name";
       modName.textContent = `${statName} Mods`;
 
       const modValue = document.createElement("div");
-      modValue.className = "mod-requirement-value";
-      modValue.textContent = `+${loadout.modPlan[statName]}`;
+      modValue.className = "mod-plan-value";
+      modValue.textContent = `+${loadout.modPlan[statName]} total`;
 
-      modReq.appendChild(modName);
-      modReq.appendChild(modValue);
-      modsContainer.appendChild(modReq);
+      modDetails.appendChild(modName);
+      modDetails.appendChild(modValue);
+      modItem.appendChild(modDetails);
+      modPlanGrid.appendChild(modItem);
     }
   }
 
-  modsSection.appendChild(modsContainer);
+  modsSection.appendChild(modPlanGrid);
 
-  // Wasted Stats
-  const wastedSection = document.createElement("div");
-  wastedSection.className = "summary-section";
-  const wastedTitle = document.createElement("h3");
-  wastedTitle.textContent = "Efficiency";
-  wastedSection.appendChild(wastedTitle);
+  // Build Actions
+  const actions = document.createElement("div");
+  actions.className = "build-actions";
 
-  const wastedContainer = document.createElement("div");
-  const wastedStat = document.createElement("div");
-  wastedStat.className = "summary-stat wasted-stats";
+  const equipButton = document.createElement("button");
+  equipButton.className = "action-button";
+  equipButton.textContent = "Equip Build";
+  equipButton.onclick = () => {
+    showNotification("Equip functionality coming soon!", "info");
+  };
 
-  const wastedName = document.createElement("div");
-  wastedName.className = "summary-stat-name";
-  wastedName.textContent = "Wasted Stats";
+  const saveButton = document.createElement("button");
+  saveButton.className = "action-button secondary";
+  saveButton.textContent = "Save Loadout";
+  saveButton.onclick = () => {
+    showNotification("Save functionality coming soon!", "info");
+  };
 
-  const wastedValue = document.createElement("div");
-  wastedValue.className = "summary-stat-value";
-  wastedValue.textContent = totalWasted;
+  actions.appendChild(equipButton);
+  actions.appendChild(saveButton);
 
-  wastedStat.appendChild(wastedName);
-  wastedStat.appendChild(wastedValue);
-  wastedContainer.appendChild(wastedStat);
-  wastedSection.appendChild(wastedContainer);
+  details.appendChild(statsSection);
+  details.appendChild(modsSection);
+  details.appendChild(actions);
 
-  summary.appendChild(totalStatsSection);
-  summary.appendChild(modsSection);
-  summary.appendChild(wastedSection);
-
-  body.appendChild(armorGrid);
-  body.appendChild(summary);
+  viewer.appendChild(equipment);
+  viewer.appendChild(details);
+  body.appendChild(viewer);
 
   content.appendChild(header);
   content.appendChild(body);

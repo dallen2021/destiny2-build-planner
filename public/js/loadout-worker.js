@@ -1,24 +1,17 @@
 /**
  * public/js/loadout-worker.js
- * * This script runs in a separate thread to handle the computationally
+ * This script runs in a separate thread to handle the computationally
  * intensive task of generating and evaluating Destiny 2 loadouts.
- * By offloading this work from the main thread, it prevents the UI
- * from freezing, ensuring a smooth and responsive user experience,
- * especially for players with a large number of armor pieces.
  */
 
 /**
- * Entry point for the worker. Listens for messages from the main thread.
- * The main thread will send a message with the necessary data to start
- * the loadout generation process.
- * * @param {MessageEvent} e The event object containing the data sent from the main thread.
- * e.data should contain { allItems, character, state }.
+ * Entry point for the worker
  */
 onmessage = function (e) {
   const { allItems, character, state } = e.data;
 
   if (!allItems || !character || !state) {
-    postMessage({ error: "Invalid data received by worker." });
+    postMessage({ type: "error", payload: "Invalid data received by worker." });
     return;
   }
 
@@ -30,12 +23,7 @@ onmessage = function (e) {
 };
 
 /**
- * Generates all possible loadout combinations based on the provided armor items and state.
- * This is the core computational logic that was moved from the main thread.
- * * @param {Array} allItems - An array of all armor items for the user.
- * @param {Object} character - The currently selected character object.
- * @param {Object} state - The current application state, including target stats and selected exotic.
- * @returns {Object} An object containing an array of valid loadouts and an object with stat limits.
+ * Generates loadout combinations with progress updates
  */
 function generateLoadouts(allItems, character, state) {
   try {
@@ -73,64 +61,126 @@ function generateLoadouts(allItems, character, state) {
         armorPieces.classItem.push(item);
     }
 
-    let combinations = [];
+    // Check if all target stats are at 10 (no mods strategy)
+    const allStatsMinimal = Object.values(state.statValues).every(
+      (v) => v === 10
+    );
+
+    // Generate combinations and calculate stats with progress
+    let validLoadouts = [];
+    let count = 0;
+    let lastProgress = 0;
+
+    // Calculate total combinations for progress tracking
+    const totalCombinations =
+      armorPieces.helmet.length *
+      armorPieces.gauntlets.length *
+      armorPieces.chest.length *
+      armorPieces.legs.length *
+      armorPieces.classItem.length;
+
+    let combinationCount = 0;
+
     for (const helmet of armorPieces.helmet) {
       for (const gauntlets of armorPieces.gauntlets) {
         for (const chest of armorPieces.chest) {
           for (const legs of armorPieces.legs) {
             for (const classItem of armorPieces.classItem) {
+              combinationCount++;
+
+              // Send progress updates
+              const progress = Math.floor(
+                (combinationCount / totalCombinations) * 100
+              );
+              if (progress > lastProgress + 5) {
+                lastProgress = progress;
+                postMessage({
+                  type: "progress",
+                  payload: { count: Math.min(count, 1000) },
+                });
+              }
+
               const set = [helmet, gauntlets, chest, legs, classItem];
+
+              // Check exotic constraints
               const exoticCount = set.filter(
                 (p) => p.definition.inventory.tierTypeName === "Exotic"
               ).length;
+
+              // Skip if more than one exotic
               if (exoticCount > 1) continue;
-              if (
-                state.selectedExoticHash &&
-                !set.some((p) => p.itemHash == state.selectedExoticHash)
-              )
-                continue;
-              if (!state.selectedExoticHash && exoticCount > 0) continue;
-              combinations.push(set);
+
+              // If an exotic is selected, must include that specific exotic
+              if (state.selectedExoticHash) {
+                if (!set.some((p) => p.itemHash == state.selectedExoticHash)) {
+                  continue;
+                }
+              }
+              // If no exotic selected, allow any combination (including exotics)
+
+              // Calculate the loadout stats
+              const result = evaluateLoadout(set, state, allStatsMinimal);
+              if (result) {
+                validLoadouts.push(result);
+                count++;
+
+                // Stop after 1000 valid loadouts
+                if (count >= 1000) {
+                  postMessage({
+                    type: "progress",
+                    payload: { count: 1000 },
+                  });
+                  break;
+                }
+              }
             }
+            if (count >= 1000) break;
           }
+          if (count >= 1000) break;
         }
+        if (count >= 1000) break;
       }
+      if (count >= 1000) break;
     }
 
-    const loadouts = calculateLoadoutStats(combinations, state);
+    // Sort loadouts
+    validLoadouts.sort((a, b) => {
+      const aTiers = Object.values(a.stats).reduce(
+        (sum, val) => sum + Math.floor(val / 10),
+        0
+      );
+      const bTiers = Object.values(b.stats).reduce(
+        (sum, val) => sum + Math.floor(val / 10),
+        0
+      );
+      if (bTiers !== aTiers) return bTiers - aTiers;
 
-    // NEW: Calculate the maximum possible value for each stat from the valid loadouts
-    const limits = {
-      Weapons: 0,
-      Health: 0,
-      Class: 0,
-      Grenade: 0,
-      Super: 0,
-      Melee: 0,
-    };
-    if (loadouts.length > 0) {
-      for (const statName in limits) {
-        const maxStat = Math.max(...loadouts.map((l) => l.stats[statName]));
-        limits[statName] = maxStat;
-      }
-    }
+      const aWasted = Object.values(a.stats).reduce(
+        (sum, val) => sum + (val % 10),
+        0
+      );
+      const bWasted = Object.values(b.stats).reduce(
+        (sum, val) => sum + (val % 10),
+        0
+      );
+      return aWasted - bWasted;
+    });
 
-    return { loadouts, limits };
+    // Calculate stat limits
+    const limits = calculateStatLimits(armorPieces, state);
+
+    return { loadouts: validLoadouts, limits };
   } catch (e) {
     console.error("Error generating loadouts in worker:", e);
-    // In case of an error, post an error message back to the main thread
     postMessage({ type: "error", payload: e.message });
     return { loadouts: [], limits: {} };
   }
 }
 
 /**
- * Calculates the final stats for each loadout combination, considering mods.
- * * @param {Array} combinations - An array of armor set combinations.
- * @param {Object} state - The application state with target stat values.
- * @returns {Array} A sorted array of valid loadouts with their calculated stats.
+ * Evaluates a single loadout combination
  */
-function calculateLoadoutStats(combinations, state) {
+function evaluateLoadout(set, state, preferNoMods) {
   const targetTiers = {
     Weapons: state.statValues.Weapons / 10,
     Health: state.statValues.Health / 10,
@@ -141,119 +191,172 @@ function calculateLoadoutStats(combinations, state) {
   };
 
   const statMap = {
-    2996146975: "Weapons", // Corresponds to Mobility
-    392767087: "Health", // Corresponds to Resilience
-    1943323491: "Class", // Corresponds to Recovery
-    1735777505: "Grenade", // Corresponds to Discipline
-    144602215: "Super", // Corresponds to Intellect
-    4244567218: "Melee", // Corresponds to Strength
+    2996146975: "Weapons",
+    392767087: "Health",
+    1943323491: "Class",
+    1735777505: "Grenade",
+    144602215: "Super",
+    4244567218: "Melee",
   };
 
-  const fontMods = {
-    Weapons: [20, 40, 50],
-    Health: [20, 40, 50],
-    Class: [20, 40, 50],
-    Grenade: [20, 40, 50],
-    Super: [20, 40, 50],
-    Melee: [20, 40, 50],
+  // Calculate base stats
+  let currentStats = {
+    Weapons: 0,
+    Health: 0,
+    Class: 0,
+    Grenade: 0,
+    Super: 0,
+    Melee: 0,
   };
 
-  const results = [];
-
-  for (const set of combinations) {
-    let currentStats = {
-      Weapons: 0,
-      Health: 0,
-      Class: 0,
-      Grenade: 0,
-      Super: 0,
-      Melee: 0,
-    };
-
-    for (const piece of set) {
-      if (piece.stats) {
-        for (const statHash in piece.stats) {
-          const statName = statMap[statHash];
-          if (statName) {
-            currentStats[statName] += piece.stats[statHash].value;
-          }
-        }
-      }
-      // Assume masterworked (+2 to all stats for each of the 4 main armor pieces)
-      if (piece.definition.inventory.bucketTypeHash !== 1585787867) {
-        // Not a class item
-        for (const statName in currentStats) {
-          currentStats[statName] += 2;
+  for (const piece of set) {
+    if (piece.stats) {
+      for (const statHash in piece.stats) {
+        const statName = statMap[statHash];
+        if (statName) {
+          currentStats[statName] += piece.stats[statHash].value;
         }
       }
     }
-
-    let modPlan = {
-      Weapons: 0,
-      Health: 0,
-      Class: 0,
-      Grenade: 0,
-      Super: 0,
-      Melee: 0,
-    };
-    let moddedStats = { ...currentStats };
-    let totalModCost = 0;
-
-    for (const statName in targetTiers) {
-      let needed = targetTiers[statName] * 10 - moddedStats[statName];
-
-      const fontBonus = fontMods[statName].find(
-        (b) => b + moddedStats[statName] >= targetTiers[statName] * 10
-      );
-      if (fontBonus) {
-        needed -= fontBonus;
+    // Add masterwork bonus (+2 to all stats for non-class items)
+    if (piece.definition.inventory.bucketTypeHash !== 1585787867) {
+      for (const statName in currentStats) {
+        currentStats[statName] += 2;
       }
-
-      if (needed > 0) {
-        const majorMods = Math.floor(needed / 10);
-        totalModCost += majorMods * 3;
-        modPlan[statName] += majorMods * 10;
-        moddedStats[statName] += majorMods * 10;
-
-        let remainingNeeded =
-          targetTiers[statName] * 10 - moddedStats[statName];
-        if (remainingNeeded > 0) {
-          const minorMods = Math.ceil(remainingNeeded / 5);
-          totalModCost += minorMods * 1;
-          modPlan[statName] += minorMods * 5;
-          moddedStats[statName] += minorMods * 5;
-        }
-      }
-    }
-
-    if (totalModCost <= 15) {
-      results.push({ set, stats: moddedStats, modPlan });
     }
   }
 
-  // Sort results: higher total tiers first, then by less wasted stats
-  results.sort((a, b) => {
-    const aTiers = Object.values(a.stats).reduce(
-      (sum, val) => sum + Math.floor(val / 10),
-      0
-    );
-    const bTiers = Object.values(b.stats).reduce(
-      (sum, val) => sum + Math.floor(val / 10),
-      0
-    );
-    if (bTiers !== aTiers) return bTiers - aTiers;
+  // If preferNoMods is true and all targets are 10, check if we meet targets without mods
+  if (preferNoMods) {
+    let meetsAllTargets = true;
+    for (const statName in targetTiers) {
+      if (currentStats[statName] < targetTiers[statName] * 10) {
+        meetsAllTargets = false;
+        break;
+      }
+    }
 
-    const aWasted = Object.values(a.stats).reduce(
-      (sum, val) => sum + (val % 10),
-      0
-    );
-    const bWasted = Object.values(b.stats).reduce(
-      (sum, val) => sum + (val % 10),
-      0
-    );
-    return aWasted - bWasted;
-  });
+    if (meetsAllTargets) {
+      // Return loadout with no mods
+      return {
+        set,
+        stats: currentStats,
+        modPlan: {
+          Weapons: 0,
+          Health: 0,
+          Class: 0,
+          Grenade: 0,
+          Super: 0,
+          Melee: 0,
+        },
+      };
+    }
+  }
 
-  // Limit to 1000 results
-  return results.slice(0, 1000);
+  // Calculate required mods
+  let modPlan = {
+    Weapons: 0,
+    Health: 0,
+    Class: 0,
+    Grenade: 0,
+    Super: 0,
+    Melee: 0,
+  };
+
+  let moddedStats = { ...currentStats };
+  let totalModCost = 0;
+
+  for (const statName in targetTiers) {
+    let needed = targetTiers[statName] * 10 - moddedStats[statName];
+
+    if (needed > 0) {
+      // Calculate optimal mod combination
+      const majorMods = Math.floor(needed / 10);
+      const remainder = needed % 10;
+
+      // Use major mods first
+      if (majorMods > 0) {
+        totalModCost += majorMods * 3;
+        modPlan[statName] += majorMods * 10;
+        moddedStats[statName] += majorMods * 10;
+      }
+
+      // Use minor mods for remainder
+      if (remainder > 0) {
+        const minorMods = Math.ceil(remainder / 5);
+        totalModCost += minorMods * 1;
+        modPlan[statName] += minorMods * 5;
+        moddedStats[statName] += minorMods * 5;
+      }
+    }
+  }
+
+  // Check if mod cost is within limit (5 armor pieces * 3 energy each = 15)
+  if (totalModCost <= 15) {
+    return { set, stats: moddedStats, modPlan };
+  }
+
+  return null;
+}
+
+/**
+ * Calculates the maximum possible value for each stat
+ */
+function calculateStatLimits(armorPieces, state) {
+  const statMap = {
+    2996146975: "Weapons",
+    392767087: "Health",
+    1943323491: "Class",
+    1735777505: "Grenade",
+    144602215: "Super",
+    4244567218: "Melee",
+  };
+
+  const limits = {
+    Weapons: 0,
+    Health: 0,
+    Class: 0,
+    Grenade: 0,
+    Super: 0,
+    Melee: 0,
+  };
+
+  // For each stat, find the best possible loadout
+  for (const statHash in statMap) {
+    const statName = statMap[statHash];
+    let maxTotal = 0;
+
+    // Find best piece for this stat in each slot
+    const slots = ["helmet", "gauntlets", "chest", "legs", "classItem"];
+    for (const slot of slots) {
+      let maxForSlot = 0;
+
+      for (const piece of armorPieces[slot]) {
+        const statValue = piece.stats?.[statHash]?.value || 0;
+
+        // Check exotic constraints
+        const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
+        if (state.selectedExoticHash) {
+          if (isExotic && piece.itemHash != state.selectedExoticHash) continue;
+        }
+
+        maxForSlot = Math.max(maxForSlot, statValue);
+      }
+
+      maxTotal += maxForSlot;
+
+      // Add masterwork bonus for non-class items
+      if (slot !== "classItem") {
+        maxTotal += 2;
+      }
+    }
+
+    // Add maximum possible mods (5 major mods = +50)
+    maxTotal += 50;
+
+    // Cap at game maximum
+    limits[statName] = Math.min(maxTotal, 200);
+  }
+
+  return limits;
 }
