@@ -313,6 +313,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 /* -------- INITIALIZATION -------- */
 async function initializeApp() {
   try {
+    showLoading(true);
     // Check for auth callback
     const urlParams = new URLSearchParams(window.location.search);
     const authResult = urlParams.get("auth");
@@ -333,10 +334,10 @@ async function initializeApp() {
     // Check authentication status
     const authStatus = await API.auth.checkStatus();
     updateAuthUI(authStatus);
-    showLoading(false);
   } catch (error) {
     console.error("Initialization error:", error);
     showNotification("Failed to initialize application", "error");
+  } finally {
     showLoading(false);
   }
 }
@@ -1682,6 +1683,7 @@ async function populateExoticSelector() {
 }
 
 function selectExotic(hash) {
+  if (state.selectedExoticHash === hash) return;
   state.selectedExoticHash = hash === "none" ? null : hash;
   document.querySelectorAll(".exotic-item-icon").forEach((el) => {
     el.classList.toggle("selected", el.dataset.hash === hash);
