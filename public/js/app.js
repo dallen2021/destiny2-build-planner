@@ -901,68 +901,55 @@ function displayVaultItems(groupedItems) {
   if (!container) return;
   container.innerHTML = "";
 
-  // Group items by class first
-  const itemsByClass = {
-    0: { name: "Titan", items: {} }, // Titan
-    1: { name: "Hunter", items: {} }, // Hunter
-    2: { name: "Warlock", items: {} }, // Warlock
-    3: { name: "All Classes", items: {} }, // All classes
-  };
+  // Get the current character's class if available
+  let filterClass = null;
+  if (currentCharacterId && charactersData[currentCharacterId]) {
+    filterClass = charactersData[currentCharacterId].classType;
+  } else {
+    // If no character selected, check if class filter dropdown is being used
+    const classFilterValue = document.getElementById("armorClassFilter")?.value;
+    if (classFilterValue && classFilterValue !== "all") {
+      filterClass = parseInt(classFilterValue);
+    }
+  }
 
-  // Organize items by class and then by bucket
   bucketOrder.forEach((bucketInfo) => {
     const items = groupedItems[bucketInfo.hash] || [];
+    if (items.length === 0) return;
 
-    items.forEach((item) => {
-      const classType = item.definition?.classType ?? 3; // Default to "All Classes" if undefined
-      if (!itemsByClass[classType].items[bucketInfo.hash]) {
-        itemsByClass[classType].items[bucketInfo.hash] = [];
-      }
-      itemsByClass[classType].items[bucketInfo.hash].push(item);
-    });
-  });
-
-  // Display items organized by class
-  Object.entries(itemsByClass).forEach(([classType, classData]) => {
-    // Check if this class has any items
-    const hasItems = Object.values(classData.items).some(
-      (items) => items.length > 0
-    );
-    if (!hasItems) return;
-
-    const classSection = document.createElement("div");
-    classSection.className = "vault-class-section";
-    classSection.innerHTML = `<h4>${classData.name}</h4>`;
-
-    // Display each armor slot for this class
-    bucketOrder.forEach((bucketInfo) => {
-      const items = classData.items[bucketInfo.hash] || [];
-      if (items.length === 0) return;
-
-      // Sort vault items: Exotics first, then by power level (desc)
-      items.sort((a, b) => {
-        const aIsExotic = a.definition?.inventory?.tierTypeName === "Exotic";
-        const bIsExotic = b.definition?.inventory?.tierTypeName === "Exotic";
-        if (aIsExotic && !bIsExotic) return -1;
-        if (!aIsExotic && bIsExotic) return 1;
-        return b.power - a.power;
+    // Filter items by class if we have a selected character or class filter
+    let filteredItems = items;
+    if (filterClass !== null) {
+      filteredItems = items.filter((item) => {
+        const itemClass = item.definition?.classType;
+        // Show items that match the class or are for all classes (3)
+        return itemClass === filterClass || itemClass === 3;
       });
+    }
 
-      const section = document.createElement("div");
-      section.className = "armor-slot-section";
-      section.innerHTML = `<h3>${bucketInfo.name}</h3>`;
+    if (filteredItems.length === 0) return;
 
-      const row = document.createElement("div");
-      row.className = "vault-armor-row";
-      items.forEach((item) => {
-        row.appendChild(createUniversalItemElement(item));
-      });
-
-      section.appendChild(row);
-      classSection.appendChild(section);
+    // Sort vault items: Exotics first, then by power level (desc)
+    filteredItems.sort((a, b) => {
+      const aIsExotic = a.definition?.inventory?.tierTypeName === "Exotic";
+      const bIsExotic = b.definition?.inventory?.tierTypeName === "Exotic";
+      if (aIsExotic && !bIsExotic) return -1;
+      if (!aIsExotic && bIsExotic) return 1;
+      return b.power - a.power;
     });
 
-    container.appendChild(classSection);
+    const section = document.createElement("div");
+    section.className = "armor-slot-section";
+    section.innerHTML = `<h3>${bucketInfo.name}</h3>`;
+
+    const row = document.createElement("div");
+    row.className = "vault-armor-row";
+    filteredItems.forEach((item) => {
+      row.appendChild(createUniversalItemElement(item));
+    });
+
+    section.appendChild(row);
+    container.appendChild(section);
   });
 }
 
@@ -990,7 +977,7 @@ function applyArmorFilters() {
       }
     }
 
-    // Class filter
+    // Class filter - applies to both character and vault items
     if (classValue !== "all") {
       const itemClass = item.definition?.classType;
       if (
@@ -1080,7 +1067,6 @@ function createUniversalItemElement(item) {
 
   // Check if item is masterworked
   const isMasterworked =
-    item.masterwork ||
     window.inventory?.itemComponents?.instances?.data?.[item.itemInstanceId]
       ?.energy?.energyCapacity === 10;
 
