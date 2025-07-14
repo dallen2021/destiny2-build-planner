@@ -274,6 +274,7 @@ const state = {
 /* -------- NEW: WEB WORKER FOR LOADOUTS -------- */
 let loadoutWorker;
 let isWorkerBusy = false;
+let precomputedDistributions = [];
 
 /* -------- CHARACTER SELECTOR VARIABLES -------- */
 let currentCharacterId = null;
@@ -1042,6 +1043,7 @@ function onStatBoxClick(e) {
   const val = Number(e.currentTarget.dataset.value);
   state.statValues[stat] = val;
   updateAllStatCalculations();
+  updateDynamicLimits();
   debouncedGenerateLoadouts();
 }
 
@@ -1538,11 +1540,10 @@ function initLoadoutWorker() {
     loadoutWorker.onmessage = function (e) {
       const { type, payload } = e.data;
       if (type === "loadoutsGenerated") {
-        // NEW: Destructure payload to get both loadouts and limits
         const { loadouts, limits } = payload;
         hideLoadoutProgress();
         displayLoadouts(loadouts);
-        updateStatButtons(limits); // NEW: Update stat buttons based on possible stats
+        updateStatButtons(limits);
       } else if (type === "progress") {
         updateLoadoutProgress(payload.progress, payload.count);
       } else if (type === "error") {
@@ -1555,6 +1556,10 @@ function initLoadoutWorker() {
         const resultsGrid = document.getElementById("loadoutResultsGrid");
         resultsGrid.innerHTML =
           '<div class="empty-state">An error occurred while generating loadouts.</div>';
+      } else if (type === "precomputeDone") {
+        precomputedDistributions = payload.distributions;
+        hideLoading();
+        updateDynamicLimits();
       }
       isWorkerBusy = false;
     };
@@ -1672,6 +1677,16 @@ function selectExotic(hash) {
   document.querySelectorAll(".exotic-item-icon").forEach((el) => {
     el.classList.toggle("selected", el.dataset.hash === hash);
   });
+  if (loadoutWorker && armorLoaded) {
+    loadoutWorker.postMessage({
+      type: "precompute",
+      payload: {
+        allItems,
+        character: charactersData[currentCharacterId],
+        state,
+      },
+    });
+  }
   debouncedGenerateLoadouts();
 }
 
@@ -1707,9 +1722,8 @@ async function generateLoadouts() {
 
     // Post data to the worker to start calculations
     loadoutWorker.postMessage({
-      allItems,
-      character,
-      state,
+      type: "generate",
+      payload: { allItems, character, state },
     });
   } catch (e) {
     console.error("Error starting loadout generation:", e);
@@ -1824,4 +1838,59 @@ function displayLoadouts(loadouts) {
 
   renderPage();
   setupPagination();
+}
+
+function updateDynamicLimits() {
+  if (!precomputedDistributions || precomputedDistributions.length === 0) {
+    return;
+  }
+
+  const currentTargets = state.statValues;
+
+  const validDistributions = precomputedDistributions.filter((dist) => {
+    let modPointsNeeded = 0;
+    for (const statName in currentTargets) {
+      const needed = currentTargets[statName] - dist[statName];
+      if (needed > 0) {
+        modPointsNeeded += needed;
+      }
+    }
+    return modPointsNeeded <= 50; // 5 major mods
+  });
+
+  if (validDistributions.length === 0) {
+    const newLimits = {};
+    for (const statName in currentTargets) {
+      newLimits[statName] = currentTargets[statName];
+    }
+    updateStatButtons(newLimits);
+    return;
+  }
+
+  const newLimits = {};
+  for (const statName in currentTargets) {
+    let maxForThisStat = 0;
+    for (const dist of validDistributions) {
+      let modPointsUsedByOthers = 0;
+      for (const otherStat in currentTargets) {
+        if (otherStat !== statName) {
+          const needed = currentTargets[otherStat] - dist[otherStat];
+          if (needed > 0) {
+            modPointsUsedByOthers += needed;
+          }
+        }
+      }
+
+      const remainingModPoints = 50 - modPointsUsedByOthers;
+      if (remainingModPoints >= 0) {
+        const potentialValue = dist[statName] + remainingModPoints;
+        if (potentialValue > maxForThisStat) {
+          maxForThisStat = potentialValue;
+        }
+      }
+    }
+    newLimits[statName] = Math.min(200, maxForThisStat);
+  }
+
+  updateStatButtons(newLimits);
 }
