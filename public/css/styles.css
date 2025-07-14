@@ -532,18 +532,21 @@ body::before {
 /* --- START: NEW LOADOUT BUILDER STYLES --- */
 
 .loadout-builder-layout {
-  display: grid;
-  grid-template-columns: 500px 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
-  align-items: flex-start;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.loadout-builder-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
 }
 
 .builder-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  position: sticky;
-  top: 85px; /* Height of nav-tabs */
+  display: contents;
 }
 
 .loadout-results-container {

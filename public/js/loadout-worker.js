@@ -254,5 +254,6 @@ function calculateLoadoutStats(combinations, state) {
     return aWasted - bWasted;
   });
 
-  return results;
+  // Limit to 1000 results
+  return results.slice(0, 1000);
 }

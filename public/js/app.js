@@ -1785,7 +1785,7 @@ function displayLoadouts(loadouts) {
 
 async function showLoadoutPopup(loadout) {
   const popupContainer = document.getElementById("popupContainer");
-  popupContainer.innerHTML = ""; // Clear previous popups
+  popupContainer.innerHTML = "";
 
   const overlay = document.createElement("div");
   overlay.className = "loadout-popup-overlay";
@@ -1793,107 +1793,264 @@ async function showLoadoutPopup(loadout) {
   const content = document.createElement("div");
   content.className = "loadout-popup-content";
 
+  // Header
+  const header = document.createElement("div");
+  header.className = "loadout-popup-header";
+
+  const title = document.createElement("h2");
+  title.className = "loadout-popup-title";
+  title.textContent = "Loadout Details";
+
   const closeButton = document.createElement("button");
   closeButton.className = "loadout-popup-close";
   closeButton.innerHTML = "&times;";
   closeButton.onclick = () => overlay.remove();
 
-  content.innerHTML = `<h2>Loadout Details</h2>`;
-  const grid = document.createElement("div");
-  grid.className = "loadout-popup-grid";
+  header.appendChild(title);
+  header.appendChild(closeButton);
 
-  const statMap = {
-    2996146975: "Mobility",
-    392767087: "Resilience",
-    1943323491: "Recovery",
-    1735777505: "Discipline",
-    144602215: "Intellect",
-    4244567218: "Strength",
-  };
+  // Body
+  const body = document.createElement("div");
+  body.className = "loadout-popup-body";
 
+  // Armor Grid
+  const armorGrid = document.createElement("div");
+  armorGrid.className = "loadout-armor-grid";
+
+  // Render each armor piece with detailed info
   for (const piece of loadout.set) {
-    const pieceEl = document.createElement("div");
-    pieceEl.className = "popup-armor-piece";
-
+    const armorCard = document.createElement("div");
     const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
-    let headerHTML = `
-            <div class="popup-armor-header">
-                <img class="popup-armor-icon" src="https://www.bungie.net${piece.definition.displayProperties.icon}">
-                <div class="popup-armor-name ${isExotic ? "exotic" : ""}">${piece.definition.displayProperties.name}</div>
-            </div>
-        `;
+    armorCard.className = `popup-armor-card ${isExotic ? "exotic" : ""}`;
 
-    let statsHTML = '<div class="popup-armor-stats">';
+    // Card Header
+    const cardHeader = document.createElement("div");
+    cardHeader.className = "armor-card-header";
+
+    const cardTitle = document.createElement("div");
+    cardTitle.className = "armor-card-title";
+
+    const icon = document.createElement("img");
+    icon.className = `armor-card-icon ${isExotic ? "exotic" : ""}`;
+    icon.src = `https://www.bungie.net${piece.definition.displayProperties.icon}`;
+    icon.alt = piece.definition.displayProperties.name;
+
+    const cardInfo = document.createElement("div");
+    cardInfo.className = "armor-card-info";
+
+    const name = document.createElement("div");
+    name.className = `armor-card-name ${isExotic ? "exotic" : ""}`;
+    name.textContent = piece.definition.displayProperties.name;
+
+    const type = document.createElement("div");
+    type.className = "armor-card-type";
+    type.textContent = piece.definition.itemTypeDisplayName;
+
+    cardInfo.appendChild(name);
+    cardInfo.appendChild(type);
+
+    const power = document.createElement("div");
+    power.className = "armor-card-power";
+    power.textContent = piece.power || "0";
+
+    cardTitle.appendChild(icon);
+    cardTitle.appendChild(cardInfo);
+    cardTitle.appendChild(power);
+    cardHeader.appendChild(cardTitle);
+
+    // Card Body
+    const cardBody = document.createElement("div");
+    cardBody.className = "armor-card-body";
+
+    // Stats
+    const statsGrid = document.createElement("div");
+    statsGrid.className = "armor-card-stats";
+
     for (const statHash in piece.stats) {
       const statDef = Manifest.statHashes[statHash];
       if (statDef) {
-        statsHTML += `<div class="popup-armor-stat"><span>${statDef}</span> <span>+${piece.stats[statHash].value}</span></div>`;
+        const statItem = document.createElement("div");
+        statItem.className = "armor-stat-item";
+
+        const statName = document.createElement("div");
+        statName.className = "armor-stat-name";
+        statName.textContent = statDef.substring(0, 3);
+
+        const statValue = document.createElement("div");
+        statValue.className = "armor-stat-value";
+        statValue.textContent = piece.stats[statHash].value;
+
+        statItem.appendChild(statName);
+        statItem.appendChild(statValue);
+        statsGrid.appendChild(statItem);
       }
     }
-    statsHTML += "</div>";
 
-    let modsHTML = '<div class="popup-armor-mod-slots">';
+    // Mod Slots
+    const modSection = document.createElement("div");
+    modSection.className = "armor-mod-section";
+
+    const modTitle = document.createElement("div");
+    modTitle.className = "armor-mod-title";
+    modTitle.textContent = "Mods";
+
+    const modSlots = document.createElement("div");
+    modSlots.className = "armor-mod-slots";
+
+    // Get socket data
     const socketData =
-      window.inventory.itemComponents.sockets.data[piece.itemInstanceId];
+      window.inventory?.itemComponents?.sockets?.data?.[piece.itemInstanceId];
     if (socketData && piece.definition.sockets) {
+      // Find armor mod sockets
       const armorModCategory = piece.definition.sockets.socketCategories.find(
-        (c) => c.socketCategoryHash === 4247225343
-      ); // Armor Mods category
+        (c) =>
+          c.socketCategoryHash === 4247225343 ||
+          c.socketCategoryHash === 2973005342
+      );
+
       if (armorModCategory) {
-        modsHTML +=
-          '<div class="mod-slot-category">Armor Mods</div><div class="mod-slots-grid">';
         for (const socketIndex of armorModCategory.socketIndexes) {
           const socket = socketData.sockets[socketIndex];
-          let modIcon =
-            "https://www.bungie.net/common/destiny2_content/icons/9812395292850429983a45a28bbbd01a.png"; // Default empty mod slot
-          if (socket.plugHash) {
+          const modSlot = document.createElement("div");
+          modSlot.className = "mod-slot";
+
+          if (socket?.plugHash && socket.plugHash !== 0) {
+            // Mod is equipped
             const plugDef = await Manifest.getPlug(socket.plugHash);
             if (plugDef?.displayProperties?.icon) {
-              modIcon = `https://www.bungie.net${plugDef.displayProperties.icon}`;
+              const modIcon = document.createElement("img");
+              modIcon.src = `https://www.bungie.net${plugDef.displayProperties.icon}`;
+              modIcon.title = plugDef.displayProperties.name;
+              modSlot.appendChild(modIcon);
+            } else {
+              modSlot.classList.add("empty");
             }
+          } else {
+            modSlot.classList.add("empty");
           }
-          modsHTML += `<div class="mod-slot"><img src="${modIcon}"></div>`;
+
+          modSlots.appendChild(modSlot);
         }
-        modsHTML += "</div>";
       }
     }
-    modsHTML += "</div>";
 
-    pieceEl.innerHTML = headerHTML + statsHTML + modsHTML;
-    grid.appendChild(pieceEl);
+    modSection.appendChild(modTitle);
+    modSection.appendChild(modSlots);
+
+    cardBody.appendChild(statsGrid);
+    cardBody.appendChild(modSection);
+
+    armorCard.appendChild(cardHeader);
+    armorCard.appendChild(cardBody);
+    armorGrid.appendChild(armorCard);
   }
 
-  let summaryHTML = `
-        <div class="loadout-popup-summary">
-            <div class="summary-total-stats">
-                <h3>Total Stats</h3>
-                <div class="loadout-stats">
-    `;
+  // Summary Section
+  const summary = document.createElement("div");
+  summary.className = "loadout-summary";
+
+  // Total Stats
+  const totalStatsSection = document.createElement("div");
+  totalStatsSection.className = "summary-section";
+  const totalStatsTitle = document.createElement("h3");
+  totalStatsTitle.textContent = "Total Stats";
+  totalStatsSection.appendChild(totalStatsTitle);
+
+  const statsContainer = document.createElement("div");
+  statsContainer.className = "summary-stats";
+
   let totalWasted = 0;
   for (const statName in loadout.stats) {
     const total = loadout.stats[statName];
     const tier = Math.floor(total / 10);
     const wasted = total % 10;
     totalWasted += wasted;
-    summaryHTML += `<div class="loadout-stat"><span>${statName}</span> <span>T${tier} (${total})</span></div>`;
-  }
-  summaryHTML += `<div class="loadout-stat"><span>Wasted Stats</span> <span>${totalWasted}</span></div>`;
-  summaryHTML += `</div></div>`;
 
-  summaryHTML += `<div class="summary-required-mods"><h3>Required Mods</h3><div class="loadout-stats">`;
+    const statEl = document.createElement("div");
+    statEl.className = "summary-stat";
+
+    const nameEl = document.createElement("div");
+    nameEl.className = "summary-stat-name";
+    nameEl.textContent = statName;
+
+    const valueEl = document.createElement("div");
+    valueEl.innerHTML = `<span class="summary-stat-value">${total}</span><span class="tier-indicator">T${tier}</span>`;
+
+    statEl.appendChild(nameEl);
+    statEl.appendChild(valueEl);
+    statsContainer.appendChild(statEl);
+  }
+
+  totalStatsSection.appendChild(statsContainer);
+
+  // Required Mods
+  const modsSection = document.createElement("div");
+  modsSection.className = "summary-section";
+  const modsTitle = document.createElement("h3");
+  modsTitle.textContent = "Required Mods";
+  modsSection.appendChild(modsTitle);
+
+  const modsContainer = document.createElement("div");
+  modsContainer.className = "mod-requirements";
+
   for (const statName in loadout.modPlan) {
     if (loadout.modPlan[statName] > 0) {
-      summaryHTML += `<div class="loadout-stat"><span>+${statName}</span> <span>${loadout.modPlan[statName]}</span></div>`;
+      const modReq = document.createElement("div");
+      modReq.className = "mod-requirement";
+
+      const modName = document.createElement("div");
+      modName.className = "mod-requirement-name";
+      modName.textContent = `${statName} Mods`;
+
+      const modValue = document.createElement("div");
+      modValue.className = "mod-requirement-value";
+      modValue.textContent = `+${loadout.modPlan[statName]}`;
+
+      modReq.appendChild(modName);
+      modReq.appendChild(modValue);
+      modsContainer.appendChild(modReq);
     }
   }
-  summaryHTML += `</div></div></div>`;
 
-  content.appendChild(grid);
-  content.innerHTML += summaryHTML;
-  content.appendChild(closeButton);
+  modsSection.appendChild(modsContainer);
+
+  // Wasted Stats
+  const wastedSection = document.createElement("div");
+  wastedSection.className = "summary-section";
+  const wastedTitle = document.createElement("h3");
+  wastedTitle.textContent = "Efficiency";
+  wastedSection.appendChild(wastedTitle);
+
+  const wastedContainer = document.createElement("div");
+  const wastedStat = document.createElement("div");
+  wastedStat.className = "summary-stat wasted-stats";
+
+  const wastedName = document.createElement("div");
+  wastedName.className = "summary-stat-name";
+  wastedName.textContent = "Wasted Stats";
+
+  const wastedValue = document.createElement("div");
+  wastedValue.className = "summary-stat-value";
+  wastedValue.textContent = totalWasted;
+
+  wastedStat.appendChild(wastedName);
+  wastedStat.appendChild(wastedValue);
+  wastedContainer.appendChild(wastedStat);
+  wastedSection.appendChild(wastedContainer);
+
+  summary.appendChild(totalStatsSection);
+  summary.appendChild(modsSection);
+  summary.appendChild(wastedSection);
+
+  body.appendChild(armorGrid);
+  body.appendChild(summary);
+
+  content.appendChild(header);
+  content.appendChild(body);
   overlay.appendChild(content);
   popupContainer.appendChild(overlay);
 
+  // Close on background click
   overlay.addEventListener("click", (e) => {
     if (e.target === overlay) {
       overlay.remove();
