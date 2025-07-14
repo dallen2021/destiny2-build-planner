@@ -617,7 +617,7 @@ body::before {
   100% { transform: rotate(360deg); }
 }
 
-/* Inventory Layout */
+/* --- START: NEW ARMOR LAYOUT STYLES --- */
 .inventory-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -630,17 +630,59 @@ body::before {
   padding: 28px;
   border: 1px solid var(--glass-border);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .inventory-column h2 {
   text-align: center;
   color: var(--primary-gold);
-  margin-bottom: 24px;
+  margin-bottom: 0;
   font-family: 'Russo One', sans-serif;
   font-size: 1.8em;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
+
+.armor-slot-section {
+  margin-bottom: 24px;
+}
+
+.armor-slot-section h3 {
+  color: var(--primary-purple);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--glass-border);
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+}
+
+.character-armor-slot-grid {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.equipped-item {
+  width: 90px;
+  height: 90px;
+}
+
+.unequipped-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 16px;
+  flex-grow: 1;
+}
+
+.vault-armor-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+/* --- END: NEW ARMOR LAYOUT STYLES --- */
 
 .armor-grid {
   display: grid;
@@ -1613,6 +1655,9 @@ body::before {
     position: static;
     margin-top: 20px;
     justify-content: center;
+  }
+  .character-armor-slot-grid {
+    grid-template-columns: 1fr;
   }
 }
 

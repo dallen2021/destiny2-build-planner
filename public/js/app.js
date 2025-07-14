@@ -274,6 +274,16 @@ const state = {
 let currentCharacterId = null;
 let charactersData = {};
 
+// --- START: NEW CONSTANT FOR ARMOR ORDER ---
+const bucketOrder = [
+  { hash: 3448274439, name: "Helmets" },
+  { hash: 3551918588, name: "Gauntlets" },
+  { hash: 14239492, name: "Chest Armor" },
+  { hash: 20886954, name: "Leg Armor" },
+  { hash: 1585787867, name: "Class Items" },
+];
+// --- END: NEW CONSTANT FOR ARMOR ORDER ---
+
 window.addEventListener("DOMContentLoaded", async () => {
   console.log("DOM Content Loaded - initializing app");
 
@@ -329,69 +339,21 @@ function updateAuthUI(authStatus) {
   const usernameEl = document.getElementById("username");
   const sideMenuUsernameEl = document.getElementById("sideMenuUsername");
 
-  // --- Start of Debugging Block ---
-  console.log("Auth Status Received from API:", authStatus);
-  // Stringify for a cleaner, expandable log
-  console.log(
-    "Auth Status (Stringified):",
-    JSON.stringify(authStatus, null, 2)
-  );
-  // --- End of Debugging Block ---
-
   isAuthenticated = authStatus.authenticated;
 
-  if (authStatus.authenticated && authStatus.user) {
+  if (authStatus.authenticated && authStatus.destinyMembership) {
+    // User is logged in
     authButton.textContent = "Sign Out";
     authButton.onclick = handleSignOut;
+
+    const displayName = authStatus.destinyMembership.displayName;
+
+    usernameEl.textContent = displayName || "Guardian";
+    sideMenuUsernameEl.textContent = displayName || "Guardian";
+
     userInfo.style.display = "flex";
 
-    const bungieNetUser = authStatus.user.bungieNetUser;
-    const destinyMembership = authStatus.destinyMembership;
-
-    // --- Start of Debugging Display Block ---
-    // Create a list of all possible names to try.
-    const potentialNames = [
-      {
-        label: "BungieDisplayName (destinyMembership)",
-        value: destinyMembership?.displayName,
-      },
-      {
-        label: "BungieGlobalDisplayName",
-        value: bungieNetUser?.cachedBungieGlobalDisplayName,
-      }, // Fixed field name
-      { label: "XboxDisplayName", value: bungieNetUser?.xboxDisplayName },
-      { label: "PsnDisplayName", value: bungieNetUser?.psnDisplayName },
-      { label: "SteamDisplayName", value: bungieNetUser?.steamDisplayName },
-      { label: "EgsDisplayName", value: bungieNetUser?.egsDisplayName },
-      { label: "DisplayName", value: bungieNetUser?.displayName },
-      { label: "UniqueName", value: bungieNetUser?.uniqueName },
-    ];
-
-    // Filter out any names that are null or empty
-    const availableNames = potentialNames.filter(
-      (n) => n.value && n.value.trim() !== ""
-    );
-    console.log("Available Usernames Found:", availableNames);
-    // Display the list of names for debugging
-    if (availableNames.length > 0) {
-      const primaryName =
-        bungieNetUser?.cachedBungieGlobalDisplayName ||
-        bungieNetUser?.displayName ||
-        availableNames[0].value; // Prioritize global names
-      usernameEl.textContent = primaryName; // Removed DEBUG: prefix; add it back if needed for testing
-      sideMenuUsernameEl.textContent = primaryName;
-      // Add a tooltip to show all names on hover
-      const allNamesText = availableNames
-        .map((n) => `${n.label}: ${n.value}`)
-        .join("\n");
-      userInfo.title = allNamesText;
-    } else {
-      usernameEl.textContent = "Guardian (No names found)";
-      sideMenuUsernameEl.textContent = "Guardian";
-      console.error("No valid display names found in the API response.");
-    }
-    // --- End of Debugging Display Block ---
-
+    // Load armor inventory when authenticated if on armor display tab
     const activeTab = document.querySelector(".nav-tab.active");
     if (activeTab && activeTab.textContent.trim() === "Armor") {
       loadArmorInventory();
@@ -404,7 +366,7 @@ function updateAuthUI(authStatus) {
     usernameEl.textContent = "Guardian";
     sideMenuUsernameEl.textContent = "Guardian";
 
-    // Clear armor display
+    // Clear armor display when not authenticated
     armorLoaded = false;
     allItems = [];
     displayNoArmorMessage();
@@ -693,10 +655,6 @@ let filteredArmorItems = [];
 let filteredVaultItems = [];
 let armorLoaded = false;
 let armorLoading = false;
-let armorCurrentPage = 1;
-const armorItemsPerPage = 20;
-let vaultCurrentPage = 1;
-const vaultItemsPerPage = 20;
 let classDefinitions = {};
 
 function combineInventoryItems(inventoryData) {
@@ -711,11 +669,6 @@ function combineInventoryItems(inventoryData) {
     console.log(
       `Vault items found: ${inventoryData.profileInventory.data.items.length}`
     );
-    console.log(
-      "First 5 vault items:",
-      inventoryData.profileInventory.data.items.slice(0, 5)
-    );
-
     // Add location property to vault items
     const vaultItems = inventoryData.profileInventory.data.items.map(
       (item) => ({
@@ -808,30 +761,9 @@ async function loadArmorInventory() {
     const itemComponents = inventoryData.itemComponents || {};
     allItems = combineInventoryItems(inventoryData); // Store ALL items
 
-    console.log("=== ANALYZING ALL ITEMS ===");
-    console.log(`Total items before any filtering: ${allItems.length}`);
-
-    // Log bucket distribution
-    const bucketCounts = {};
-    allItems.forEach((item) => {
-      bucketCounts[item.bucketHash] = (bucketCounts[item.bucketHash] || 0) + 1;
-    });
-    console.log("Items by bucket hash:", bucketCounts);
-
-    // Log location distribution
-    const locationCounts = {};
-    allItems.forEach((item) => {
-      locationCounts[item.location] = (locationCounts[item.location] || 0) + 1;
-    });
-    console.log("Items by location:", locationCounts);
-
-    // Get unique hashes for ALL items
     const uniqueHashes = [...new Set(allItems.map((item) => item.itemHash))];
-    console.log(`Unique item hashes: ${uniqueHashes.length}`);
-
     const itemDefinitions = await Manifest.getItems(uniqueHashes);
 
-    // Process ALL items, not just armor
     allItems = allItems.map((item) => {
       const definition = itemDefinitions[item.itemHash];
       const stats =
@@ -849,26 +781,11 @@ async function loadArmorInventory() {
       };
     });
 
-    // Log some vault items to see what they are
-    const vaultItems = allItems.filter((item) => item.location === 2);
-    console.log(`Vault items after processing: ${vaultItems.length}`);
-    if (vaultItems.length > 0) {
-      console.log("Sample vault items (first 10):");
-      vaultItems.slice(0, 10).forEach((item, index) => {
-        console.log(
-          `${index + 1}. ${item.definition?.displayProperties?.name} (${
-            item.definition?.itemTypeDisplayName
-          })`
-        );
-      });
-    }
-
     armorLoaded = true;
     armorLoading = false;
     applyArmorFilters();
     setupArmorFilters();
 
-    // Load character selector
     loadCharacters();
 
     showLoading(false);
@@ -892,47 +809,152 @@ async function loadArmorInventory() {
   }
 }
 
-function displayCharacterItems(items) {
-  console.log("=== DISPLAYING CHARACTER ITEMS ===");
-  console.log(`Total character items to display: ${items.length}`);
+// --- START: REFACTORED ARMOR DISPLAY LOGIC ---
+function displayCharacterItems(groupedItems) {
+  const container = document.getElementById("character-inventories");
+  if (!container) return;
+  container.innerHTML = "";
 
-  const charactersContainer = document.getElementById("character-inventories");
-  if (!charactersContainer) {
-    console.error("Character inventories container not found!");
-    return;
-  }
+  bucketOrder.forEach((bucketInfo) => {
+    const items = groupedItems[bucketInfo.hash] || [];
+    if (items.length === 0) return;
 
-  charactersContainer.innerHTML = "";
+    const section = document.createElement("div");
+    section.className = "armor-slot-section";
+    section.innerHTML = `<h3>${bucketInfo.name}</h3>`;
 
-  const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
+    const grid = document.createElement("div");
+    grid.className = "character-armor-slot-grid";
 
-  items.forEach((item) => {
-    const itemElement = createUniversalItemElement(item);
-    itemsGrid.appendChild(itemElement);
+    const equippedItem = items.find((item) => item.isEquipped);
+    const unequippedItems = items.filter((item) => !item.isEquipped);
+
+    const equippedContainer = document.createElement("div");
+    equippedContainer.className = "equipped-item";
+    if (equippedItem) {
+      equippedContainer.appendChild(createUniversalItemElement(equippedItem));
+    }
+    grid.appendChild(equippedContainer);
+
+    const unequippedGrid = document.createElement("div");
+    unequippedGrid.className = "unequipped-items-grid";
+    unequippedItems.forEach((item) => {
+      unequippedGrid.appendChild(createUniversalItemElement(item));
+    });
+    grid.appendChild(unequippedGrid);
+
+    section.appendChild(grid);
+    container.appendChild(section);
   });
-
-  charactersContainer.appendChild(itemsGrid);
 }
 
-function displayVaultItems(items) {
-  console.log("=== DISPLAYING VAULT ITEMS ===");
-  console.log(`Total vault items to display: ${items.length}`);
-  const vaultContainer = document.getElementById("vault-items-container");
-  if (!vaultContainer) {
-    console.error("Vault container not found!");
-    return;
-  }
+function displayVaultItems(groupedItems) {
+  const container = document.getElementById("vault-items-container");
+  if (!container) return;
+  container.innerHTML = "";
 
-  vaultContainer.innerHTML = "";
-  const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
-  items.forEach((item) => {
-    const itemElement = createUniversalItemElement(item);
-    itemsGrid.appendChild(itemElement);
+  bucketOrder.forEach((bucketInfo) => {
+    const items = groupedItems[bucketInfo.hash] || [];
+    if (items.length === 0) return;
+
+    // Sort vault items: Exotics first, then by power level (desc)
+    items.sort((a, b) => {
+      const aIsExotic = a.definition?.inventory?.tierTypeName === "Exotic";
+      const bIsExotic = b.definition?.inventory?.tierTypeName === "Exotic";
+      if (aIsExotic && !bIsExotic) return -1;
+      if (!aIsExotic && bIsExotic) return 1;
+      return b.power - a.power;
+    });
+
+    const section = document.createElement("div");
+    section.className = "armor-slot-section";
+    section.innerHTML = `<h3>${bucketInfo.name}</h3>`;
+
+    const row = document.createElement("div");
+    row.className = "vault-armor-row";
+    items.forEach((item) => {
+      row.appendChild(createUniversalItemElement(item));
+    });
+
+    section.appendChild(row);
+    container.appendChild(section);
   });
-  vaultContainer.appendChild(itemsGrid);
 }
+
+function applyArmorFilters() {
+  const searchValue =
+    document.getElementById("armorSearchInput")?.value.toLowerCase() || "";
+  const classValue =
+    document.getElementById("armorClassFilter")?.value || "all";
+  const slotValue = document.getElementById("armorSlotFilter")?.value || "all";
+
+  const characterItems = [];
+  const vaultItems = [];
+
+  allItems.forEach((item) => {
+    const isArmor = item.definition?.itemType === 2;
+    if (!isArmor) return;
+
+    // Search filter
+    if (searchValue) {
+      const name =
+        item.definition?.displayProperties?.name?.toLowerCase() || "";
+      const type = item.definition?.itemTypeDisplayName?.toLowerCase() || "";
+      if (!name.includes(searchValue) && !type.includes(searchValue)) {
+        return;
+      }
+    }
+
+    // Class filter
+    if (classValue !== "all") {
+      const itemClass = item.definition?.classType;
+      if (
+        itemClass !== undefined &&
+        itemClass !== parseInt(classValue) &&
+        itemClass !== 3 // 3 = all classes
+      ) {
+        return;
+      }
+    }
+
+    // Slot filter
+    if (slotValue !== "all") {
+      const bucketHash =
+        item.definition?.inventory?.bucketTypeHash || item.bucketHash;
+      if (bucketHash != parseInt(slotValue)) {
+        return;
+      }
+    }
+
+    if (item.location === 2) {
+      vaultItems.push(item);
+    } else {
+      if (!currentCharacterId || item.characterId === currentCharacterId) {
+        characterItems.push(item);
+      }
+    }
+  });
+
+  // Group items by bucket hash
+  const groupItemsByBucket = (items) => {
+    return items.reduce((acc, item) => {
+      const bucketHash =
+        item.definition?.inventory?.bucketTypeHash || item.bucketHash;
+      if (!acc[bucketHash]) {
+        acc[bucketHash] = [];
+      }
+      acc[bucketHash].push(item);
+      return acc;
+    }, {});
+  };
+
+  const groupedCharacterItems = groupItemsByBucket(characterItems);
+  const groupedVaultItems = groupItemsByBucket(vaultItems);
+
+  displayCharacterItems(groupedCharacterItems);
+  displayVaultItems(groupedVaultItems);
+}
+// --- END: REFACTORED ARMOR DISPLAY LOGIC ---
 
 function getCharacterName(characterId) {
   const characterData = window.inventory.characters?.data?.[characterId];
@@ -1075,84 +1097,14 @@ function createItemElement(item) {
 function displayNoArmorMessage(
   message = "Sign in with Bungie to view your armor collection"
 ) {
-  const container = document.getElementById("character-inventories");
-  if (container) {
-    container.innerHTML = `<div class="empty-state">${message}</div>`;
+  const charContainer = document.getElementById("character-inventories");
+  if (charContainer) {
+    charContainer.innerHTML = `<div class="empty-state">${message}</div>`;
   }
-  const vault = document.getElementById("vault-items-container");
-  if (vault) {
-    vault.innerHTML = "";
+  const vaultContainer = document.getElementById("vault-items-container");
+  if (vaultContainer) {
+    vaultContainer.innerHTML = `<div class="empty-state"></div>`;
   }
-}
-
-function updateArmorPagination(totalPages) {
-  const info = document.getElementById("armorPageInfo");
-  const prev = document.getElementById("armorPrevPage");
-  const next = document.getElementById("armorNextPage");
-  const container = document.getElementById("armorPagination");
-  if (!info || !prev || !next || !container) return;
-
-  info.textContent = `Page ${armorCurrentPage} of ${totalPages}`;
-  prev.disabled = armorCurrentPage <= 1;
-  next.disabled = armorCurrentPage >= totalPages;
-  container.style.display = totalPages > 1 ? "flex" : "none";
-}
-
-function updateVaultPagination(totalPages) {
-  const info = document.getElementById("vaultPageInfo");
-  const prev = document.getElementById("vaultPrevPage");
-  const next = document.getElementById("vaultNextPage");
-  const container = document.getElementById("vaultPagination");
-  if (!info || !prev || !next || !container) return;
-
-  info.textContent = `Page ${vaultCurrentPage} of ${totalPages}`;
-  prev.disabled = vaultCurrentPage <= 1;
-  next.disabled = vaultCurrentPage >= totalPages;
-  container.style.display = totalPages > 1 ? "flex" : "none";
-}
-
-function renderArmorPage() {
-  const totalPages =
-    Math.ceil(filteredArmorItems.length / armorItemsPerPage) || 1;
-  if (armorCurrentPage > totalPages) armorCurrentPage = totalPages;
-  if (armorCurrentPage < 1) armorCurrentPage = 1;
-  const start = (armorCurrentPage - 1) * armorItemsPerPage;
-  const end = start + armorItemsPerPage;
-  const pageItems = filteredArmorItems.slice(start, end);
-  displayCharacterItems(pageItems);
-  updateArmorPagination(totalPages);
-}
-
-function renderVaultPage() {
-  const totalPages =
-    Math.ceil(filteredVaultItems.length / vaultItemsPerPage) || 1;
-  if (vaultCurrentPage > totalPages) vaultCurrentPage = totalPages;
-  if (vaultCurrentPage < 1) vaultCurrentPage = 1;
-  const start = (vaultCurrentPage - 1) * vaultItemsPerPage;
-  const end = start + vaultItemsPerPage;
-  const pageItems = filteredVaultItems.slice(start, end);
-  displayVaultItems(pageItems);
-  updateVaultPagination(totalPages);
-}
-
-function goToNextArmorPage() {
-  armorCurrentPage++;
-  renderArmorPage();
-}
-
-function goToPrevArmorPage() {
-  armorCurrentPage--;
-  renderArmorPage();
-}
-
-function goToNextVaultPage() {
-  vaultCurrentPage++;
-  renderVaultPage();
-}
-
-function goToPrevVaultPage() {
-  vaultCurrentPage--;
-  renderVaultPage();
 }
 
 function setupArmorFilters() {
@@ -1184,110 +1136,6 @@ function setupArmorFilters() {
     slotFilter.addEventListener("change", () => applyArmorFilters());
     slotFilter.dataset.initialized = "true";
   }
-
-  const prev = document.getElementById("armorPrevPage");
-  const next = document.getElementById("armorNextPage");
-  if (prev && !prev.dataset.initialized) {
-    prev.addEventListener("click", () => goToPrevArmorPage());
-    prev.dataset.initialized = "true";
-  }
-  if (next && !next.dataset.initialized) {
-    next.addEventListener("click", () => goToNextArmorPage());
-    next.dataset.initialized = "true";
-  }
-
-  const vaultPrev = document.getElementById("vaultPrevPage");
-  const vaultNext = document.getElementById("vaultNextPage");
-  if (vaultPrev && !vaultPrev.dataset.initialized) {
-    vaultPrev.addEventListener("click", () => goToPrevVaultPage());
-    vaultPrev.dataset.initialized = "true";
-  }
-  if (vaultNext && !vaultNext.dataset.initialized) {
-    vaultNext.addEventListener("click", () => goToNextVaultPage());
-    vaultNext.dataset.initialized = "true";
-  }
-}
-
-function applyArmorFilters() {
-  const searchValue =
-    document.getElementById("armorSearchInput")?.value.toLowerCase() || "";
-  const classValue =
-    document.getElementById("armorClassFilter")?.value || "all";
-  const slotValue = document.getElementById("armorSlotFilter")?.value || "all";
-
-  console.log("=== APPLYING FILTERS ===");
-  console.log("Filters:", {
-    searchValue,
-    classValue,
-    slotValue,
-    currentCharacterId,
-    totalItems: allItems.length,
-  });
-
-  const characterItems = [];
-  const vaultItems = [];
-
-  allItems.forEach((item) => {
-    const isArmor = item.definition?.itemType === 2;
-    if (!isArmor) return;
-
-    // Search filter
-    if (searchValue) {
-      const name =
-        item.definition?.displayProperties?.name?.toLowerCase() || "";
-      const type = item.definition?.itemTypeDisplayName?.toLowerCase() || "";
-      if (!name.includes(searchValue) && !type.includes(searchValue)) {
-        return;
-      }
-    }
-
-    // Class filter
-    if (classValue !== "all") {
-      const itemClass = item.definition?.classType;
-      if (
-        itemClass !== undefined &&
-        itemClass !== parseInt(classValue) &&
-        itemClass !== 3 // 3 = all classes
-      ) {
-        return;
-      }
-    }
-
-    // Slot filter
-    if (slotValue !== "all") {
-      if (item.location === 2) {
-        // Vault
-        if (item.definition?.inventory?.bucketTypeHash != parseInt(slotValue)) {
-          return;
-        }
-      } else {
-        if (item.bucketHash !== parseInt(slotValue)) {
-          return;
-        }
-      }
-    }
-
-    if (item.location === 2) {
-      vaultItems.push(item);
-    } else {
-      // Filter character items by selected character
-      if (!currentCharacterId || item.characterId === currentCharacterId) {
-        characterItems.push(item);
-      }
-    }
-  });
-
-  console.log(
-    `Filtered to ${characterItems.length} character items and ${vaultItems.length} vault items`
-  );
-
-  filteredArmorItems = characterItems;
-  armorCurrentPage = 1;
-  renderArmorPage();
-
-  filteredVaultItems = vaultItems;
-  vaultCurrentPage = 1;
-  renderVaultPage();
 }
 
 async function refreshData() {
