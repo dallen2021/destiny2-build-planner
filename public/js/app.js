@@ -332,26 +332,74 @@ async function initializeApp() {
   }
 }
 
-/* -------- AUTH FUNCTIONS -------- */
 function updateAuthUI(authStatus) {
   const authButton = document.getElementById("authButton");
   const userInfo = document.getElementById("userInfo");
   const usernameEl = document.getElementById("username");
   const sideMenuUsernameEl = document.getElementById("sideMenuUsername");
 
+  // --- Start of Debugging Block ---
+  console.log("Auth Status Received from API:", authStatus);
+  // Stringify for a cleaner, expandable log
+  console.log(
+    "Auth Status (Stringified):",
+    JSON.stringify(authStatus, null, 2)
+  );
+  // --- End of Debugging Block ---
+
   isAuthenticated = authStatus.authenticated;
 
-  if (authStatus.authenticated && authStatus.destinyMembership) {
-    // User is logged in
+  if (authStatus.authenticated && authStatus.user) {
     authButton.textContent = "Sign Out";
     authButton.onclick = handleSignOut;
-
-    const displayName = authStatus.destinyMembership.displayName;
-
-    usernameEl.textContent = displayName || "Guardian";
-    sideMenuUsernameEl.textContent = displayName || "Guardian";
-
     userInfo.style.display = "flex";
+
+    const bungieNetUser = authStatus.user.bungieNetUser;
+    const destinyMembership = authStatus.destinyMembership;
+
+    // --- Start of Debugging Display Block ---
+    // Create a list of all possible names to try.
+    const potentialNames = [
+      {
+        label: "BungieDisplayName (destinyMembership)",
+        value: destinyMembership?.displayName,
+      },
+      {
+        label: "BungieGlobalDisplayName",
+        value: bungieNetUser?.cachedBungieGlobalDisplayName,
+      }, // Fixed field name
+      { label: "XboxDisplayName", value: bungieNetUser?.xboxDisplayName },
+      { label: "PsnDisplayName", value: bungieNetUser?.psnDisplayName },
+      { label: "SteamDisplayName", value: bungieNetUser?.steamDisplayName },
+      { label: "EgsDisplayName", value: bungieNetUser?.egsDisplayName },
+      { label: "DisplayName", value: bungieNetUser?.displayName },
+      { label: "UniqueName", value: bungieNetUser?.uniqueName },
+    ];
+
+    // Filter out any names that are null or empty
+    const availableNames = potentialNames.filter(
+      (n) => n.value && n.value.trim() !== ""
+    );
+    console.log("Available Usernames Found:", availableNames);
+    // Display the list of names for debugging
+    if (availableNames.length > 0) {
+      const primaryName =
+        bungieNetUser?.cachedBungieGlobalDisplayName ||
+        bungieNetUser?.displayName ||
+        availableNames[0].value; // Prioritize global names
+      usernameEl.textContent = primaryName; // Removed DEBUG: prefix; add it back if needed for testing
+      sideMenuUsernameEl.textContent = primaryName;
+      // Add a tooltip to show all names on hover
+      const allNamesText = availableNames
+        .map((n) => `${n.label}: ${n.value}`)
+        .join("\n");
+      userInfo.title = allNamesText;
+    } else {
+      usernameEl.textContent = "Guardian (No names found)";
+      sideMenuUsernameEl.textContent = "Guardian";
+      console.error("No valid display names found in the API response.");
+    }
+    // --- End of Debugging Display Block ---
 
     // Load armor inventory when authenticated if on armor display tab
     const activeTab = document.querySelector(".nav-tab.active");
@@ -366,7 +414,7 @@ function updateAuthUI(authStatus) {
     usernameEl.textContent = "Guardian";
     sideMenuUsernameEl.textContent = "Guardian";
 
-    // Clear armor display when not authenticated
+    // Clear armor display
     armorLoaded = false;
     allItems = [];
     displayNoArmorMessage();
