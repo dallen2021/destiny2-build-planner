@@ -834,10 +834,14 @@ function createUniversalItemElement(item) {
     ? `https://www.bungie.net${item.definition.displayProperties.icon}`
     : "";
   const tierType = item.definition?.inventory?.tierTypeName || "";
-  const itemType = item.definition?.itemTypeDisplayName || "";
+
+  const rarityClass = tierType.toLowerCase();
+  const isMasterworked =
+    window.inventory?.itemComponents?.instances?.data?.[item.itemInstanceId]
+      ?.energy?.energyCapacity === 10;
 
   const wrapper = document.createElement("div");
-  wrapper.className = "armor-item";
+  wrapper.className = `armor-item ${rarityClass} ${isMasterworked ? "masterwork" : ""}`;
   wrapper.dataset.itemId = item.itemInstanceId || item.itemHash;
 
   const iconDiv = document.createElement("div");
@@ -1014,6 +1018,7 @@ function initStatAllocator() {
 
 function buildStatBoxes(stat) {
   const wrapper = document.getElementById(`${stat.toLowerCase()}Boxes`);
+  wrapper.innerHTML = "";
   for (let val = 10; val <= 200; val += 10) {
     const box = document.createElement("div");
     box.className = "stat-box";
@@ -1580,7 +1585,6 @@ async function generateLoadouts() {
   resultsGrid.innerHTML =
     '<div class="loading-spinner" style="margin: 40px auto;"></div><p style="text-align: center;">Calculating optimal builds...</p>';
 
-  // Allow the UI to update before starting the heavy calculation
   await new Promise((resolve) => setTimeout(resolve, 50));
 
   try {
@@ -1596,6 +1600,7 @@ async function generateLoadouts() {
       gauntlets: [],
       chest: [],
       legs: [],
+      classItem: [],
     };
 
     const bucketHashes = {
@@ -1603,6 +1608,7 @@ async function generateLoadouts() {
       gauntlets: 3551918588,
       chest: 14239492,
       legs: 20886954,
+      classItem: 1585787867,
     };
 
     const armorItems = allItems.filter(
@@ -1619,6 +1625,8 @@ async function generateLoadouts() {
         armorPieces.gauntlets.push(item);
       else if (bucketHash === bucketHashes.chest) armorPieces.chest.push(item);
       else if (bucketHash === bucketHashes.legs) armorPieces.legs.push(item);
+      else if (bucketHash === bucketHashes.classItem)
+        armorPieces.classItem.push(item);
     }
 
     let combinations = [];
@@ -1626,18 +1634,20 @@ async function generateLoadouts() {
       for (const gauntlets of armorPieces.gauntlets) {
         for (const chest of armorPieces.chest) {
           for (const legs of armorPieces.legs) {
-            const set = [helmet, gauntlets, chest, legs];
-            const exoticCount = set.filter(
-              (p) => p.definition.inventory.tierTypeName === "Exotic"
-            ).length;
-            if (exoticCount > 1) continue;
-            if (
-              state.selectedExoticHash &&
-              !set.some((p) => p.itemHash == state.selectedExoticHash)
-            )
-              continue;
-            if (!state.selectedExoticHash && exoticCount > 0) continue;
-            combinations.push(set);
+            for (const classItem of armorPieces.classItem) {
+              const set = [helmet, gauntlets, chest, legs, classItem];
+              const exoticCount = set.filter(
+                (p) => p.definition.inventory.tierTypeName === "Exotic"
+              ).length;
+              if (exoticCount > 1) continue;
+              if (
+                state.selectedExoticHash &&
+                !set.some((p) => p.itemHash == state.selectedExoticHash)
+              )
+                continue;
+              if (!state.selectedExoticHash && exoticCount > 0) continue;
+              combinations.push(set);
+            }
           }
         }
       }
@@ -1645,7 +1655,7 @@ async function generateLoadouts() {
 
     const loadouts = calculateLoadoutStats(combinations);
     displayLoadouts(loadouts);
-    updateStatBoxAvailability();
+    updateStatBoxAvailability(combinations);
   } catch (e) {
     console.error("Error generating loadouts:", e);
     showNotification("An error occurred while generating loadouts.", "error");
@@ -1694,19 +1704,33 @@ function calculateLoadoutStats(combinations) {
     };
 
     for (const piece of set) {
-      for (const statHash in piece.stats) {
-        const statName = statMap[statHash];
-        if (statName) {
-          currentStats[statName] += piece.stats[statHash].value;
+      if (piece.stats) {
+        for (const statHash in piece.stats) {
+          const statName = statMap[statHash];
+          if (statName) {
+            currentStats[statName] += piece.stats[statHash].value;
+          }
         }
       }
-      for (const statName in currentStats) {
-        currentStats[statName] += 2;
+      // Rule 3: Assume masterworked (+2 to all stats for each of the 4 main armor pieces)
+      if (piece.definition.inventory.bucketTypeHash !== 1585787867) {
+        // Not a class item
+        for (const statName in currentStats) {
+          currentStats[statName] += 2;
+        }
       }
     }
 
-    let modsUsed = { major: 0, minor: 0 };
+    let modPlan = {
+      Weapons: 0,
+      Health: 0,
+      Class: 0,
+      Grenade: 0,
+      Super: 0,
+      Melee: 0,
+    };
     let moddedStats = { ...currentStats };
+    let totalModCost = 0;
 
     for (const statName in targetTiers) {
       let needed = targetTiers[statName] * 10 - moddedStats[statName];
@@ -1720,21 +1744,24 @@ function calculateLoadoutStats(combinations) {
 
       if (needed > 0) {
         const majorMods = Math.floor(needed / 10);
-        modsUsed.major += majorMods;
+        totalModCost += majorMods * 3;
+        modPlan[statName] += majorMods * 10;
         moddedStats[statName] += majorMods * 10;
-        needed %= 10;
 
-        if (needed > 0) {
-          const minorMods = Math.ceil(needed / 5);
-          modsUsed.minor += minorMods;
+        let remainingNeeded =
+          targetTiers[statName] * 10 - moddedStats[statName];
+        if (remainingNeeded > 0) {
+          const minorMods = Math.ceil(remainingNeeded / 5);
+          totalModCost += minorMods * 1;
+          modPlan[statName] += minorMods * 5;
           moddedStats[statName] += minorMods * 5;
         }
       }
     }
 
-    const totalModCost = modsUsed.major * 3 + modsUsed.minor * 1;
-    if (totalModCost <= 50) {
-      results.push({ set, stats: moddedStats, cost: totalModCost });
+    if (totalModCost <= 15) {
+      // 5 mod slots on 4 pieces = 20 slots, but let's be realistic with energy
+      results.push({ set, stats: moddedStats, modPlan });
     }
   }
 
@@ -1748,7 +1775,16 @@ function calculateLoadoutStats(combinations) {
       0
     );
     if (bTiers !== aTiers) return bTiers - aTiers;
-    return a.cost - b.cost;
+
+    const aWasted = Object.values(a.stats).reduce(
+      (sum, val) => sum + (val % 10),
+      0
+    );
+    const bWasted = Object.values(b.stats).reduce(
+      (sum, val) => sum + (val % 10),
+      0
+    );
+    return aWasted - bWasted;
   });
 
   return results;
@@ -1776,6 +1812,7 @@ function displayLoadouts(loadouts) {
     pageItems.forEach((loadout) => {
       const card = document.createElement("div");
       card.className = "loadout-card";
+      card.loadoutData = loadout; // Attach data to the element
 
       let statsHtml = '<div class="loadout-stats">';
       for (const statName in loadout.stats) {
@@ -1786,21 +1823,19 @@ function displayLoadouts(loadouts) {
       let armorHtml = '<div class="loadout-armor">';
       loadout.set.forEach((piece) => {
         const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
-        const pieceEl = document.createElement("div");
-        pieceEl.className = "loadout-armor-piece";
-        pieceEl.innerHTML = `
+        const isMasterworked =
+          window.inventory?.itemComponents?.instances?.data?.[
+            piece.itemInstanceId
+          ]?.energy?.energyCapacity === 10;
+        armorHtml += `<div class="loadout-armor-piece ${isMasterworked ? "masterwork" : ""}">
                     <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
                     ${isExotic ? '<div class="exotic-glow"></div>' : ""}
-                `;
-        pieceEl.addEventListener("click", (e) => {
-          e.stopPropagation();
-          showItemTooltip(piece, pieceEl);
-        });
-        armorHtml += pieceEl.outerHTML;
+                </div>`;
       });
       armorHtml += "</div>";
 
       card.innerHTML = statsHtml + armorHtml;
+      card.addEventListener("click", () => toggleLoadoutDetails(card));
       resultsGrid.appendChild(card);
     });
   };
@@ -1849,10 +1884,129 @@ function displayLoadouts(loadouts) {
   setupPagination();
 }
 
-function updateStatBoxAvailability() {
-  // This is a complex calculation. For now, we'll just enable all boxes.
-  // A more advanced implementation would calculate the max possible stats.
+function toggleLoadoutDetails(cardElement) {
+  const existingDetails = cardElement.querySelector(".loadout-details");
+  if (existingDetails) {
+    existingDetails.remove();
+    cardElement.classList.remove("expanded");
+    return;
+  }
+
+  // Close any other expanded cards
+  document.querySelectorAll(".loadout-card.expanded").forEach((c) => {
+    c.classList.remove("expanded");
+    c.querySelector(".loadout-details")?.remove();
+  });
+
+  cardElement.classList.add("expanded");
+  const loadout = cardElement.loadoutData;
+  const detailsContainer = document.createElement("div");
+  detailsContainer.className = "loadout-details";
+
+  const statMap = {
+    2996146975: "Weapons",
+    392767087: "Health",
+    1943323491: "Class",
+    1735777505: "Grenade",
+    144602215: "Super",
+    4244567218: "Melee",
+  };
+
+  loadout.set.forEach((piece) => {
+    let pieceHtml = `<div class="detailed-armor-piece">
+            <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" class="detailed-armor-icon">
+            <div class="detailed-armor-info">
+                <div class="detailed-armor-name">${piece.definition.displayProperties.name}</div>
+                <div class="detailed-armor-stats">`;
+
+    for (const statHash in piece.stats) {
+      const statName = statMap[statHash];
+      if (statName) {
+        pieceHtml += `<span>${statName.substring(0, 3)}: ${piece.stats[statHash].value}</span>`;
+      }
+    }
+
+    pieceHtml += `</div><div class="detailed-armor-mods">`;
+
+    for (const statName in loadout.modPlan) {
+      if (loadout.modPlan[statName] > 0) {
+        // Simplified mod display
+        if (loadout.modPlan[statName] >= 10)
+          pieceHtml += `<span class="mod-chip major">+10 ${statName}</span>`;
+        if (loadout.modPlan[statName] % 10 >= 5)
+          pieceHtml += `<span class="mod-chip minor">+5 ${statName}</span>`;
+      }
+    }
+
+    pieceHtml += `</div></div></div>`;
+    detailsContainer.innerHTML += pieceHtml;
+  });
+
+  cardElement.appendChild(detailsContainer);
+}
+
+function updateStatBoxAvailability(combinations) {
+  if (!combinations || combinations.length === 0) {
+    document
+      .querySelectorAll(".stat-box")
+      .forEach((box) => box.classList.add("disabled"));
+    return;
+  }
+
+  let maxStats = {
+    Weapons: 0,
+    Health: 0,
+    Class: 0,
+    Grenade: 0,
+    Super: 0,
+    Melee: 0,
+  };
+  const statMap = {
+    2996146975: "Weapons",
+    392767087: "Health",
+    1943323491: "Class",
+    1735777505: "Grenade",
+    144602215: "Super",
+    4244567218: "Melee",
+  };
+
+  for (const set of combinations) {
+    let currentStats = {
+      Weapons: 0,
+      Health: 0,
+      Class: 0,
+      Grenade: 0,
+      Super: 0,
+      Melee: 0,
+    };
+    for (const piece of set) {
+      if (piece.stats) {
+        for (const statHash in piece.stats) {
+          const statName = statMap[statHash];
+          if (statName) {
+            currentStats[statName] += piece.stats[statHash].value;
+          }
+        }
+      }
+      if (piece.definition.inventory.bucketTypeHash !== 1585787867) {
+        for (const statName in currentStats) {
+          currentStats[statName] += 2;
+        }
+      }
+    }
+    for (const statName in maxStats) {
+      maxStats[statName] = Math.max(maxStats[statName], currentStats[statName]);
+    }
+  }
+
+  // Add max possible mod points (5 slots * +10 = +50)
+  for (const statName in maxStats) {
+    maxStats[statName] += 50;
+  }
+
   document.querySelectorAll(".stat-box").forEach((box) => {
-    box.classList.remove("disabled");
+    const stat = box.dataset.stat;
+    const value = Number(box.dataset.value);
+    box.classList.toggle("disabled", value > maxStats[stat]);
   });
 }
