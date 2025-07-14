@@ -993,40 +993,6 @@ body::before {
   text-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
 }
 
-.class-selector {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-  margin-bottom: 24px;
-}
-
-.class-button {
-  padding: 10px 24px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--glass-border);
-  border-radius: 10px;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease;
-  font-weight: 600;
-  font-family: 'Rajdhani', sans-serif;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.class-button:hover {
-  background: rgba(124, 58, 237, 0.1);
-  border-color: var(--primary-purple);
-  transform: translateY(-1px);
-}
-
-.class-button.active {
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(212, 175, 55, 0.1));
-  border-color: var(--primary-gold);
-  color: var(--primary-gold);
-  box-shadow: 0 0 15px rgba(212, 175, 55, 0.15);
-}
-
 .stat-allocator {
   display: grid;
   grid-template-columns: 1fr;
@@ -1070,7 +1036,8 @@ body::before {
 
 .stat-box-wrapper {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 6px;
 }
 
@@ -1091,6 +1058,7 @@ body::before {
   font-family: 'Rajdhani', sans-serif;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .stat-box:hover:not(.disabled) {
@@ -1126,6 +1094,76 @@ body::before {
   border-radius: 10px;
   margin-top: 8px;
   border: 1px solid var(--glass-border);
+}
+
+/* Exotic Selection Grid */
+.exotic-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+}
+
+.exotic-icon {
+  width: 50px;
+  height: 50px;
+  cursor: pointer;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.exotic-icon.no-exotic {
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.8em;
+  text-align: center;
+  padding: 5px;
+}
+
+.exotic-icon.selected {
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+
+/* Loadout Display */
+#loadoutDisplay {
+  margin-left: 20px;
+  width: calc(100% - 520px);
+}
+
+.loadout-item {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+}
+
+.loadout-pieces-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.loadout-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.loadout-mods {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 10px;
 }
 
 /* Artifact Mods */
@@ -1719,6 +1757,9 @@ body::before {
   }
   .character-armor-slot-grid {
     grid-template-columns: 1fr;
+  }
+  .exotic-selection-grid {
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
   }
 }
 
