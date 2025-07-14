@@ -495,6 +495,7 @@ function getClassName(classType) {
 }
 
 async function selectCharacter(characterId) {
+  if (currentCharacterId === characterId) return;
   currentCharacterId = characterId;
 
   // Update active state
@@ -528,6 +529,14 @@ async function selectCharacter(characterId) {
 
   // Update exotics for the new character
   await populateExoticSelector();
+  // Pre-compute stat distributions
+  if (loadoutWorker && armorLoaded) {
+    showLoading(true);
+    loadoutWorker.postMessage({
+      type: "precompute",
+      payload: { allItems, character, state },
+    });
+  }
   // Trigger dynamic loadout generation
   debouncedGenerateLoadouts();
 }
@@ -1678,6 +1687,7 @@ function selectExotic(hash) {
     el.classList.toggle("selected", el.dataset.hash === hash);
   });
   if (loadoutWorker && armorLoaded) {
+    showLoading(true);
     loadoutWorker.postMessage({
       type: "precompute",
       payload: {

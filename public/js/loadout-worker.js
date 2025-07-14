@@ -4,23 +4,180 @@
  * intensive task of generating and evaluating Destiny 2 loadouts.
  */
 
+let precomputedDistributions = [];
+
 /**
  * Entry point for the worker
  */
 onmessage = function (e) {
-  const { allItems, character, state } = e.data;
+  const { type, payload } = e.data;
 
-  if (!allItems || !character || !state) {
-    postMessage({ type: "error", payload: "Invalid data received by worker." });
+  if (type === "precompute") {
+    const { allItems, character, state } = payload;
+    const distributions = precomputeStatDistributions(
+      allItems,
+      character,
+      state
+    );
+    postMessage({ type: "precomputeDone", payload: { distributions } });
     return;
   }
 
-  // Start the loadout generation process
-  const { loadouts, limits } = generateLoadouts(allItems, character, state);
+  if (type === "generate") {
+    const { allItems, character, state } = payload;
+    if (!allItems || !character || !state) {
+      postMessage({
+        type: "error",
+        payload: "Invalid data received by worker.",
+      });
+      return;
+    }
 
-  // Send the results back to the main thread
-  postMessage({ type: "loadoutsGenerated", payload: { loadouts, limits } });
+    // Start the loadout generation process
+    const { loadouts, limits } = generateLoadouts(allItems, character, state);
+
+    // Send the results back to the main thread
+    postMessage({ type: "loadoutsGenerated", payload: { loadouts, limits } });
+  }
 };
+
+function precomputeStatDistributions(allItems, character, state) {
+  const armorPieces = {
+    helmet: [],
+    gauntlets: [],
+    chest: [],
+    legs: [],
+    classItem: [],
+  };
+
+  const bucketHashes = {
+    helmet: 3448274439,
+    gauntlets: 3551918588,
+    chest: 14239492,
+    legs: 20886954,
+    classItem: 1585787867,
+  };
+
+  const armorItems = allItems.filter(
+    (item) =>
+      item.definition?.itemType === 2 &&
+      (item.definition?.classType === character.classType ||
+        item.definition?.classType === 3)
+  );
+
+  for (const item of armorItems) {
+    const bucketHash = item.definition.inventory.bucketTypeHash;
+    if (bucketHash === bucketHashes.helmet) armorPieces.helmet.push(item);
+    else if (bucketHash === bucketHashes.gauntlets)
+      armorPieces.gauntlets.push(item);
+    else if (bucketHash === bucketHashes.chest) armorPieces.chest.push(item);
+    else if (bucketHash === bucketHashes.legs) armorPieces.legs.push(item);
+    else if (bucketHash === bucketHashes.classItem)
+      armorPieces.classItem.push(item);
+  }
+
+  if (state.selectedExoticHash) {
+    let exoticFound = false;
+    let exoticSlot = null;
+
+    for (const slot in armorPieces) {
+      const piece = armorPieces[slot].find(
+        (p) => p.itemHash == state.selectedExoticHash
+      );
+      if (piece) {
+        armorPieces[slot] = [piece];
+        exoticFound = true;
+        exoticSlot = slot;
+        break;
+      }
+    }
+
+    if (exoticFound) {
+      for (const slot in armorPieces) {
+        if (slot !== exoticSlot) {
+          armorPieces[slot] = armorPieces[slot].filter(
+            (p) => p.definition.inventory.tierTypeName !== "Exotic"
+          );
+        }
+      }
+    }
+  } else {
+    // If no exotic is selected, filter out all exotics
+    for (const slot in armorPieces) {
+      armorPieces[slot] = armorPieces[slot].filter(
+        (p) => p.definition.inventory.tierTypeName !== "Exotic"
+      );
+    }
+  }
+
+  const distributions = [];
+  let combinationCount = 0;
+
+  for (const helmet of armorPieces.helmet) {
+    for (const gauntlets of armorPieces.gauntlets) {
+      for (const chest of armorPieces.chest) {
+        for (const legs of armorPieces.legs) {
+          for (const classItem of armorPieces.classItem) {
+            combinationCount++;
+            if (combinationCount > 300000) {
+              console.warn(
+                "Combination count exceeds 300,000. Aborting pre-computation to avoid performance issues."
+              );
+              return distributions;
+            }
+
+            const set = [helmet, gauntlets, chest, legs, classItem];
+            const exoticCount = set.filter(
+              (p) => p.definition.inventory.tierTypeName === "Exotic"
+            ).length;
+            if (exoticCount > 1) continue;
+
+            const baseStats = calculateBaseStatsForSet(set);
+            distributions.push(baseStats);
+          }
+        }
+      }
+    }
+  }
+  return distributions;
+}
+
+function calculateBaseStatsForSet(set) {
+  const statMap = {
+    2996146975: "Weapons",
+    392767087: "Health",
+    1943323491: "Class",
+    1735777505: "Grenade",
+    144602215: "Super",
+    4244567218: "Melee",
+  };
+  const stats = {
+    Weapons: 0,
+    Health: 0,
+    Class: 0,
+    Grenade: 0,
+    Super: 0,
+    Melee: 0,
+  };
+
+  for (const piece of set) {
+    if (piece.stats) {
+      for (const statHash in piece.stats) {
+        const statName = statMap[statHash];
+        if (statName) {
+          stats[statName] += piece.stats[statHash].value;
+        }
+      }
+    }
+    // Masterwork bonus
+    if (piece.definition.inventory.bucketTypeHash !== 1585787867) {
+      for (const statName in stats) {
+        stats[statName] += 2;
+      }
+    }
+  }
+  return stats;
+}
 
 /**
  * Generates loadout combinations with progress updates
