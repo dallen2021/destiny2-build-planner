@@ -1538,7 +1538,10 @@ function initLoadoutWorker() {
     loadoutWorker.onmessage = function (e) {
       const { type, payload } = e.data;
       if (type === "loadoutsGenerated") {
-        displayLoadouts(payload);
+        // NEW: Destructure payload to get both loadouts and limits
+        const { loadouts, limits } = payload;
+        displayLoadouts(loadouts);
+        updateStatButtons(limits); // NEW: Update stat buttons based on possible stats
       } else if (type === "error") {
         console.error("Loadout Worker Error:", payload);
         showNotification(
@@ -1673,6 +1676,22 @@ async function generateLoadouts() {
     resultsGrid.innerHTML = '<div class="empty-state">An error occurred.</div>';
     isWorkerBusy = false;
   }
+}
+
+/**
+ * NEW: Updates the enabled/disabled state of stat boxes based on calculated limits.
+ * @param {Object} limits - An object with stat names as keys and their max possible value as values.
+ */
+function updateStatButtons(limits) {
+  document.querySelectorAll(".stat-box").forEach((box) => {
+    const stat = box.dataset.stat;
+    const value = parseInt(box.dataset.value, 10);
+    if (limits[stat] !== undefined && value > limits[stat]) {
+      box.classList.add("disabled");
+    } else {
+      box.classList.remove("disabled");
+    }
+  });
 }
 
 function displayLoadouts(loadouts) {

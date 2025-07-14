@@ -23,10 +23,10 @@ onmessage = function (e) {
   }
 
   // Start the loadout generation process
-  const loadouts = generateLoadouts(allItems, character, state);
+  const { loadouts, limits } = generateLoadouts(allItems, character, state);
 
   // Send the results back to the main thread
-  postMessage({ type: "loadoutsGenerated", payload: loadouts });
+  postMessage({ type: "loadoutsGenerated", payload: { loadouts, limits } });
 };
 
 /**
@@ -35,7 +35,7 @@ onmessage = function (e) {
  * * @param {Array} allItems - An array of all armor items for the user.
  * @param {Object} character - The currently selected character object.
  * @param {Object} state - The current application state, including target stats and selected exotic.
- * @returns {Array} An array of valid loadout objects, sorted by effectiveness.
+ * @returns {Object} An object containing an array of valid loadouts and an object with stat limits.
  */
 function generateLoadouts(allItems, character, state) {
   try {
@@ -98,12 +98,29 @@ function generateLoadouts(allItems, character, state) {
     }
 
     const loadouts = calculateLoadoutStats(combinations, state);
-    return loadouts;
+
+    // NEW: Calculate the maximum possible value for each stat from the valid loadouts
+    const limits = {
+      Weapons: 0,
+      Health: 0,
+      Class: 0,
+      Grenade: 0,
+      Super: 0,
+      Melee: 0,
+    };
+    if (loadouts.length > 0) {
+      for (const statName in limits) {
+        const maxStat = Math.max(...loadouts.map((l) => l.stats[statName]));
+        limits[statName] = maxStat;
+      }
+    }
+
+    return { loadouts, limits };
   } catch (e) {
     console.error("Error generating loadouts in worker:", e);
     // In case of an error, post an error message back to the main thread
     postMessage({ type: "error", payload: e.message });
-    return [];
+    return { loadouts: [], limits: {} };
   }
 }
 
