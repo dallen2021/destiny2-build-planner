@@ -186,6 +186,26 @@ const artifactMods = [
   ],
 ];
 
+const armorBuckets = {
+  helmet: 3448275439,
+  gauntlets: 3551918588,
+  chest: 14239492,
+  legs: 20886954,
+  classItem: 1585787867,
+};
+
+const slotOrder = ["helmet", "gauntlets", "chest", "legs", "classItem"];
+
+// Helper to get item power (fallback to itemComponents if not set on item)
+function getItemPower(item) {
+  return (
+    item.primaryStat?.value ||
+    window.inventory?.itemComponents?.instances?.data?.[item.itemInstanceId]
+      ?.primaryStat?.value ||
+    0
+  );
+}
+
 const statsArr = ["Weapons", "Health", "Class", "Grenade", "Super", "Melee"];
 const statBonusData = {
   weapons: {
@@ -895,24 +915,42 @@ async function loadArmorInventory() {
 function displayCharacterItems(items) {
   console.log("=== DISPLAYING CHARACTER ITEMS ===");
   console.log(`Total character items to display: ${items.length}`);
-
   const charactersContainer = document.getElementById("character-inventories");
   if (!charactersContainer) {
     console.error("Character inventories container not found!");
     return;
   }
-
   charactersContainer.innerHTML = "";
-
-  const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
-
-  items.forEach((item) => {
-    const itemElement = createUniversalItemElement(item);
-    itemsGrid.appendChild(itemElement);
+  slotOrder.forEach((slot) => {
+    const bucketHash = armorBuckets[slot];
+    const slotItems = items.filter((item) => item.bucketHash === bucketHash);
+    if (slotItems.length === 0) return;
+    const equipped = slotItems.find((item) => item.isEquipped);
+    const inventoryItems = slotItems.filter((item) => !item.isEquipped); // Keep API order for in-game match
+    const slotDiv = document.createElement("div");
+    slotDiv.className = `armor-slot ${slot}`;
+    if (equipped) {
+      const eqEl = createUniversalItemElement(equipped);
+      eqEl.classList.add("equipped");
+      slotDiv.appendChild(eqEl);
+    }
+    const grid = document.createElement("div");
+    grid.className = "inventory-grid";
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement("div");
+      cell.className = "grid-cell";
+      if (i < inventoryItems.length) {
+        cell.appendChild(createUniversalItemElement(inventoryItems[i]));
+      } else {
+        const empty = document.createElement("div");
+        empty.className = "empty-item";
+        cell.appendChild(empty);
+      }
+      grid.appendChild(cell);
+    }
+    slotDiv.appendChild(grid);
+    charactersContainer.appendChild(slotDiv);
   });
-
-  charactersContainer.appendChild(itemsGrid);
 }
 
 function displayVaultItems(items) {
@@ -923,15 +961,31 @@ function displayVaultItems(items) {
     console.error("Vault container not found!");
     return;
   }
-
   vaultContainer.innerHTML = "";
-  const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
-  items.forEach((item) => {
-    const itemElement = createUniversalItemElement(item);
-    itemsGrid.appendChild(itemElement);
+  slotOrder.forEach((slot) => {
+    const bucketHash = armorBuckets[slot];
+    const slotItems = items.filter((item) => item.bucketHash === bucketHash);
+    if (slotItems.length === 0) return;
+    const exotics = slotItems
+      .filter((item) => item.definition.inventory.tierType === 6)
+      .sort((a, b) => getItemPower(b) - getItemPower(a));
+    const legendaries = slotItems
+      .filter((item) => item.definition.inventory.tierType === 5)
+      .sort((a, b) => getItemPower(b) - getItemPower(a));
+    const sortedItems = [...exotics, ...legendaries];
+    const slotDiv = document.createElement("div");
+    slotDiv.className = `vault-armor-slot ${slot}`;
+    const header = document.createElement("h3");
+    header.textContent = slot.charAt(0).toUpperCase() + slot.slice(1) + "s";
+    slotDiv.appendChild(header);
+    const row = document.createElement("div");
+    row.className = "vault-row";
+    sortedItems.forEach((item) => {
+      row.appendChild(createUniversalItemElement(item));
+    });
+    slotDiv.appendChild(row);
+    vaultContainer.appendChild(slotDiv);
   });
-  vaultContainer.appendChild(itemsGrid);
 }
 
 function getCharacterName(characterId) {
