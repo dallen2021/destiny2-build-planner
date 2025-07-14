@@ -299,10 +299,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   displayNoArmorMessage();
   setupArmorFilters();
 
-  document
-    .getElementById("generateLoadoutsBtn")
-    .addEventListener("click", generateLoadouts);
-
   console.log("App initialization complete");
 });
 
@@ -524,6 +520,8 @@ async function selectCharacter(characterId) {
 
   // Update exotics for the new character
   await populateExoticSelector();
+  // Trigger dynamic loadout generation
+  debouncedGenerateLoadouts();
 }
 
 async function handleAuth() {
@@ -838,6 +836,44 @@ function createUniversalItemElement(item) {
   const tierType = item.definition?.inventory?.tierTypeName || "";
   const itemType = item.definition?.itemTypeDisplayName || "";
 
+  const wrapper = document.createElement("div");
+  wrapper.className = "armor-item";
+  wrapper.dataset.itemId = item.itemInstanceId || item.itemHash;
+
+  const iconDiv = document.createElement("div");
+  iconDiv.className = "armor-icon";
+  if (icon) {
+    iconDiv.innerHTML = `<img src="${icon}" alt="${name}" />`;
+  }
+  wrapper.appendChild(iconDiv);
+
+  wrapper.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showItemTooltip(item, wrapper);
+  });
+
+  return wrapper;
+}
+
+function showItemTooltip(item, element) {
+  const existingTooltip = document.querySelector(".armor-tooltip");
+  if (existingTooltip) {
+    existingTooltip.remove();
+    if (
+      existingTooltip.dataset.itemId === (item.itemInstanceId || item.itemHash)
+    ) {
+      return;
+    }
+  }
+
+  const tooltip = document.createElement("div");
+  tooltip.className = "armor-tooltip";
+  tooltip.dataset.itemId = item.itemInstanceId || item.itemHash;
+
+  const name = item.definition?.displayProperties?.name || "Unknown Item";
+  const itemType = item.definition?.itemTypeDisplayName || "";
+  const tierType = item.definition?.inventory?.tierTypeName || "";
+
   let totalStats = 0;
   const statValues = {};
   if (item.stats) {
@@ -849,59 +885,54 @@ function createUniversalItemElement(item) {
     }
   }
 
-  const rarityClass =
-    tierType.toLowerCase() === "exotic"
-      ? "exotic"
-      : tierType.toLowerCase() === "legendary"
-        ? "legendary"
-        : "";
+  const rarityClass = tierType.toLowerCase();
   const isMasterworked =
     window.inventory?.itemComponents?.instances?.data?.[item.itemInstanceId]
       ?.energy?.energyCapacity === 10;
-  const wrapper = document.createElement("div");
-  wrapper.className = `armor-item ${rarityClass} ${isMasterworked ? "masterwork" : ""}`;
-  wrapper.dataset.itemId = item.itemInstanceId || item.itemHash;
-  const isArmor = item.definition?.itemType === 2;
 
-  wrapper.innerHTML = `<div class="armor-icon">${icon ? `<img src="${icon}" alt="${name}" />` : ""}</div>`;
+  let tooltipContent = `
+        <div class="armor-details ${rarityClass}">
+          <div class="armor-info">
+              <div class="armor-name">${name}</div>
+              <div class="armor-type">${itemType}</div>
+              ${item.quantity > 1 ? `<div style="color: #8af295;">Quantity: ${item.quantity}</div>` : ""}
+          </div>
+    `;
 
-  wrapper.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const existingTooltip = document.querySelector(".armor-tooltip");
-    if (existingTooltip) {
-      existingTooltip.remove();
-      if (existingTooltip.dataset.itemId === wrapper.dataset.itemId) return;
-    }
+  if (item.power) {
+    tooltipContent += `<div class="armor-power">${item.power}</div>`;
+  }
 
-    const tooltip = document.createElement("div");
-    tooltip.className = "armor-tooltip";
-    tooltip.dataset.itemId = wrapper.dataset.itemId;
+  if (item.definition?.itemType === 2 && item.stats) {
+    tooltipContent += `
+        <div class="armor-stats">
+          ${Object.entries(Manifest.statHashes)
+            .map(
+              ([hash, statName]) => `
+            <div class="stat-item">
+              <div class="stat-name">${statName.substring(0, 3)}</div>
+              <div class="stat-value">${statValues[hash] || 0}</div>
+            </div>
+          `
+            )
+            .join("")}
+        </div>
+        <div class="armor-tags">
+          <span class="armor-tag">Total: ${totalStats}</span>
+          ${isMasterworked ? '<span class="armor-tag artifice">Masterwork</span>' : ""}
+        </div>
+      `;
+  }
 
-    let tooltipContent = `<div class="armor-details"><div class="armor-info"><div class="armor-name">${name}</div><div class="armor-type">${itemType}</div></div>`;
-    if (item.power)
-      tooltipContent += `<div class="armor-power">${item.power}</div>`;
-    if (isArmor && item.stats) {
-      tooltipContent += `<div class="armor-stats">${Object.entries(
-        Manifest.statHashes
-      )
-        .map(
-          ([hash, statName]) =>
-            `<div class="stat-item"><div class="stat-name">${statName.substring(0, 3)}</div><div class="stat-value">${statValues[hash] || 0}</div></div>`
-        )
-        .join(
-          ""
-        )}</div><div class="armor-tags"><span class="armor-tag">Total: ${totalStats}</span>${isMasterworked ? '<span class="armor-tag artifice">Masterwork</span>' : ""}</div>`;
-    }
-    tooltipContent += `</div>`;
-    tooltip.innerHTML = tooltipContent;
-    document.body.appendChild(tooltip);
-    const rect = wrapper.getBoundingClientRect();
-    tooltip.style.left = `${rect.right + 10}px`;
-    tooltip.style.top = `${rect.top}px`;
-    tooltip.style.display = "block";
-  });
+  tooltipContent += `</div>`;
+  tooltip.innerHTML = tooltipContent;
 
-  return wrapper;
+  document.body.appendChild(tooltip);
+
+  const rect = element.getBoundingClientRect();
+  tooltip.style.left = `${rect.right + 10}px`;
+  tooltip.style.top = `${rect.top}px`;
+  tooltip.style.display = "block";
 }
 
 document.addEventListener("click", (e) => {
@@ -909,7 +940,8 @@ document.addEventListener("click", (e) => {
   if (
     tooltip &&
     !tooltip.contains(e.target) &&
-    !e.target.closest(".armor-item")
+    !e.target.closest(".armor-item") &&
+    !e.target.closest(".loadout-armor-piece")
   ) {
     tooltip.remove();
   }
@@ -970,7 +1002,7 @@ function debounce(func, wait) {
 /* ---------------- Stat allocator via BOXES ---------------- */
 function initStatAllocator() {
   const alloc = document.getElementById("statAllocator");
-  alloc.innerHTML = ""; // Clear previous content
+  alloc.innerHTML = "";
   statsArr.forEach((stat) => {
     const row = document.createElement("div");
     row.className = "stat-row";
@@ -987,7 +1019,7 @@ function buildStatBoxes(stat) {
     box.className = "stat-box";
     box.dataset.stat = stat;
     box.dataset.value = val;
-    box.textContent = val / 10; // Display tier number
+    box.textContent = val;
     box.addEventListener("click", onStatBoxClick);
     wrapper.appendChild(box);
   }
@@ -998,6 +1030,7 @@ function onStatBoxClick(e) {
   const val = Number(e.currentTarget.dataset.value);
   state.statValues[stat] = val;
   updateAllStatCalculations();
+  debouncedGenerateLoadouts();
 }
 
 /* ----------- Calculation & UI refresh ----------- */
@@ -1483,6 +1516,8 @@ function updateMeleeClassRestrictions() {
 }
 
 /* -------- NEW LOADOUT BUILDER FUNCTIONS -------- */
+const debouncedGenerateLoadouts = debounce(() => generateLoadouts(), 500);
+
 async function populateExoticSelector() {
   const selector = document.getElementById("exoticSelector");
   if (!selector) return;
@@ -1537,10 +1572,10 @@ function selectExotic(hash) {
   document.querySelectorAll(".exotic-item-icon").forEach((el) => {
     el.classList.toggle("selected", el.dataset.hash === hash);
   });
+  debouncedGenerateLoadouts();
 }
 
 async function generateLoadouts() {
-  showLoading(true);
   const resultsGrid = document.getElementById("loadoutResultsGrid");
   resultsGrid.innerHTML =
     '<div class="loading-spinner" style="margin: 40px auto;"></div><p style="text-align: center;">Calculating optimal builds...</p>';
@@ -1551,10 +1586,8 @@ async function generateLoadouts() {
   try {
     const character = charactersData[currentCharacterId];
     if (!character) {
-      showNotification("Please select a character first.", "error");
       resultsGrid.innerHTML =
         '<div class="empty-state">Please select a character.</div>';
-      showLoading(false);
       return;
     }
 
@@ -1594,26 +1627,16 @@ async function generateLoadouts() {
         for (const chest of armorPieces.chest) {
           for (const legs of armorPieces.legs) {
             const set = [helmet, gauntlets, chest, legs];
-
-            // Rule 1: Only one exotic at a time
             const exoticCount = set.filter(
               (p) => p.definition.inventory.tierTypeName === "Exotic"
             ).length;
             if (exoticCount > 1) continue;
-
-            // If an exotic is selected, only consider sets with that exotic
             if (
               state.selectedExoticHash &&
               !set.some((p) => p.itemHash == state.selectedExoticHash)
-            ) {
+            )
               continue;
-            }
-
-            // If no exotic is selected, but the set has one, skip it
-            if (!state.selectedExoticHash && exoticCount > 0) {
-              continue;
-            }
-
+            if (!state.selectedExoticHash && exoticCount > 0) continue;
             combinations.push(set);
           }
         }
@@ -1622,12 +1645,11 @@ async function generateLoadouts() {
 
     const loadouts = calculateLoadoutStats(combinations);
     displayLoadouts(loadouts);
+    updateStatBoxAvailability();
   } catch (e) {
     console.error("Error generating loadouts:", e);
     showNotification("An error occurred while generating loadouts.", "error");
     resultsGrid.innerHTML = '<div class="empty-state">An error occurred.</div>';
-  } finally {
-    showLoading(false);
   }
 }
 
@@ -1671,7 +1693,6 @@ function calculateLoadoutStats(combinations) {
       Melee: 0,
     };
 
-    // Sum base stats and add masterwork bonus
     for (const piece of set) {
       for (const statHash in piece.stats) {
         const statName = statMap[statHash];
@@ -1679,20 +1700,17 @@ function calculateLoadoutStats(combinations) {
           currentStats[statName] += piece.stats[statHash].value;
         }
       }
-      // Rule 3: Assume masterworked
       for (const statName in currentStats) {
         currentStats[statName] += 2;
       }
     }
 
-    // Rule 2: Use mods to reach target stats
     let modsUsed = { major: 0, minor: 0 };
     let moddedStats = { ...currentStats };
 
     for (const statName in targetTiers) {
       let needed = targetTiers[statName] * 10 - moddedStats[statName];
 
-      // Apply Font mods first
       const fontBonus = fontMods[statName].find(
         (b) => b + moddedStats[statName] >= targetTiers[statName] * 10
       );
@@ -1714,15 +1732,12 @@ function calculateLoadoutStats(combinations) {
       }
     }
 
-    // 5 mod slots per piece, major costs 3, minor costs 1
     const totalModCost = modsUsed.major * 3 + modsUsed.minor * 1;
     if (totalModCost <= 50) {
-      // 5 slots * 10 energy
       results.push({ set, stats: moddedStats, cost: totalModCost });
     }
   }
 
-  // Sort results: highest total tiers, then lowest mod cost
   results.sort((a, b) => {
     const aTiers = Object.values(a.stats).reduce(
       (sum, val) => sum + Math.floor(val / 10),
@@ -1771,10 +1786,17 @@ function displayLoadouts(loadouts) {
       let armorHtml = '<div class="loadout-armor">';
       loadout.set.forEach((piece) => {
         const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
-        armorHtml += `<div class="loadout-armor-piece">
+        const pieceEl = document.createElement("div");
+        pieceEl.className = "loadout-armor-piece";
+        pieceEl.innerHTML = `
                     <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
                     ${isExotic ? '<div class="exotic-glow"></div>' : ""}
-                </div>`;
+                `;
+        pieceEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showItemTooltip(piece, pieceEl);
+        });
+        armorHtml += pieceEl.outerHTML;
       });
       armorHtml += "</div>";
 
@@ -1825,4 +1847,12 @@ function displayLoadouts(loadouts) {
 
   renderPage();
   setupPagination();
+}
+
+function updateStatBoxAvailability() {
+  // This is a complex calculation. For now, we'll just enable all boxes.
+  // A more advanced implementation would calculate the max possible stats.
+  document.querySelectorAll(".stat-box").forEach((box) => {
+    box.classList.remove("disabled");
+  });
 }
