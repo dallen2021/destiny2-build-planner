@@ -901,31 +901,68 @@ function displayVaultItems(groupedItems) {
   if (!container) return;
   container.innerHTML = "";
 
+  // Group items by class first
+  const itemsByClass = {
+    0: { name: "Titan", items: {} }, // Titan
+    1: { name: "Hunter", items: {} }, // Hunter
+    2: { name: "Warlock", items: {} }, // Warlock
+    3: { name: "All Classes", items: {} }, // All classes
+  };
+
+  // Organize items by class and then by bucket
   bucketOrder.forEach((bucketInfo) => {
     const items = groupedItems[bucketInfo.hash] || [];
-    if (items.length === 0) return;
 
-    // Sort vault items: Exotics first, then by power level (desc)
-    items.sort((a, b) => {
-      const aIsExotic = a.definition?.inventory?.tierTypeName === "Exotic";
-      const bIsExotic = b.definition?.inventory?.tierTypeName === "Exotic";
-      if (aIsExotic && !bIsExotic) return -1;
-      if (!aIsExotic && bIsExotic) return 1;
-      return b.power - a.power;
-    });
-
-    const section = document.createElement("div");
-    section.className = "armor-slot-section";
-    section.innerHTML = `<h3>${bucketInfo.name}</h3>`;
-
-    const row = document.createElement("div");
-    row.className = "vault-armor-row";
     items.forEach((item) => {
-      row.appendChild(createUniversalItemElement(item));
+      const classType = item.definition?.classType ?? 3; // Default to "All Classes" if undefined
+      if (!itemsByClass[classType].items[bucketInfo.hash]) {
+        itemsByClass[classType].items[bucketInfo.hash] = [];
+      }
+      itemsByClass[classType].items[bucketInfo.hash].push(item);
+    });
+  });
+
+  // Display items organized by class
+  Object.entries(itemsByClass).forEach(([classType, classData]) => {
+    // Check if this class has any items
+    const hasItems = Object.values(classData.items).some(
+      (items) => items.length > 0
+    );
+    if (!hasItems) return;
+
+    const classSection = document.createElement("div");
+    classSection.className = "vault-class-section";
+    classSection.innerHTML = `<h4>${classData.name}</h4>`;
+
+    // Display each armor slot for this class
+    bucketOrder.forEach((bucketInfo) => {
+      const items = classData.items[bucketInfo.hash] || [];
+      if (items.length === 0) return;
+
+      // Sort vault items: Exotics first, then by power level (desc)
+      items.sort((a, b) => {
+        const aIsExotic = a.definition?.inventory?.tierTypeName === "Exotic";
+        const bIsExotic = b.definition?.inventory?.tierTypeName === "Exotic";
+        if (aIsExotic && !bIsExotic) return -1;
+        if (!aIsExotic && bIsExotic) return 1;
+        return b.power - a.power;
+      });
+
+      const section = document.createElement("div");
+      section.className = "armor-slot-section";
+      section.innerHTML = `<h3>${bucketInfo.name}</h3>`;
+
+      const row = document.createElement("div");
+      row.className = "vault-armor-row";
+      items.forEach((item) => {
+        row.appendChild(createUniversalItemElement(item));
+      });
+
+      section.appendChild(row);
+      classSection.appendChild(section);
     });
 
-    section.appendChild(row);
-    container.appendChild(section);
+    container.appendChild(classSection);
   });
 }
 
@@ -1041,8 +1078,14 @@ function createUniversalItemElement(item) {
         ? "legendary"
         : "";
 
+  // Check if item is masterworked
+  const isMasterworked =
+    item.masterwork ||
+    window.inventory?.itemComponents?.instances?.data?.[item.itemInstanceId]
+      ?.energy?.energyCapacity === 10;
+
   const wrapper = document.createElement("div");
-  wrapper.className = `armor-item ${rarityClass}`;
+  wrapper.className = `armor-item ${rarityClass} ${isMasterworked ? "masterwork" : ""}`;
   wrapper.dataset.itemId = item.itemInstanceId || item.itemHash;
 
   // Determine if this is armor
@@ -1107,6 +1150,7 @@ function createUniversalItemElement(item) {
         </div>
         <div class="armor-tags">
           <span class="armor-tag">Total: ${totalStats}</span>
+          ${isMasterworked ? '<span class="armor-tag artifice">Masterwork</span>' : ""}
         </div>
       `;
     }

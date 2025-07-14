@@ -22,6 +22,7 @@
   --exotic: #ceae33;
   --legendary: #522f65;
   --rare: #5076a3;
+  --masterwork-gold: #ffd700;
 }
 
 * {
@@ -660,19 +661,19 @@ body::before {
 
 .character-armor-slot-grid {
   display: grid;
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: 50px 1fr;
   gap: 16px;
   align-items: flex-start;
 }
 
 .equipped-item {
-  width: 90px;
-  height: 90px;
+  width: 45px;
+  height: 45px;
 }
 
 .unequipped-items-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
   gap: 16px;
   flex-grow: 1;
 }
@@ -682,11 +683,25 @@ body::before {
   flex-wrap: wrap;
   gap: 16px;
 }
+
+.vault-class-section {
+  margin-bottom: 32px;
+}
+
+.vault-class-section h4 {
+  color: var(--secondary-gold);
+  margin-bottom: 12px;
+  font-family: 'Rajdhani', sans-serif;
+  text-transform: uppercase;
+  font-size: 1.1em;
+  letter-spacing: 0.5px;
+  padding-left: 8px;
+}
 /* --- END: NEW ARMOR LAYOUT STYLES --- */
 
 .armor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(45px, 1fr));
   gap: 16px;
 }
 
@@ -699,8 +714,8 @@ body::before {
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  width: 90px;
-  height: 90px;
+  width: 45px;
+  height: 45px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -731,6 +746,46 @@ body::before {
   background: linear-gradient(135deg, rgba(206, 174, 51, 0.3), rgba(37, 37, 61, 0.8));
   border-color: var(--exotic);
   box-shadow: 0 0 15px rgba(206, 174, 51, 0.2);
+}
+
+/* Masterwork effect */
+.armor-item.masterwork {
+  position: relative;
+  border-color: var(--masterwork-gold);
+  box-shadow: 
+    0 0 10px rgba(255, 215, 0, 0.3),
+    inset 0 0 10px rgba(255, 215, 0, 0.1);
+}
+
+.armor-item.masterwork::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, 
+    transparent,
+    rgba(255, 215, 0, 0.3),
+    transparent,
+    rgba(255, 215, 0, 0.3)
+  );
+  background-size: 200% 200%;
+  animation: masterworkGlow 3s ease-in-out infinite;
+  border-radius: 16px;
+  z-index: -1;
+}
+
+@keyframes masterworkGlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .armor-item:hover {
@@ -1646,7 +1701,7 @@ body::before {
     text-align: center;
   }
   .armor-grid {
-    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
   }
   .side-menu {
     width: 280px;
