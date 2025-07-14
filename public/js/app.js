@@ -278,29 +278,11 @@ let charactersData = {};
 const bucketOrder = [
   { hash: 3448274439, name: "Helmets" },
   { hash: 3551918588, name: "Gauntlets" },
-  { hash: 14239492, name: "Chest" },
-  { hash: 20886954, name: "Legs" },
+  { hash: 14239492, name: "Chest Armor" },
+  { hash: 20886954, name: "Leg Armor" },
   { hash: 1585787867, name: "Class Items" },
 ];
 // --- END: NEW CONSTANT FOR ARMOR ORDER ---
-
-// Stat mapping to standard hashes
-const statMapping = {
-  Weapons: 2996146975, // Mobility
-  Health: 392767087, // Resilience
-  Class: 1943323491, // Recovery
-  Grenade: 1735777505, // Discipline
-  Super: 144602215, // Intellect
-  Melee: 4244567218, // Strength
-};
-
-// Loadout pagination
-let currentPage = 1;
-const loadoutsPerPage = 20;
-let generatedLoadouts = [];
-
-// Selected exotic hash
-let selectedExoticHash = null;
 
 window.addEventListener("DOMContentLoaded", async () => {
   console.log("DOM Content Loaded - initializing app");
@@ -650,16 +632,12 @@ function selectCharacter(characterId) {
         sideMenuUsername.textContent = `${displayName} - ${className}`;
       }
     }
-    currentClass = className.toLowerCase();
   }
 
   // Reapply armor filters to show only selected character's items
   if (armorLoaded) {
     applyArmorFilters();
   }
-
-  // Update exotic selection for loadout builder
-  updateExoticSelection();
 }
 
 async function handleAuth() {
@@ -687,11 +665,6 @@ function switchTab(tabName) {
 
   // Load armor when switching to armor display tab if authenticated
   if (tabName === "armorDisplay" && isAuthenticated) {
-    loadArmorInventory();
-  }
-
-  // Load loadout builder if on that tab
-  if (tabName === "loadoutBuilder" && isAuthenticated) {
     loadArmorInventory();
   }
 }
@@ -1378,33 +1351,6 @@ function initStatAllocator() {
     alloc.appendChild(row);
     buildStatBoxes(stat);
   });
-
-  // Add Exotic Selection grid
-  const exoticGrid = document.createElement("div");
-  exoticGrid.id = "exoticSelection";
-  exoticGrid.className = "exotic-selection-grid";
-  exoticGrid.innerHTML = `<h3>Exotic Selection</h3>`;
-  alloc.appendChild(exoticGrid);
-
-  // Add Generate button
-  const generateBtn = document.createElement("button");
-  generateBtn.textContent = "Generate Loadouts";
-  generateBtn.onclick = generateLoadouts;
-  generateBtn.className = "reset-button"; // Reuse style
-  alloc.appendChild(generateBtn);
-
-  // Add loadout display container
-  const loadoutContainer = document.createElement("div");
-  loadoutContainer.id = "loadoutDisplay";
-  loadoutContainer.className = "inventory-column";
-  loadoutContainer.innerHTML = `<h2>Generated Loadouts</h2><div id="loadoutList"></div>`;
-  document.getElementById("loadoutBuilder").appendChild(loadoutContainer);
-
-  // Add pagination
-  const pagination = document.createElement("div");
-  pagination.id = "loadoutPagination";
-  pagination.className = "pagination-controls";
-  loadoutContainer.appendChild(pagination);
 }
 
 function buildStatBoxes(stat) {
@@ -1966,323 +1912,4 @@ function updateMeleeClassRestrictions() {
     }
   });
   recalculateAllDamage();
-}
-
-/* -------- LOADOUT BUILDER FUNCTIONS -------- */
-function updateExoticSelection() {
-  const exoticGrid = document.getElementById("exoticSelection");
-  if (!exoticGrid) return;
-
-  exoticGrid.innerHTML = `<h3>Exotic Selection</h3>`;
-
-  const noExoticBtn = document.createElement("div");
-  noExoticBtn.className = "exotic-icon no-exotic";
-  noExoticBtn.textContent = "No Exotic";
-  noExoticBtn.dataset.hash = "none";
-  noExoticBtn.addEventListener("click", selectExotic);
-  exoticGrid.appendChild(noExoticBtn);
-
-  // Get class type
-  const classType = charactersData[currentCharacterId]?.classType;
-  if (classType == null) return;
-
-  // Collect unique exotics for class
-  const exoticHashes = new Set();
-  allItems.forEach((item) => {
-    if (
-      item.definition?.itemType === 2 &&
-      item.definition.inventory.tierTypeName === "Exotic" &&
-      (item.definition.classType === classType ||
-        item.definition.classType === 3)
-    ) {
-      exoticHashes.add(item.itemHash);
-    }
-  });
-
-  exoticHashes.forEach((hash) => {
-    const item = allItems.find((i) => i.itemHash === hash);
-    if (item) {
-      const icon = createUniversalItemElement(item);
-      icon.classList.add("exotic-icon");
-      icon.dataset.hash = hash;
-      icon.addEventListener("click", selectExotic);
-      exoticGrid.appendChild(icon);
-    }
-  });
-
-  // Default to no exotic
-  selectedExoticHash = null;
-  highlightSelectedExotic();
-}
-
-function selectExotic(e) {
-  const hash = e.currentTarget.dataset.hash;
-  selectedExoticHash = hash === "none" ? null : Number(hash);
-  highlightSelectedExotic();
-}
-
-function highlightSelectedExotic() {
-  document.querySelectorAll(".exotic-icon").forEach((icon) => {
-    icon.classList.toggle(
-      "selected",
-      (selectedExoticHash === null && icon.dataset.hash === "none") ||
-        icon.dataset.hash == selectedExoticHash
-    );
-  });
-}
-
-async function generateLoadouts() {
-  if (!armorLoaded || !currentCharacterId) {
-    showNotification("Load armor and select a character first", "error");
-    return;
-  }
-
-  showLoading(true);
-  generatedLoadouts = [];
-
-  const classType = charactersData[currentCharacterId].classType;
-
-  // Group armor by slot
-  const armorGroups = {};
-  bucketOrder.forEach((b) => (armorGroups[b.hash] = []));
-
-  allItems.forEach((item) => {
-    if (item.definition?.itemType !== 2) return;
-    if (
-      item.definition.classType !== classType &&
-      item.definition.classType !== 3
-    )
-      return;
-    const bucket = item.definition.inventory.bucketTypeHash;
-    if (armorGroups[bucket]) {
-      armorGroups[bucket].push(item);
-    }
-  });
-
-  // Precompute max per stat per slot
-  const maxPerStatPerSlot = {};
-  Object.keys(armorGroups).forEach((slot) => {
-    maxPerStatPerSlot[slot] = {};
-    Object.keys(statMapping).forEach((customStat) => {
-      const hash = statMapping[customStat];
-      let max = 0;
-      armorGroups[slot].forEach((item) => {
-        let statVal = item.stats?.[hash]?.value || 0;
-        const energyCapacity =
-          window.inventory.itemComponents.instances.data[item.itemInstanceId]
-            ?.energy?.energyCapacity || 0;
-        if (energyCapacity < 10) statVal += 2; // Assume masterwork
-        if (statVal > max) max = statVal;
-      });
-      maxPerStatPerSlot[slot][hash] = max;
-    });
-  });
-
-  // Determine slots
-  const slots = bucketOrder.map((b) => b.hash);
-
-  // If exotic selected, find its slot
-  let exoticSlot = null;
-  let exoticItems = [];
-  if (selectedExoticHash) {
-    allItems.forEach((item) => {
-      if (item.itemHash === selectedExoticHash) {
-        exoticSlot = item.definition.inventory.bucketTypeHash;
-        exoticItems.push(item);
-      }
-    });
-    if (exoticItems.length === 0) {
-      showNotification("Selected exotic not found", "error");
-      showLoading(false);
-      return;
-    }
-  }
-
-  // Filter items for each slot
-  const itemsPerSlot = {};
-  slots.forEach((slot) => {
-    let slotItems = armorGroups[slot];
-    if (selectedExoticHash && slot === exoticSlot) {
-      itemsPerSlot[slot] = exoticItems;
-    } else {
-      itemsPerSlot[slot] = slotItems.filter(
-        (item) => item.definition.inventory.tierTypeName !== "Exotic"
-      );
-    }
-    // Sort by total stat desc
-    itemsPerSlot[slot].sort((a, b) => getTotalStat(b) - getTotalStat(a));
-    // Take top 20 to limit computation
-    itemsPerSlot[slot] = itemsPerSlot[slot].slice(0, 20);
-  });
-
-  // Targets
-  const targets = {};
-  statsArr.forEach((customStat) => {
-    targets[statMapping[customStat]] = state.statValues[customStat];
-  });
-
-  // Recursive build
-  function buildLoadout(depth, currentPieces, currentStats) {
-    if (depth === slots.length) {
-      // Check if can reach with mods
-      let totalEnergyNeeded = 0;
-      const modsUsed = {};
-      const finalStats = { ...currentStats };
-      Object.keys(targets).forEach((hash) => {
-        const deficit = Math.max(0, targets[hash] - currentStats[hash]);
-        if (deficit > 0) {
-          const { cost, majors, minors } = minEnergyForDeficit(deficit);
-          totalEnergyNeeded += cost;
-          modsUsed[hash] = { majors, minors };
-          finalStats[hash] += 10 * majors + 5 * minors;
-        }
-      });
-      if (totalEnergyNeeded <= 50) {
-        generatedLoadouts.push({
-          pieces: currentPieces,
-          stats: finalStats,
-          mods: modsUsed,
-          energyUsed: totalEnergyNeeded,
-        });
-      }
-      return;
-    }
-
-    const slot = slots[depth];
-
-    // Prune check
-    let canReach = true;
-    Object.keys(targets).forEach((hash) => {
-      let maxRemaining = 0;
-      for (let i = depth + 1; i < slots.length; i++) {
-        maxRemaining += maxPerStatPerSlot[slots[i]][hash];
-      }
-      if (currentStats[hash] + maxRemaining < targets[hash]) {
-        canReach = false;
-      }
-    });
-    if (!canReach) return;
-
-    itemsPerSlot[slot].forEach((item) => {
-      const newStats = { ...currentStats };
-      Object.keys(statMapping).forEach((customStat) => {
-        const hash = statMapping[customStat];
-        let statVal = item.stats?.[hash]?.value || 0;
-        const energyCapacity =
-          window.inventory.itemComponents.instances.data[item.itemInstanceId]
-            ?.energy?.energyCapacity || 0;
-        if (energyCapacity < 10) statVal += 2;
-        newStats[hash] = (newStats[hash] || 0) + statVal;
-      });
-      buildLoadout(depth + 1, [...currentPieces, item], newStats);
-    });
-  }
-
-  buildLoadout(0, [], {});
-
-  // Sort loadouts by total final stat desc
-  generatedLoadouts.sort((a, b) => {
-    const totalA = Object.values(a.stats).reduce((sum, v) => sum + v, 0);
-    const totalB = Object.values(b.stats).reduce((sum, v) => sum + v, 0);
-    return totalB - totalA;
-  });
-
-  displayLoadouts();
-  showLoading(false);
-  showNotification(`Generated ${generatedLoadouts.length} loadouts`, "success");
-}
-
-function minEnergyForDeficit(d) {
-  let minCost = Infinity;
-  let bestMajors = 0;
-  let bestMinors = 0;
-  const maxMajors = Math.ceil(d / 10) + 1; // +1 for overshoot cases
-  for (let majors = 0; majors <= maxMajors; majors++) {
-    const remaining = d - 10 * majors;
-    let minors = 0;
-    if (remaining > 0) {
-      minors = Math.ceil(remaining / 5);
-    }
-    const boost = 10 * majors + 5 * minors;
-    if (boost >= d) {
-      const cost = 3 * majors + 1 * minors;
-      if (cost < minCost) {
-        minCost = cost;
-        bestMajors = majors;
-        bestMinors = minors;
-      }
-    }
-  }
-  return { cost: minCost, majors: bestMajors, minors: bestMinors };
-}
-
-function getTotalStat(item) {
-  let total = 0;
-  Object.keys(statMapping).forEach((hash) => {
-    let val = item.stats?.[statMapping[hash]]?.value || 0;
-    const energy =
-      window.inventory.itemComponents.instances.data[item.itemInstanceId]
-        ?.energy?.energyCapacity || 0;
-    if (energy < 10) val += 2;
-    total += val;
-  });
-  return total;
-}
-
-function displayLoadouts() {
-  const list = document.getElementById("loadoutList");
-  if (!list) return;
-  list.innerHTML = "";
-
-  const start = (currentPage - 1) * loadoutsPerPage;
-  const end = start + loadoutsPerPage;
-  const pageLoadouts = generatedLoadouts.slice(start, end);
-
-  pageLoadouts.forEach((loadout, index) => {
-    const loadoutDiv = document.createElement("div");
-    loadoutDiv.className = "loadout-item";
-    loadoutDiv.innerHTML = `<h3>Loadout #${start + index + 1}</h3>`;
-
-    const piecesGrid = document.createElement("div");
-    piecesGrid.className = "loadout-pieces-grid";
-    loadout.pieces.forEach((piece) => {
-      piecesGrid.appendChild(createUniversalItemElement(piece));
-    });
-    loadoutDiv.appendChild(piecesGrid);
-
-    const statsDiv = document.createElement("div");
-    statsDiv.className = "loadout-stats";
-    Object.entries(loadout.stats).forEach(([hash, value]) => {
-      const name = Manifest.statHashes[hash];
-      statsDiv.innerHTML += `<div>${name}: ${value}</div>`;
-    });
-    loadoutDiv.appendChild(statsDiv);
-
-    const modsDiv = document.createElement("div");
-    modsDiv.className = "loadout-mods";
-    modsDiv.innerHTML = "<h4>Mods Needed:</h4>";
-    Object.entries(loadout.mods).forEach(([hash, { majors, minors }]) => {
-      const name = Manifest.statHashes[hash];
-      modsDiv.innerHTML += `<div>${name}: ${majors} major, ${minors} minor</div>`;
-    });
-    modsDiv.innerHTML += `<div>Energy Used: ${loadout.energyUsed}/50</div>`;
-    loadoutDiv.appendChild(modsDiv);
-
-    list.appendChild(loadoutDiv);
-  });
-
-  // Pagination
-  const pagination = document.getElementById("loadoutPagination");
-  pagination.innerHTML = "";
-  const totalPages = Math.ceil(generatedLoadouts.length / loadoutsPerPage);
-  for (let p = 1; p <= totalPages; p++) {
-    const btn = document.createElement("button");
-    btn.textContent = p;
-    btn.disabled = p === currentPage;
-    btn.onclick = () => {
-      currentPage = p;
-      displayLoadouts();
-    };
-    pagination.appendChild(btn);
-  }
 }

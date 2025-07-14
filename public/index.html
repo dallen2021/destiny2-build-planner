@@ -3,41 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Edge of Fate Build Planner</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="api.js"></script>
-    <script src="manifest.js"></script>
-    <script src="app.js" defer></script>
+    <title>
+      Destiny 2: Edge of Fate – Build Planner & Damage Calculator (Stat‑Box
+      Revamp)
+    </title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/css/styles.css" />
   </head>
   <body>
-    <div id="loadingOverlay" class="loading-overlay">
+    <div id="loadingOverlay" class="loading-overlay" style="display: none">
       <div class="loading-content">
         <div class="loading-spinner"></div>
         <p>Loading Destiny 2 Build Planner...</p>
       </div>
     </div>
 
-    <!-- Hamburger Menu -->
     <div class="hamburger-menu" onclick="toggleSideMenu()">
       <span></span>
       <span></span>
       <span></span>
     </div>
 
-    <!-- Side Menu -->
     <div id="sideMenu" class="side-menu">
       <div class="side-menu-header">
-        <h3>Menu</h3>
-        <button class="close-menu" onclick="toggleSideMenu()">×</button>
+        <h3 id="sideMenuUsername">Guardian</h3>
+        <button class="close-menu" onclick="toggleSideMenu()">&times;</button>
       </div>
       <div class="side-menu-content">
-        <a href="#" onclick="switchTab('armorDisplay')">Armor Display</a>
-        <a href="#" onclick="switchTab('loadoutBuilder')">Loadout Builder</a>
-        <a href="#" onclick="switchTab('artifactMods')">Artifact Mods</a>
-        <a href="#" onclick="switchTab('damageCalculator')"
+        <a href="#" onclick="switchTab('armorDisplay'); toggleSideMenu();"
+          >Armor</a
+        >
+        <a href="#" onclick="switchTab('armor'); toggleSideMenu();"
+          >Stat Allocator</a
+        >
+        <a href="#" onclick="switchTab('artifact'); toggleSideMenu();"
+          >Artifact Mods</a
+        >
+        <a href="#" onclick="switchTab('damage'); toggleSideMenu();"
           >Damage Calculator</a
         >
-        <a href="#" onclick="switchTab('buildInfo')">Build Info</a>
+        <a href="#" onclick="switchTab('build'); toggleSideMenu();"
+          >Build Info</a
+        >
         <hr />
         <a href="#" onclick="refreshData()">Refresh Data</a>
         <a href="#" onclick="openSettings()">Settings</a>
@@ -46,673 +53,835 @@
       </div>
     </div>
 
-    <!-- Header -->
-    <header class="header">
+    <div class="header" style="padding-left: 60px">
       <h1>Edge of Fate Build Planner</h1>
       <p>Comprehensive Damage Calculator & Build Optimization Tool</p>
-
-      <!-- Auth Status Bar -->
       <div class="auth-status-bar">
         <div id="userInfo" class="user-info" style="display: none">
-          <span>👤</span>
+          <span style="font-size: 0.9em">👤</span>
           <span id="username">Guardian</span>
         </div>
-        <button id="authButton" class="auth-button-small">
+        <button
+          id="authButton"
+          class="auth-button-small"
+          onclick="handleAuth()"
+        >
           Sign in with Bungie
         </button>
       </div>
-    </header>
+    </div>
 
-    <!-- Navigation Tabs -->
-    <nav class="nav-tabs">
-      <div class="character-selector" id="characterSelector"></div>
-      <div class="nav-tab" onclick="switchTab('armorDisplay')">Armor</div>
-      <div class="nav-tab active" onclick="switchTab('loadoutBuilder')">
-        Loadout Builder
+    <div class="nav-tabs">
+      <div
+        id="characterSelector"
+        class="character-selector"
+        style="display: none"
+      >
+        <!-- Character emblems will be dynamically inserted here -->
       </div>
-      <div class="nav-tab" onclick="switchTab('artifactMods')">
-        Artifact Mods
+      <div class="nav-tab active" onclick="switchTab('armorDisplay')">
+        Armor
       </div>
-      <div class="nav-tab" onclick="switchTab('damageCalculator')">
-        Damage Calculator
-      </div>
-      <div class="nav-tab" onclick="switchTab('buildInfo')">Build Info</div>
-    </nav>
+      <div class="nav-tab" onclick="switchTab('armor')">Stat Allocator</div>
+      <div class="nav-tab" onclick="switchTab('artifact')">Artifact Mods</div>
+      <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
+      <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
+    </div>
 
-    <!-- Armor Display Section -->
-    <section id="armorDisplay" class="content-section">
-      <div class="armor-filters">
-        <input
-          type="text"
-          id="armorSearchInput"
-          class="armor-search"
-          placeholder="Search armor..."
-        />
-        <select id="armorClassFilter" class="filter-select">
-          <option value="all">All Classes</option>
-          <option value="0">Titan</option>
-          <option value="1">Hunter</option>
-          <option value="2">Warlock</option>
-        </select>
-        <select id="armorSlotFilter" class="filter-select">
-          <option value="all">All Slots</option>
-          <option value="3448274439">Helmet</option>
-          <option value="3551918588">Gauntlets</option>
-          <option value="14239492">Chest</option>
-          <option value="20886954">Legs</option>
-          <option value="1585787867">Class Item</option>
-        </select>
-      </div>
-
-      <div class="inventory-layout">
-        <div class="inventory-column">
-          <h2>Character</h2>
-          <div id="character-inventories"></div>
+    <div id="armorDisplay" class="content-section active">
+      <div class="armor-display-container">
+        <div class="armor-filters">
+          <input
+            type="text"
+            id="armorSearchInput"
+            placeholder="Search armor..."
+            class="armor-search"
+          />
+          <select id="armorClassFilter" class="filter-select">
+            <option value="all">All Classes</option>
+            <option value="0">Titan</option>
+            <option value="1">Hunter</option>
+            <option value="2">Warlock</option>
+          </select>
+          <select id="armorSlotFilter" class="filter-select">
+            <option value="all">All Slots</option>
+            <option value="3448274439">Helmet</option>
+            <option value="3551918588">Gauntlets</option>
+            <option value="14239492">Chest</option>
+            <option value="20886954">Legs</option>
+            <option value="1585787867">Class Item</option>
+          </select>
         </div>
-        <div class="inventory-column">
-          <h2>Vault</h2>
-          <div id="vault-items-container"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Loadout Builder Section (formerly Stat Allocator) -->
-    <section id="loadoutBuilder" class="content-section active">
-      <div id="statAllocator" class="stat-allocator"></div>
-    </section>
-
-    <!-- Artifact Mods Section -->
-    <section id="artifactMods" class="content-section">
-      <div class="artifact-filters" id="artifactFilters">
-        <button class="element-filter-btn" data-element="solar">Solar</button>
-        <button class="element-filter-btn" data-element="arc">Arc</button>
-        <button class="element-filter-btn" data-element="void">Void</button>
-        <button class="element-filter-btn" data-element="stasis">Stasis</button>
-        <button class="element-filter-btn" data-element="strand">Strand</button>
-      </div>
-      <div class="counter">
-        Selected Mods: <span id="modCount">0</span> / 12
-      </div>
-      <div id="columnsWrapper" class="columns-wrapper"></div>
-      <div class="unlock-info">
-        <p><strong>Unlock Requirements:</strong></p>
-        <p>
-          Column 2: 3 mods in Column 1 | Column 3: 5 total mods | Column 4: 8
-          total mods | Column 5: 10 total mods (max 2 selections)
-        </p>
-      </div>
-      <button class="reset-button" onclick="resetSelection()">
-        Reset Selection
-      </button>
-    </section>
-
-    <!-- Damage Calculator Section -->
-    <section id="damageCalculator" class="content-section calc-container">
-      <div class="calc-row">
-        <div class="calc-section">
-          <h2>Damage Buffs & Multipliers</h2>
-
-          <div class="buff-category">
-            <h3>Global Buffs</h3>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="newGearWeapon"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="newGearWeapon" class="buff-label"
-                >New Gear Weapon Bonus (Artifact)</label
-              ><span class="buff-value">+10%</span>
-            </div>
-            <div class="buff-item" id="theoreticalWellBuffContainer">
-              <input
-                type="checkbox"
-                id="theoreticalWellBuff"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="theoreticalWellBuff" class="buff-label"
-                >Theoretical Well User Buff (Super >= 110)</label
-              ><span class="buff-value">+15%</span>
-            </div>
-            <p>⚠️ Empowering Buffs (only highest applies):</p>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="radiant"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="radiant" class="buff-label">Radiant</label
-              ><span class="buff-value">+25%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="wellOfRadiance"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="wellOfRadiance" class="buff-label"
-                >Well of Radiance</label
-              ><span class="buff-value">+25%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="nobleRounds"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="nobleRounds" class="buff-label">Noble Rounds</label
-              ><span class="buff-value">+35%</span>
-            </div>
-            <p>⚠️ Weapon Damage Buffs (only highest applies):</p>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="weaponSurge3x"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="weaponSurge3x" class="buff-label"
-                >Weapon Surge (3x)</label
-              ><span class="buff-value">+22%</span>
+        <!-- START: MODIFIED BLOCK -->
+        <div class="inventory-layout">
+          <div class="inventory-column">
+            <h2>Character</h2>
+            <div id="character-inventories">
+              <!-- Character armor sections will be dynamically inserted here -->
             </div>
           </div>
-
-          <div class="buff-category">
-            <h3>Weapon Perks (All Stack Multiplicatively)</h3>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="elementalOverdrive"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="elementalOverdrive" class="buff-label"
-                >Elemental Overdrive (Artifact)</label
-              ><span class="buff-value">+25%</span>
+          <div class="inventory-column">
+            <h2>Vault</h2>
+            <div id="vault-items-container">
+              <!-- Vault armor sections will be dynamically inserted here -->
             </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="killClip"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="killClip" class="buff-label">Kill Clip</label
-              ><span class="buff-value">+25%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="vorpalWeapon"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="vorpalWeapon" class="buff-label"
-                >Vorpal Weapon</label
-              ><span class="buff-value">+15%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="frenzy"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="frenzy" class="buff-label">Frenzy</label
-              ><span class="buff-value">+15%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="baitSwitch"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="baitSwitch" class="buff-label"
-                >Bait and Switch</label
-              ><span class="buff-value">+30%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="radiantShrapnel"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="radiantShrapnel" class="buff-label"
-                >Radiant Shrapnel (Artifact)</label
-              ><span class="buff-value">+15%</span>
-            </div>
-          </div>
-
-          <div class="buff-category">
-            <h3>Debuffs (Enemy)</h3>
-            <p>⚠️ Only highest "Weaken" debuff applies:</p>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="weakenDebuff"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="weakenDebuff" class="buff-label"
-                >Weaken (Void)</label
-              ><span class="buff-value">+15%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="tetherDebuff"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="tetherDebuff" class="buff-label"
-                >Shadowshot Tether</label
-              ><span class="buff-value">+30%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="divinityDebuff"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="divinityDebuff" class="buff-label">Divinity</label
-              ><span class="buff-value">+15%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="tractorCannon"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="tractorCannon" class="buff-label"
-                >Tractor Cannon</label
-              ><span class="buff-value">+30%</span>
-            </div>
-          </div>
-
-          <div class="damage-output">
-            <h3>Total Weapon Damage</h3>
-            <div id="weaponDamageResult" class="damage-result">100%</div>
-            <div id="weaponBreakdown" class="damage-breakdown">Base damage</div>
           </div>
         </div>
+        <!-- END: MODIFIED BLOCK -->
+      </div>
+    </div>
 
-        <div class="calc-section">
-          <h2>Melee & Ability Damage</h2>
-
-          <div class="buff-category">
-            <h3>Class Selection</h3>
-            <div class="class-selector">
-              <button
-                class="class-button"
-                data-class="hunter"
-                onclick="selectClass('hunter')"
-              >
-                Hunter
-              </button>
-              <button
-                class="class-button"
-                data-class="titan"
-                onclick="selectClass('titan')"
-              >
-                Titan
-              </button>
-              <button
-                class="class-button"
-                data-class="warlock"
-                onclick="selectClass('warlock')"
-              >
-                Warlock
-              </button>
-            </div>
-          </div>
-
-          <div class="buff-category">
-            <h3>Melee Buffs (Additive)</h3>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="onetwoPunch"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-              /><label for="onetwoPunch" class="buff-label">One-Two Punch</label
-              ><span class="buff-value">+300%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="roaringFlames"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-                data-melee-classes="titan"
-              /><label for="roaringFlames" class="buff-label"
-                >Roaring Flames (3×)</label
-              ><span class="buff-value">+200%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="bannerOfWar"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-                data-melee-classes="titan"
-              /><label for="bannerOfWar" class="buff-label">Banner of War</label
-              ><span class="buff-value">+100%</span>
-            </div>
-            <div class="buff-item">
-              <input
-                type="checkbox"
-                id="combinationBlow"
-                class="buff-checkbox"
-                onchange="recalculateAllDamage()"
-                data-melee-classes="hunter"
-              /><label for="combinationBlow" class="buff-label"
-                >Combination Blow (3×)</label
-              ><span class="buff-value">+165%</span>
-            </div>
-          </div>
-
-          <div class="buff-category">
-            <h3>Exotic Armor Buffs</h3>
-            <div
-              class="buff-item"
-              data-exotic="exoticClassItem"
-              data-column="0"
+    <div id="armor" class="content-section">
+      <div class="stat-selector-section">
+        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+          Target Stat Distribution
+        </h2>
+        <div
+          style="
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+          "
+        >
+          <div class="class-selector">
+            <button
+              class="class-button"
+              id="topHunterClass"
+              data-class="hunter"
+              onclick="selectClass('hunter')"
             >
-              <input
-                type="checkbox"
-                id="exoticClassItem"
-                class="exotic-checkbox"
-                onchange="updateExoticRestrictions(); recalculateAllDamage()"
-              /><label for="exoticClassItem" class="buff-label">
-                Using Exotic Class Item (allows 2 exotic perks)</label
+              Hunter
+            </button>
+            <button
+              class="class-button"
+              id="topTitanClass"
+              data-class="titan"
+              onclick="selectClass('titan')"
+            >
+              Titan
+            </button>
+            <button
+              class="class-button"
+              id="topWarlockClass"
+              data-class="warlock"
+              onclick="selectClass('warlock')"
+            >
+              Warlock
+            </button>
+          </div>
+        </div>
+        <div class="stat-allocator" id="statAllocator"></div>
+      </div>
+    </div>
+
+    <div id="artifact" class="content-section">
+      <div class="artifact-container">
+        <div class="artifact-filters" id="artifactFilters">
+          <button class="element-filter-btn" data-element="solar">Solar</button>
+          <button class="element-filter-btn" data-element="arc">Arc</button>
+          <button class="element-filter-btn" data-element="void">Void</button>
+          <button class="element-filter-btn" data-element="stasis">
+            Stasis
+          </button>
+          <button class="element-filter-btn" data-element="strand">
+            Strand
+          </button>
+        </div>
+        <div class="counter">
+          Selected Mods: <span id="modCount">0</span> / 12
+        </div>
+        <div class="columns-wrapper" id="columnsWrapper"></div>
+        <div class="unlock-info">
+          <p><strong>Unlock Requirements:</strong></p>
+          <p>
+            Column 2: 3 mods in Column 1 | Column 3: 5 total mods | Column 4: 8
+            total mods | Column 5: 10 total mods (max 2 selections)
+          </p>
+        </div>
+        <center>
+          <button class="reset-button" onclick="resetSelection()">
+            Reset Selection
+          </button>
+        </center>
+      </div>
+    </div>
+
+    <div id="damage" class="content-section">
+      <div class="calc-container">
+        <div class="calc-row">
+          <div class="calc-section">
+            <h2>Damage Buffs & Multipliers</h2>
+
+            <div class="buff-category">
+              <h3>Global Buffs</h3>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="newGearWeapon"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="newGearWeapon"
+                  >New Gear Weapon Bonus (Artifact)</label
+                >
+                <span class="buff-value">+10%</span>
+              </div>
+              <div class="buff-item disabled" id="theoreticalWellBuffContainer">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="theoreticalWellBuff"
+                  onchange="recalculateAllDamage()"
+                  disabled
+                />
+                <label class="buff-label" for="theoreticalWellBuff"
+                  >Theoretical Well User Buff (Super >= 110)</label
+                >
+                <span class="buff-value">+15%</span>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: rgba(138, 43, 226, 0.2);
+                  border-radius: 8px;
+                  font-size: 0.9em;
+                  color: #ffd700;
+                "
               >
+                ⚠️ Empowering Buffs (only highest applies):
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="radiant"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="radiant">Radiant</label>
+                <span class="buff-value">+25%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="wellOfRadiance"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="wellOfRadiance"
+                  >Well of Radiance</label
+                >
+                <span class="buff-value">+25%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="nobleRounds"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="nobleRounds">Noble Rounds</label>
+                <span class="buff-value">+35%</span>
+              </div>
+              <div
+                style="
+                  margin: 10px 0;
+                  padding: 10px;
+                  background: rgba(138, 43, 226, 0.2);
+                  border-radius: 8px;
+                  font-size: 0.9em;
+                  color: #ffd700;
+                "
+              >
+                ⚠️ Weapon Damage Buffs (only highest applies):
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="weaponSurge3x"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="weaponSurge3x"
+                  >Weapon Surge (3x)</label
+                >
+                <span class="buff-value">+22%</span>
+              </div>
             </div>
 
-            <div class="hunter-exotics exotic-group">
-              <div
-                class="buff-item"
-                data-exotic="liarsHandshake"
-                data-column="1"
-              >
+            <div class="buff-category">
+              <h3>Weapon Perks (All Stack Multiplicatively)</h3>
+              <div class="buff-item">
                 <input
                   type="checkbox"
-                  id="liarsHandshake"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('liarsHandshake'); recalculateAllDamage()"
-                /><label for="liarsHandshake" class="buff-label"
-                  >Liar's Handshake</label
-                ><span class="buff-value">+400%</span>
+                  class="buff-checkbox"
+                  id="elementalOverdrive"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="elementalOverdrive"
+                  >Elemental Overdrive (Artifact)</label
+                >
+                <span class="buff-value">+25%</span>
               </div>
-              <div
-                class="buff-item"
-                data-exotic="assassinsCowl"
-                data-column="1"
-              >
+              <div class="buff-item">
                 <input
                   type="checkbox"
-                  id="assassinsCowl"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('assassinsCowl'); recalculateAllDamage()"
-                /><label for="assassinsCowl" class="buff-label"
-                  >Assassin's Cowl</label
-                ><span class="buff-value">+150%</span>
+                  class="buff-checkbox"
+                  id="killClip"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="killClip">Kill Clip</label>
+                <span class="buff-value">+25%</span>
               </div>
-              <div class="buff-item" data-exotic="caliban" data-column="1">
+              <div class="buff-item">
                 <input
                   type="checkbox"
-                  id="caliban"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('caliban'); recalculateAllDamage()"
-                /><label for="caliban" class="buff-label">Caliban's Hand</label
-                ><span class="buff-value">+100%</span>
+                  class="buff-checkbox"
+                  id="vorpalWeapon"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="vorpalWeapon"
+                  >Vorpal Weapon</label
+                >
+                <span class="buff-value">+15%</span>
               </div>
-              <div
-                class="buff-item"
-                data-exotic="synthocepsHunter"
-                data-column="2"
-              >
+              <div class="buff-item">
                 <input
                   type="checkbox"
-                  id="synthocepsHunter"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('synthocepsHunter'); recalculateAllDamage()"
-                /><label for="synthocepsHunter" class="buff-label"
-                  >Synthoceps (Class Item)</label
-                ><span class="buff-value">+400%</span>
+                  class="buff-checkbox"
+                  id="frenzy"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="frenzy">Frenzy</label>
+                <span class="buff-value">+15%</span>
               </div>
-            </div>
-
-            <div class="titan-exotics exotic-group" style="display: none">
-              <div
-                class="buff-item"
-                data-exotic="synthocepsTitan"
-                data-column="2"
-              >
+              <div class="buff-item">
                 <input
                   type="checkbox"
-                  id="synthocepsTitan"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('synthocepsTitan'); recalculateAllDamage()"
-                /><label for="synthocepsTitan" class="buff-label"
-                  >Synthoceps (Surrounded)</label
-                ><span class="buff-value">+400%</span>
+                  class="buff-checkbox"
+                  id="baitSwitch"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="baitSwitch"
+                  >Bait and Switch</label
+                >
+                <span class="buff-value">+30%</span>
               </div>
-              <div
-                class="buff-item"
-                data-exotic="wormgodCaress"
-                data-column="2"
-              >
+              <div class="buff-item">
                 <input
                   type="checkbox"
-                  id="wormgodCaress"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('wormgodCaress'); recalculateAllDamage()"
-                /><label for="wormgodCaress" class="buff-label"
-                  >Wormgod Caress (5×)</label
-                ><span class="buff-value">+400%</span>
-              </div>
-              <div
-                class="buff-item"
-                data-exotic="severanceEnclosure"
-                data-column="1"
-              >
-                <input
-                  type="checkbox"
-                  id="severanceEnclosure"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('severanceEnclosure'); recalculateAllDamage()"
-                /><label for="severanceEnclosure" class="buff-label"
-                  >Severance Enclosure</label
-                ><span class="buff-value">+200%</span>
+                  class="buff-checkbox"
+                  id="radiantShrapnel"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="radiantShrapnel"
+                  >Radiant Shrapnel (Artifact)</label
+                >
+                <span class="buff-value">+15%</span>
               </div>
             </div>
 
-            <div class="warlock-exotics exotic-group" style="display: none">
-              <div class="buff-item" data-exotic="wintersGuile" data-column="2">
-                <input
-                  type="checkbox"
-                  id="wintersGuile"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('wintersGuile'); recalculateAllDamage()"
-                /><label for="wintersGuile" class="buff-label"
-                  >Winter's Guile (5×)</label
-                ><span class="buff-value">+400%</span>
-              </div>
-              <div class="buff-item" data-exotic="necroticGrip" data-column="1">
-                <input
-                  type="checkbox"
-                  id="necroticGrip"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('necroticGrip'); recalculateAllDamage()"
-                /><label for="necroticGrip" class="buff-label"
-                  >Necrotic Grip</label
-                ><span class="buff-value">+100%</span>
-              </div>
+            <div class="buff-category">
+              <h3>Debuffs (Enemy)</h3>
               <div
-                class="buff-item"
-                data-exotic="synthocepsWarlock"
-                data-column="2"
+                style="
+                  margin: 0 0 10px 0;
+                  padding: 10px;
+                  background: rgba(220, 53, 69, 0.2);
+                  border-radius: 8px;
+                  font-size: 0.9em;
+                  color: #ffd700;
+                "
               >
+                ⚠️ Only highest "Weaken" debuff applies:
+              </div>
+              <div class="buff-item">
                 <input
                   type="checkbox"
-                  id="synthocepsWarlock"
-                  class="exotic-checkbox"
-                  onchange="handleExoticSelection('synthocepsWarlock'); recalculateAllDamage()"
-                /><label for="synthocepsWarlock" class="buff-label"
-                  >Synthoceps (Class Item)</label
-                ><span class="buff-value">+400%</span>
+                  class="buff-checkbox"
+                  id="weakenDebuff"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="weakenDebuff"
+                  >Weaken (Void)</label
+                >
+                <span class="buff-value">+15%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="tetherDebuff"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="tetherDebuff"
+                  >Shadowshot Tether</label
+                >
+                <span class="buff-value">+30%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="divinityDebuff"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="divinityDebuff">Divinity</label>
+                <span class="buff-value">+15%</span>
+              </div>
+              <div class="buff-item">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="tractorCannon"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="tractorCannon"
+                  >Tractor Cannon</label
+                >
+                <span class="buff-value">+30%</span>
+              </div>
+            </div>
+
+            <div class="damage-output">
+              <h3>Total Weapon Damage</h3>
+              <div class="damage-result" id="weaponDamageResult">100%</div>
+              <div class="damage-breakdown" id="weaponBreakdown">
+                Base damage
               </div>
             </div>
           </div>
+          <div class="calc-section">
+            <h2>Melee & Ability Damage</h2>
 
-          <div class="damage-output">
-            <h3>Total Melee Damage</h3>
-            <div id="meleeDamageResult" class="damage-result">100%</div>
-            <div id="meleeBreakdown" class="damage-breakdown">
-              Base damage (additive)
+            <div class="buff-category">
+              <h3>Class Selection</h3>
+              <div style="display: flex; gap: 10px; margin-bottom: 15px">
+                <button
+                  class="class-button"
+                  id="hunterClass"
+                  data-class="hunter"
+                  onclick="selectClass('hunter')"
+                >
+                  Hunter
+                </button>
+                <button
+                  class="class-button"
+                  id="titanClass"
+                  data-class="titan"
+                  onclick="selectClass('titan')"
+                >
+                  Titan
+                </button>
+                <button
+                  class="class-button"
+                  id="warlockClass"
+                  data-class="warlock"
+                  onclick="selectClass('warlock')"
+                >
+                  Warlock
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div class="damage-output">
-            <h3>Total Grenade Damage</h3>
-            <div id="grenadeDamageResult" class="damage-result">100%</div>
-            <div id="grenadeBreakdown" class="damage-breakdown">
-              Base damage
+            <div class="buff-category">
+              <h3>Melee Buffs (Additive)</h3>
+              <div class="buff-item" data-melee-classes="all">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="onetwoPunch"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="onetwoPunch"
+                  >One-Two Punch</label
+                >
+                <span class="buff-value">+300%</span>
+              </div>
+              <div class="buff-item" data-melee-classes="titan">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="roaringFlames"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="roaringFlames"
+                  >Roaring Flames (3×)</label
+                >
+                <span class="buff-value">+200%</span>
+              </div>
+              <div class="buff-item" data-melee-classes="titan">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="bannerOfWar"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="bannerOfWar"
+                  >Banner of War</label
+                >
+                <span class="buff-value">+100%</span>
+              </div>
+              <div class="buff-item" data-melee-classes="hunter">
+                <input
+                  type="checkbox"
+                  class="buff-checkbox"
+                  id="combinationBlow"
+                  onchange="recalculateAllDamage()"
+                />
+                <label class="buff-label" for="combinationBlow"
+                  >Combination Blow (3×)</label
+                >
+                <span class="buff-value">+165%</span>
+              </div>
             </div>
-          </div>
 
-          <div class="damage-output">
-            <h3>Total Super Damage</h3>
-            <div id="superDamageResult" class="damage-result">100%</div>
-            <div id="superBreakdown" class="damage-breakdown">Base damage</div>
+            <div class="buff-category">
+              <h3>Exotic Armor Buffs</h3>
+              <div
+                style="
+                  margin: 0 0 10px 0;
+                  padding: 10px;
+                  background: rgba(138, 43, 226, 0.2);
+                  border-radius: 8px;
+                  font-size: 0.9em;
+                "
+              >
+                <label for="exoticClassItem" style="cursor: pointer">
+                  <input
+                    type="checkbox"
+                    id="exoticClassItem"
+                    onchange="updateExoticRestrictions()"
+                  />
+                  Using Exotic Class Item (allows 2 exotic perks)
+                </label>
+              </div>
+
+              <div class="exotic-group hunter-exotics" style="display: none">
+                <div
+                  class="buff-item"
+                  data-exotic="liarsHandshake"
+                  data-column="2"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="liarsHandshake"
+                    onchange="handleExoticSelection('liarsHandshake')"
+                  /><label class="buff-label" for="liarsHandshake"
+                    >Liar's Handshake</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="assassinsCowl"
+                  data-column="1"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="assassinsCowl"
+                    onchange="handleExoticSelection('assassinsCowl')"
+                  /><label class="buff-label" for="assassinsCowl"
+                    >Assassin's Cowl</label
+                  ><span class="buff-value">+150%</span>
+                </div>
+                <div class="buff-item" data-exotic="caliban" data-column="1">
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="caliban"
+                    onchange="handleExoticSelection('caliban')"
+                  /><label class="buff-label" for="caliban"
+                    >Caliban's Hand</label
+                  ><span class="buff-value">+100%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="synthocepsHunter"
+                  data-column="2"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="synthocepsHunter"
+                    onchange="handleExoticSelection('synthocepsHunter')"
+                  /><label class="buff-label" for="synthocepsHunter"
+                    >Synthoceps (Class Item)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+              </div>
+
+              <div class="exotic-group titan-exotics" style="display: none">
+                <div
+                  class="buff-item"
+                  data-exotic="synthocepsTitan"
+                  data-column="2"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="synthocepsTitan"
+                    onchange="handleExoticSelection('synthocepsTitan')"
+                  /><label class="buff-label" for="synthocepsTitan"
+                    >Synthoceps (Surrounded)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="wormgodCaress"
+                  data-column="0"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="wormgodCaress"
+                    onchange="handleExoticSelection('wormgodCaress')"
+                  /><label class="buff-label" for="wormgodCaress"
+                    >Wormgod Caress (5×)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="severanceEnclosure"
+                  data-column="1"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="severanceEnclosure"
+                    onchange="handleExoticSelection('severanceEnclosure')"
+                  /><label class="buff-label" for="severanceEnclosure"
+                    >Severance Enclosure</label
+                  ><span class="buff-value">+200%</span>
+                </div>
+              </div>
+
+              <div class="exotic-group warlock-exotics" style="display: none">
+                <div
+                  class="buff-item"
+                  data-exotic="wintersGuile"
+                  data-column="0"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="wintersGuile"
+                    onchange="handleExoticSelection('wintersGuile')"
+                  /><label class="buff-label" for="wintersGuile"
+                    >Winter's Guile (5×)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="necroticGrip"
+                  data-column="1"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="necroticGrip"
+                    onchange="handleExoticSelection('necroticGrip')"
+                  /><label class="buff-label" for="necroticGrip"
+                    >Necrotic Grip</label
+                  ><span class="buff-value">+100%</span>
+                </div>
+                <div
+                  class="buff-item"
+                  data-exotic="synthocepsWarlock"
+                  data-column="2"
+                >
+                  <input
+                    type="checkbox"
+                    class="buff-checkbox exotic-checkbox"
+                    id="synthocepsWarlock"
+                    onchange="handleExoticSelection('synthocepsWarlock')"
+                  /><label class="buff-label" for="synthocepsWarlock"
+                    >Synthoceps (Class Item)</label
+                  ><span class="buff-value">+400%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="damage-output" style="margin-top: 20px">
+              <h3>Total Melee Damage</h3>
+              <div class="damage-result" id="meleeDamageResult">100%</div>
+              <div class="damage-breakdown" id="meleeBreakdown">
+                Base damage (additive)
+              </div>
+            </div>
+            <div class="damage-output" style="margin-top: 20px">
+              <h3>Total Grenade Damage</h3>
+              <div class="damage-result" id="grenadeDamageResult">100%</div>
+              <div class="damage-breakdown" id="grenadeBreakdown">
+                Base damage
+              </div>
+            </div>
+            <div class="damage-output" style="margin-top: 20px">
+              <h3>Total Super Damage</h3>
+              <div class="damage-result" id="superDamageResult">100%</div>
+              <div class="damage-breakdown" id="superBreakdown">
+                Base damage
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- Build Info Section -->
-    <section id="buildInfo" class="content-section">
+    <div id="build" class="content-section">
       <div class="info-grid">
         <div class="info-card">
           <h3>Damage Stacking Rules</h3>
           <table class="info-table">
-            <tr>
-              <th>Category</th>
-              <th>Stacking Rule</th>
-            </tr>
-            <tr>
-              <td>Empowering Buffs</td>
-              <td>Only highest applies (Radiant, Well, Noble Rounds)</td>
-            </tr>
-            <tr>
-              <td>Weapon Damage Buffs</td>
-              <td>Only highest applies (e.g., Surge mods)</td>
-            </tr>
-            <tr>
-              <td>Weapon Perks & Artifact Buffs</td>
-              <td>All stack multiplicatively (e.g., Kill Clip, Overdrive)</td>
-            </tr>
-            <tr>
-              <td>Enemy Debuffs</td>
-              <td>Only highest "Weaken" effect applies</td>
-            </tr>
-            <tr>
-              <td>Melee Buffs</td>
-              <td>Most stack additively (except some exotics)</td>
-            </tr>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Stacking Rule</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Empowering Buffs</td>
+                <td>Only highest applies (Radiant, Well, Noble Rounds)</td>
+              </tr>
+              <tr>
+                <td>Weapon Damage Buffs</td>
+                <td>Only highest applies (e.g., Surge mods)</td>
+              </tr>
+              <tr>
+                <td>Weapon Perks & Artifact Buffs</td>
+                <td>All stack multiplicatively (e.g., Kill Clip, Overdrive)</td>
+              </tr>
+              <tr>
+                <td>Enemy Debuffs</td>
+                <td>Only highest "Weaken" effect applies</td>
+              </tr>
+              <tr>
+                <td>Melee Buffs</td>
+                <td>Most stack additively (except some exotics)</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
         <div class="info-card">
           <h3>Stat Tier Breakpoints</h3>
           <table class="info-table">
-            <tr>
-              <th>Stat Value</th>
-              <th>Key Benefits</th>
-            </tr>
-            <tr>
-              <td>10</td>
-              <td>Minimum stat level, initial bonus scaling begins</td>
-            </tr>
-            <tr>
-              <td>50</td>
-              <td>
-                First major bonus threshold, significant cooldown reduction
-              </td>
-            </tr>
-            <tr>
-              <td>100</td>
-              <td>
-                Maximum base cooldown reduction, unlocks secondary benefits
-              </td>
-            </tr>
-            <tr>
-              <td>110</td>
-              <td>First threshold for enhanced super/ability damage</td>
-            </tr>
-            <tr>
-              <td>150</td>
-              <td>Additional passive benefits (ammo chance, etc.)</td>
-            </tr>
-            <tr>
-              <td>200</td>
-              <td>Maximum damage bonuses and secondary effects</td>
-            </tr>
+            <thead>
+              <tr>
+                <th>Stat Value</th>
+                <th>Key Benefits</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>10</td>
+                <td>Minimum stat level, initial bonus scaling begins</td>
+              </tr>
+              <tr>
+                <td>50</td>
+                <td>
+                  First major bonus threshold, significant cooldown reduction
+                </td>
+              </tr>
+              <tr>
+                <td>100</td>
+                <td>
+                  Maximum base cooldown reduction, unlocks secondary benefits
+                </td>
+              </tr>
+              <tr>
+                <td>110</td>
+                <td>First threshold for enhanced super/ability damage</td>
+              </tr>
+              <tr>
+                <td>150</td>
+                <td>Additional passive benefits (ammo chance, etc.)</td>
+              </tr>
+              <tr>
+                <td>200</td>
+                <td>Maximum damage bonuses and secondary effects</td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
         <div class="info-card">
           <h3>Exotic Class Item Combinations</h3>
           <table class="info-table">
-            <tr>
-              <th>Class</th>
-              <th>Popular Combinations</th>
-            </tr>
-            <tr>
-              <td>Hunter</td>
-              <td>
-                Assassin's Cowl + Synthoceps<br />Caliban's Hand + Liar's
-                Handshake
-              </td>
-            </tr>
-            <tr>
-              <td>Titan</td>
-              <td>
-                Severance Enclosure + Synthoceps<br />Severance Enclosure +
-                Synthoceps (PvE melee)
-              </td>
-            </tr>
-            <tr>
-              <td>Warlock</td>
-              <td>
-                Necrotic Grip + Synthoceps<br />Necrotic Grip + Synthoceps
-                (melee builds)
-              </td>
-            </tr>
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Popular Combinations</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td rowspan="2"><strong>Hunter</strong></td>
+                <td class="sub-item">Assassin's Cowl + Synthoceps</td>
+              </tr>
+              <tr>
+                <td class="sub-item">Caliban's Hand + Liar's Handshake</td>
+              </tr>
+              <tr>
+                <td rowspan="2"><strong>Titan</strong></td>
+                <td class="sub-item">Severance Enclosure + Synthoceps</td>
+              </tr>
+              <tr>
+                <td class="sub-item">
+                  Severance Enclosure + Synthoceps (PvE melee)
+                </td>
+              </tr>
+              <tr>
+                <td rowspan="2"><strong>Warlock</strong></td>
+                <td class="sub-item">Necrotic Grip + Synthoceps</td>
+              </tr>
+              <tr>
+                <td class="sub-item">
+                  Necrotic Grip + Synthoceps (melee builds)
+                </td>
+              </tr>
+            </tbody>
           </table>
         </div>
 
         <div class="info-card">
           <h3>Artifact Mod Synergies</h3>
           <table class="info-table">
-            <tr>
-              <th>Mod Combination</th>
-              <th>Effect</th>
-            </tr>
-            <tr>
-              <td>Elemental Overdrive + Surge Mods</td>
-              <td>Stacks for a significant (25% + 22%) damage boost</td>
-            </tr>
-            <tr>
-              <td>Radiant Shrapnel + Solar Weapons</td>
-              <td>Chain explosions while Radiant for add clear</td>
-            </tr>
-            <tr>
-              <td>Shieldcrush + Tank Builds</td>
-              <td>Faster ability regen while maintaining defensive buffs</td>
-            </tr>
-            <tr>
-              <td>Frost Renewal + Stasis Builds</td>
-              <td>Team-wide frost armor generation on critical damage</td>
-            </tr>
+            <thead>
+              <tr>
+                <th>Mod Combination</th>
+                <th>Effect</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Elemental Overdrive + Surge Mods</strong></td>
+                <td>Stacks for a significant (25% + 22%) damage boost</td>
+              </tr>
+              <tr>
+                <td><strong>Radiant Shrapnel + Solar Weapons</strong></td>
+                <td>Chain explosions while Radiant for add clear</td>
+              </tr>
+              <tr>
+                <td><strong>Shieldcrush + Tank Builds</strong></td>
+                <td>Faster ability regen while maintaining defensive buffs</td>
+              </tr>
+              <tr>
+                <td><strong>Frost Renewal + Stasis Builds</strong></td>
+                <td>Team-wide frost armor generation on critical damage</td>
+              </tr>
+            </tbody>
           </table>
         </div>
       </div>
-    </section>
+    </div>
 
-    <script src="app.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/manifest.js"></script>
+    <script src="/js/app.js"></script>
   </body>
 </html>
