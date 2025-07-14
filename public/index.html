@@ -33,8 +33,8 @@
         <a href="#" onclick="switchTab('armorDisplay'); toggleSideMenu();"
           >Armor</a
         >
-        <a href="#" onclick="switchTab('armor'); toggleSideMenu();"
-          >Stat Allocator</a
+        <a href="#" onclick="switchTab('loadoutBuilder'); toggleSideMenu();"
+          >Loadout Builder</a
         >
         <a href="#" onclick="switchTab('artifact'); toggleSideMenu();"
           >Artifact Mods</a
@@ -82,7 +82,9 @@
       <div class="nav-tab active" onclick="switchTab('armorDisplay')">
         Armor
       </div>
-      <div class="nav-tab" onclick="switchTab('armor')">Stat Allocator</div>
+      <div class="nav-tab" onclick="switchTab('loadoutBuilder')">
+        Loadout Builder
+      </div>
       <div class="nav-tab" onclick="switchTab('artifact')">Artifact Mods</div>
       <div class="nav-tab" onclick="switchTab('damage')">Damage Calculator</div>
       <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
@@ -112,7 +114,6 @@
             <option value="1585787867">Class Item</option>
           </select>
         </div>
-        <!-- START: MODIFIED BLOCK -->
         <div class="inventory-layout">
           <div class="inventory-column">
             <h2>Character</h2>
@@ -127,52 +128,56 @@
             </div>
           </div>
         </div>
-        <!-- END: MODIFIED BLOCK -->
       </div>
     </div>
 
-    <div id="armor" class="content-section">
-      <div class="stat-selector-section">
-        <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
-          Target Stat Distribution
-        </h2>
-        <div
-          style="
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            margin-bottom: 20px;
-          "
-        >
-          <div class="class-selector">
-            <button
-              class="class-button"
-              id="topHunterClass"
-              data-class="hunter"
-              onclick="selectClass('hunter')"
-            >
-              Hunter
-            </button>
-            <button
-              class="class-button"
-              id="topTitanClass"
-              data-class="titan"
-              onclick="selectClass('titan')"
-            >
-              Titan
-            </button>
-            <button
-              class="class-button"
-              id="topWarlockClass"
-              data-class="warlock"
-              onclick="selectClass('warlock')"
-            >
-              Warlock
-            </button>
+    <div id="loadoutBuilder" class="content-section">
+      <div class="loadout-builder-layout">
+        <div class="builder-controls">
+          <div class="stat-selector-section">
+            <h2 style="color: #ffd700; text-align: center; margin-bottom: 20px">
+              Target Stat Distribution
+            </h2>
+            <div class="stat-allocator" id="statAllocator"></div>
+          </div>
+          <div class="exotic-selection-container">
+            <h3>Exotic Selection</h3>
+            <div class="exotic-grid" id="exoticSelector">
+              <!-- Exotic icons will be dynamically inserted here -->
+            </div>
+          </div>
+          <button
+            id="generateLoadoutsBtn"
+            class="auth-button"
+            style="width: 100%; margin-top: 20px"
+          >
+            Generate Loadouts
+          </button>
+        </div>
+        <div class="loadout-results-container">
+          <h2
+            style="
+              text-align: center;
+              color: var(--primary-gold);
+              margin-bottom: 20px;
+            "
+          >
+            Generated Loadouts
+          </h2>
+          <div id="loadoutResultsGrid" class="loadout-grid">
+            <div class="empty-state">
+              Select your desired stats and an exotic, then press "Generate
+              Loadouts".
+            </div>
+          </div>
+          <div
+            id="loadoutPagination"
+            class="pagination-controls"
+            style="display: none"
+          >
+            <!-- Pagination controls will be inserted here -->
           </div>
         </div>
-        <div class="stat-allocator" id="statAllocator"></div>
       </div>
     </div>
 
