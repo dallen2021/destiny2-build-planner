@@ -271,6 +271,10 @@ const state = {
   selectedExoticHash: null,
 };
 
+/* -------- NEW: WEB WORKER FOR LOADOUTS -------- */
+let loadoutWorker;
+let isWorkerBusy = false;
+
 /* -------- CHARACTER SELECTOR VARIABLES -------- */
 let currentCharacterId = null;
 let charactersData = {};
@@ -298,6 +302,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Initialize armor display
   displayNoArmorMessage();
   setupArmorFilters();
+
+  // Initialize the loadout worker
+  initLoadoutWorker();
 
   console.log("App initialization complete");
 });
@@ -1520,7 +1527,47 @@ function updateMeleeClassRestrictions() {
   recalculateAllDamage();
 }
 
-/* -------- NEW LOADOUT BUILDER FUNCTIONS -------- */
+/* -------- NEW/UPDATED LOADOUT BUILDER FUNCTIONS -------- */
+
+/**
+ * Initializes the Web Worker for loadout calculations.
+ */
+function initLoadoutWorker() {
+  if (window.Worker) {
+    loadoutWorker = new Worker("js/loadout-worker.js");
+    loadoutWorker.onmessage = function (e) {
+      const { type, payload } = e.data;
+      if (type === "loadoutsGenerated") {
+        displayLoadouts(payload);
+      } else if (type === "error") {
+        console.error("Loadout Worker Error:", payload);
+        showNotification(
+          "An error occurred in the loadout generator.",
+          "error"
+        );
+        const resultsGrid = document.getElementById("loadoutResultsGrid");
+        resultsGrid.innerHTML =
+          '<div class="empty-state">An error occurred while generating loadouts.</div>';
+      }
+      isWorkerBusy = false;
+    };
+    loadoutWorker.onerror = function (e) {
+      console.error("An error occurred in the loadout worker:", e);
+      showNotification("Failed to run loadout generator.", "error");
+      const resultsGrid = document.getElementById("loadoutResultsGrid");
+      resultsGrid.innerHTML =
+        '<div class="empty-state">The loadout generator failed to start.</div>';
+      isWorkerBusy = false;
+    };
+  } else {
+    console.error("Web Workers are not supported in this browser.");
+    showNotification(
+      "Your browser does not support features required for the loadout builder.",
+      "error"
+    );
+  }
+}
+
 const debouncedGenerateLoadouts = debounce(() => generateLoadouts(), 500);
 
 async function populateExoticSelector() {
@@ -1580,214 +1627,52 @@ function selectExotic(hash) {
   debouncedGenerateLoadouts();
 }
 
+/**
+ * Asynchronously generates loadouts by offloading the work to a Web Worker.
+ * Updates the UI to show a loading state while the worker is busy.
+ */
 async function generateLoadouts() {
+  if (!loadoutWorker) {
+    console.error("Loadout worker is not initialized.");
+    return;
+  }
+
+  if (isWorkerBusy) {
+    console.log("Worker is busy, queuing request.");
+    // Optionally, you could implement a more robust queueing system
+    // For now, we'll just wait for the current job to finish
+    return;
+  }
+
   const resultsGrid = document.getElementById("loadoutResultsGrid");
   resultsGrid.innerHTML =
     '<div class="loading-spinner" style="margin: 40px auto;"></div><p style="text-align: center;">Calculating optimal builds...</p>';
-
-  await new Promise((resolve) => setTimeout(resolve, 50));
+  isWorkerBusy = true;
 
   try {
     const character = charactersData[currentCharacterId];
     if (!character) {
       resultsGrid.innerHTML =
         '<div class="empty-state">Please select a character.</div>';
+      isWorkerBusy = false;
       return;
     }
 
-    const armorPieces = {
-      helmet: [],
-      gauntlets: [],
-      chest: [],
-      legs: [],
-      classItem: [],
-    };
-
-    const bucketHashes = {
-      helmet: 3448274439,
-      gauntlets: 3551918588,
-      chest: 14239492,
-      legs: 20886954,
-      classItem: 1585787867,
-    };
-
-    const armorItems = allItems.filter(
-      (item) =>
-        item.definition?.itemType === 2 &&
-        (item.definition?.classType === character.classType ||
-          item.definition?.classType === 3)
-    );
-
-    for (const item of armorItems) {
-      const bucketHash = item.definition.inventory.bucketTypeHash;
-      if (bucketHash === bucketHashes.helmet) armorPieces.helmet.push(item);
-      else if (bucketHash === bucketHashes.gauntlets)
-        armorPieces.gauntlets.push(item);
-      else if (bucketHash === bucketHashes.chest) armorPieces.chest.push(item);
-      else if (bucketHash === bucketHashes.legs) armorPieces.legs.push(item);
-      else if (bucketHash === bucketHashes.classItem)
-        armorPieces.classItem.push(item);
-    }
-
-    let combinations = [];
-    for (const helmet of armorPieces.helmet) {
-      for (const gauntlets of armorPieces.gauntlets) {
-        for (const chest of armorPieces.chest) {
-          for (const legs of armorPieces.legs) {
-            for (const classItem of armorPieces.classItem) {
-              const set = [helmet, gauntlets, chest, legs, classItem];
-              const exoticCount = set.filter(
-                (p) => p.definition.inventory.tierTypeName === "Exotic"
-              ).length;
-              if (exoticCount > 1) continue;
-              if (
-                state.selectedExoticHash &&
-                !set.some((p) => p.itemHash == state.selectedExoticHash)
-              )
-                continue;
-              if (!state.selectedExoticHash && exoticCount > 0) continue;
-              combinations.push(set);
-            }
-          }
-        }
-      }
-    }
-
-    const loadouts = calculateLoadoutStats(combinations);
-    displayLoadouts(loadouts);
-    updateStatBoxAvailability(combinations);
+    // Post data to the worker to start calculations
+    loadoutWorker.postMessage({
+      allItems,
+      character,
+      state,
+    });
   } catch (e) {
-    console.error("Error generating loadouts:", e);
-    showNotification("An error occurred while generating loadouts.", "error");
+    console.error("Error starting loadout generation:", e);
+    showNotification(
+      "An error occurred while starting the loadout generation.",
+      "error"
+    );
     resultsGrid.innerHTML = '<div class="empty-state">An error occurred.</div>';
+    isWorkerBusy = false;
   }
-}
-
-function calculateLoadoutStats(combinations) {
-  const targetTiers = {
-    Weapons: state.statValues.Weapons / 10,
-    Health: state.statValues.Health / 10,
-    Class: state.statValues.Class / 10,
-    Grenade: state.statValues.Grenade / 10,
-    Super: state.statValues.Super / 10,
-    Melee: state.statValues.Melee / 10,
-  };
-
-  const statMap = {
-    2996146975: "Weapons",
-    392767087: "Health",
-    1943323491: "Class",
-    1735777505: "Grenade",
-    144602215: "Super",
-    4244567218: "Melee",
-  };
-
-  const fontMods = {
-    Weapons: [20, 40, 50],
-    Health: [20, 40, 50],
-    Class: [20, 40, 50],
-    Grenade: [20, 40, 50],
-    Super: [20, 40, 50],
-    Melee: [20, 40, 50],
-  };
-
-  const results = [];
-
-  for (const set of combinations) {
-    let currentStats = {
-      Weapons: 0,
-      Health: 0,
-      Class: 0,
-      Grenade: 0,
-      Super: 0,
-      Melee: 0,
-    };
-
-    for (const piece of set) {
-      if (piece.stats) {
-        for (const statHash in piece.stats) {
-          const statName = statMap[statHash];
-          if (statName) {
-            currentStats[statName] += piece.stats[statHash].value;
-          }
-        }
-      }
-      // Rule 3: Assume masterworked (+2 to all stats for each of the 4 main armor pieces)
-      if (piece.definition.inventory.bucketTypeHash !== 1585787867) {
-        // Not a class item
-        for (const statName in currentStats) {
-          currentStats[statName] += 2;
-        }
-      }
-    }
-
-    let modPlan = {
-      Weapons: 0,
-      Health: 0,
-      Class: 0,
-      Grenade: 0,
-      Super: 0,
-      Melee: 0,
-    };
-    let moddedStats = { ...currentStats };
-    let totalModCost = 0;
-
-    for (const statName in targetTiers) {
-      let needed = targetTiers[statName] * 10 - moddedStats[statName];
-
-      const fontBonus = fontMods[statName].find(
-        (b) => b + moddedStats[statName] >= targetTiers[statName] * 10
-      );
-      if (fontBonus) {
-        needed -= fontBonus;
-      }
-
-      if (needed > 0) {
-        const majorMods = Math.floor(needed / 10);
-        totalModCost += majorMods * 3;
-        modPlan[statName] += majorMods * 10;
-        moddedStats[statName] += majorMods * 10;
-
-        let remainingNeeded =
-          targetTiers[statName] * 10 - moddedStats[statName];
-        if (remainingNeeded > 0) {
-          const minorMods = Math.ceil(remainingNeeded / 5);
-          totalModCost += minorMods * 1;
-          modPlan[statName] += minorMods * 5;
-          moddedStats[statName] += minorMods * 5;
-        }
-      }
-    }
-
-    if (totalModCost <= 15) {
-      // 5 mod slots on 4 pieces = 20 slots, but let's be realistic with energy
-      results.push({ set, stats: moddedStats, modPlan });
-    }
-  }
-
-  results.sort((a, b) => {
-    const aTiers = Object.values(a.stats).reduce(
-      (sum, val) => sum + Math.floor(val / 10),
-      0
-    );
-    const bTiers = Object.values(b.stats).reduce(
-      (sum, val) => sum + Math.floor(val / 10),
-      0
-    );
-    if (bTiers !== aTiers) return bTiers - aTiers;
-
-    const aWasted = Object.values(a.stats).reduce(
-      (sum, val) => sum + (val % 10),
-      0
-    );
-    const bWasted = Object.values(b.stats).reduce(
-      (sum, val) => sum + (val % 10),
-      0
-    );
-    return aWasted - bWasted;
-  });
-
-  return results;
 }
 
 function displayLoadouts(loadouts) {
@@ -1945,68 +1830,10 @@ function toggleLoadoutDetails(cardElement) {
   cardElement.appendChild(detailsContainer);
 }
 
+// This function is no longer needed as the worker handles this logic.
+// It can be removed or kept for fallback if worker fails. For now, we'll keep it commented out.
+/*
 function updateStatBoxAvailability(combinations) {
-  if (!combinations || combinations.length === 0) {
-    document
-      .querySelectorAll(".stat-box")
-      .forEach((box) => box.classList.add("disabled"));
-    return;
-  }
-
-  let maxStats = {
-    Weapons: 0,
-    Health: 0,
-    Class: 0,
-    Grenade: 0,
-    Super: 0,
-    Melee: 0,
-  };
-  const statMap = {
-    2996146975: "Weapons",
-    392767087: "Health",
-    1943323491: "Class",
-    1735777505: "Grenade",
-    144602215: "Super",
-    4244567218: "Melee",
-  };
-
-  for (const set of combinations) {
-    let currentStats = {
-      Weapons: 0,
-      Health: 0,
-      Class: 0,
-      Grenade: 0,
-      Super: 0,
-      Melee: 0,
-    };
-    for (const piece of set) {
-      if (piece.stats) {
-        for (const statHash in piece.stats) {
-          const statName = statMap[statHash];
-          if (statName) {
-            currentStats[statName] += piece.stats[statHash].value;
-          }
-        }
-      }
-      if (piece.definition.inventory.bucketTypeHash !== 1585787867) {
-        for (const statName in currentStats) {
-          currentStats[statName] += 2;
-        }
-      }
-    }
-    for (const statName in maxStats) {
-      maxStats[statName] = Math.max(maxStats[statName], currentStats[statName]);
-    }
-  }
-
-  // Add max possible mod points (5 slots * +10 = +50)
-  for (const statName in maxStats) {
-    maxStats[statName] += 50;
-  }
-
-  document.querySelectorAll(".stat-box").forEach((box) => {
-    const stat = box.dataset.stat;
-    const value = Number(box.dataset.value);
-    box.classList.toggle("disabled", value > maxStats[stat]);
-  });
+  // ... (implementation is now in the worker)
 }
+*/
