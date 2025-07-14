@@ -76,9 +76,7 @@
         id="characterSelector"
         class="character-selector"
         style="display: none"
-      >
-        <!-- Character emblems will be dynamically inserted here -->
-      </div>
+      ></div>
       <div class="nav-tab active" onclick="switchTab('armorDisplay')">
         Armor
       </div>
@@ -117,15 +115,11 @@
         <div class="inventory-layout">
           <div class="inventory-column">
             <h2>Character</h2>
-            <div id="character-inventories">
-              <!-- Character armor sections will be dynamically inserted here -->
-            </div>
+            <div id="character-inventories"></div>
           </div>
           <div class="inventory-column">
             <h2>Vault</h2>
-            <div id="vault-items-container">
-              <!-- Vault armor sections will be dynamically inserted here -->
-            </div>
+            <div id="vault-items-container"></div>
           </div>
         </div>
       </div>
@@ -142,9 +136,7 @@
           </div>
           <div class="exotic-selection-container">
             <h3>Exotic Selection</h3>
-            <div class="exotic-grid" id="exoticSelector">
-              <!-- Exotic icons will be dynamically inserted here -->
-            </div>
+            <div class="exotic-grid" id="exoticSelector"></div>
           </div>
         </div>
         <div class="loadout-results-container">
@@ -166,9 +158,7 @@
             id="loadoutPagination"
             class="pagination-controls"
             style="display: none"
-          >
-            <!-- Pagination controls will be inserted here -->
-          </div>
+          ></div>
         </div>
       </div>
     </div>
@@ -877,12 +867,8 @@
       </div>
     </div>
 
-    <div id="popupContainer"></div>
-
     <script src="/js/api.js"></script>
     <script src="/js/manifest.js"></script>
     <script src="/js/app.js"></script>
-    <!-- The worker script is included here but not loaded via a <script> tag.
-         The browser loads it when new Worker('js/loadout-worker.js') is called. -->
   </body>
 </html>
