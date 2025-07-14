@@ -1581,12 +1581,13 @@ async function populateExoticSelector() {
 
   // Add "No Exotic" option
   const noExoticEl = document.createElement("div");
-  noExoticEl.className = "exotic-item-icon";
+  noExoticEl.className = "exotic-item-icon selected";
   noExoticEl.dataset.hash = "none";
   noExoticEl.innerHTML = `<div class="placeholder">Ø</div>`;
   noExoticEl.title = "No Exotic";
   noExoticEl.addEventListener("click", () => selectExotic("none"));
   selector.appendChild(noExoticEl);
+  state.selectedExoticHash = null; // Default to no exotic
 
   const exoticArmor = allItems.filter(
     (item) =>
@@ -1638,10 +1639,9 @@ async function generateLoadouts() {
   }
 
   if (isWorkerBusy) {
-    console.log("Worker is busy, queuing request.");
-    // Optionally, you could implement a more robust queueing system
-    // For now, we'll just wait for the current job to finish
-    return;
+    console.log("Worker is busy, terminating previous job.");
+    loadoutWorker.terminate();
+    initLoadoutWorker();
   }
 
   const resultsGrid = document.getElementById("loadoutResultsGrid");
@@ -1697,7 +1697,6 @@ function displayLoadouts(loadouts) {
     pageItems.forEach((loadout) => {
       const card = document.createElement("div");
       card.className = "loadout-card";
-      card.loadoutData = loadout; // Attach data to the element
 
       let statsHtml = '<div class="loadout-stats">';
       for (const statName in loadout.stats) {
@@ -1708,11 +1707,7 @@ function displayLoadouts(loadouts) {
       let armorHtml = '<div class="loadout-armor">';
       loadout.set.forEach((piece) => {
         const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
-        const isMasterworked =
-          window.inventory?.itemComponents?.instances?.data?.[
-            piece.itemInstanceId
-          ]?.energy?.energyCapacity === 10;
-        armorHtml += `<div class="loadout-armor-piece ${isMasterworked ? "masterwork" : ""}">
+        armorHtml += `<div class="loadout-armor-piece">
                     <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
                     ${isExotic ? '<div class="exotic-glow"></div>' : ""}
                 </div>`;
@@ -1720,7 +1715,7 @@ function displayLoadouts(loadouts) {
       armorHtml += "</div>";
 
       card.innerHTML = statsHtml + armorHtml;
-      card.addEventListener("click", () => toggleLoadoutDetails(card));
+      card.addEventListener("click", () => showLoadoutPopup(loadout));
       resultsGrid.appendChild(card);
     });
   };
@@ -1769,71 +1764,120 @@ function displayLoadouts(loadouts) {
   setupPagination();
 }
 
-function toggleLoadoutDetails(cardElement) {
-  const existingDetails = cardElement.querySelector(".loadout-details");
-  if (existingDetails) {
-    existingDetails.remove();
-    cardElement.classList.remove("expanded");
-    return;
-  }
+async function showLoadoutPopup(loadout) {
+  const popupContainer = document.getElementById("popupContainer");
+  popupContainer.innerHTML = ""; // Clear previous popups
 
-  // Close any other expanded cards
-  document.querySelectorAll(".loadout-card.expanded").forEach((c) => {
-    c.classList.remove("expanded");
-    c.querySelector(".loadout-details")?.remove();
-  });
+  const overlay = document.createElement("div");
+  overlay.className = "loadout-popup-overlay";
 
-  cardElement.classList.add("expanded");
-  const loadout = cardElement.loadoutData;
-  const detailsContainer = document.createElement("div");
-  detailsContainer.className = "loadout-details";
+  const content = document.createElement("div");
+  content.className = "loadout-popup-content";
+
+  const closeButton = document.createElement("button");
+  closeButton.className = "loadout-popup-close";
+  closeButton.innerHTML = "&times;";
+  closeButton.onclick = () => overlay.remove();
+
+  content.innerHTML = `<h2>Loadout Details</h2>`;
+  const grid = document.createElement("div");
+  grid.className = "loadout-popup-grid";
 
   const statMap = {
-    2996146975: "Weapons",
-    392767087: "Health",
-    1943323491: "Class",
-    1735777505: "Grenade",
-    144602215: "Super",
-    4244567218: "Melee",
+    2996146975: "Mobility",
+    392767087: "Resilience",
+    1943323491: "Recovery",
+    1735777505: "Discipline",
+    144602215: "Intellect",
+    4244567218: "Strength",
   };
 
-  loadout.set.forEach((piece) => {
-    let pieceHtml = `<div class="detailed-armor-piece">
-            <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" class="detailed-armor-icon">
-            <div class="detailed-armor-info">
-                <div class="detailed-armor-name">${piece.definition.displayProperties.name}</div>
-                <div class="detailed-armor-stats">`;
+  for (const piece of loadout.set) {
+    const pieceEl = document.createElement("div");
+    pieceEl.className = "popup-armor-piece";
 
+    const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
+    let headerHTML = `
+            <div class="popup-armor-header">
+                <img class="popup-armor-icon" src="https://www.bungie.net${piece.definition.displayProperties.icon}">
+                <div class="popup-armor-name ${isExotic ? "exotic" : ""}">${piece.definition.displayProperties.name}</div>
+            </div>
+        `;
+
+    let statsHTML = '<div class="popup-armor-stats">';
     for (const statHash in piece.stats) {
-      const statName = statMap[statHash];
-      if (statName) {
-        pieceHtml += `<span>${statName.substring(0, 3)}: ${piece.stats[statHash].value}</span>`;
+      const statDef = Manifest.statHashes[statHash];
+      if (statDef) {
+        statsHTML += `<div class="popup-armor-stat"><span>${statDef}</span> <span>+${piece.stats[statHash].value}</span></div>`;
       }
     }
+    statsHTML += "</div>";
 
-    pieceHtml += `</div><div class="detailed-armor-mods">`;
-
-    for (const statName in loadout.modPlan) {
-      if (loadout.modPlan[statName] > 0) {
-        // Simplified mod display
-        if (loadout.modPlan[statName] >= 10)
-          pieceHtml += `<span class="mod-chip major">+10 ${statName}</span>`;
-        if (loadout.modPlan[statName] % 10 >= 5)
-          pieceHtml += `<span class="mod-chip minor">+5 ${statName}</span>`;
+    let modsHTML = '<div class="popup-armor-mod-slots">';
+    const socketData =
+      window.inventory.itemComponents.sockets.data[piece.itemInstanceId];
+    if (socketData && piece.definition.sockets) {
+      const armorModCategory = piece.definition.sockets.socketCategories.find(
+        (c) => c.socketCategoryHash === 4247225343
+      ); // Armor Mods category
+      if (armorModCategory) {
+        modsHTML +=
+          '<div class="mod-slot-category">Armor Mods</div><div class="mod-slots-grid">';
+        for (const socketIndex of armorModCategory.socketIndexes) {
+          const socket = socketData.sockets[socketIndex];
+          let modIcon =
+            "https://www.bungie.net/common/destiny2_content/icons/9812395292850429983a45a28bbbd01a.png"; // Default empty mod slot
+          if (socket.plugHash) {
+            const plugDef = await Manifest.getPlug(socket.plugHash);
+            if (plugDef?.displayProperties?.icon) {
+              modIcon = `https://www.bungie.net${plugDef.displayProperties.icon}`;
+            }
+          }
+          modsHTML += `<div class="mod-slot"><img src="${modIcon}"></div>`;
+        }
+        modsHTML += "</div>";
       }
     }
+    modsHTML += "</div>";
 
-    pieceHtml += `</div></div></div>`;
-    detailsContainer.innerHTML += pieceHtml;
+    pieceEl.innerHTML = headerHTML + statsHTML + modsHTML;
+    grid.appendChild(pieceEl);
+  }
+
+  let summaryHTML = `
+        <div class="loadout-popup-summary">
+            <div class="summary-total-stats">
+                <h3>Total Stats</h3>
+                <div class="loadout-stats">
+    `;
+  let totalWasted = 0;
+  for (const statName in loadout.stats) {
+    const total = loadout.stats[statName];
+    const tier = Math.floor(total / 10);
+    const wasted = total % 10;
+    totalWasted += wasted;
+    summaryHTML += `<div class="loadout-stat"><span>${statName}</span> <span>T${tier} (${total})</span></div>`;
+  }
+  summaryHTML += `<div class="loadout-stat"><span>Wasted Stats</span> <span>${totalWasted}</span></div>`;
+  summaryHTML += `</div></div>`;
+
+  summaryHTML += `<div class="summary-required-mods"><h3>Required Mods</h3><div class="loadout-stats">`;
+  for (const statName in loadout.modPlan) {
+    if (loadout.modPlan[statName] > 0) {
+      summaryHTML += `<div class="loadout-stat"><span>+${statName}</span> <span>${loadout.modPlan[statName]}</span></div>`;
+    }
+  }
+  summaryHTML += `</div></div></div>`;
+
+  content.appendChild(grid);
+  content.innerHTML += summaryHTML;
+  content.appendChild(closeButton);
+  overlay.appendChild(content);
+  popupContainer.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
   });
-
-  cardElement.appendChild(detailsContainer);
 }
-
-// This function is no longer needed as the worker handles this logic.
-// It can be removed or kept for fallback if worker fails. For now, we'll keep it commented out.
-/*
-function updateStatBoxAvailability(combinations) {
-  // ... (implementation is now in the worker)
-}
-*/
