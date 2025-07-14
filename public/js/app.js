@@ -1540,14 +1540,18 @@ function initLoadoutWorker() {
       if (type === "loadoutsGenerated") {
         // NEW: Destructure payload to get both loadouts and limits
         const { loadouts, limits } = payload;
+        hideLoadoutProgress();
         displayLoadouts(loadouts);
         updateStatButtons(limits); // NEW: Update stat buttons based on possible stats
+      } else if (type === "progress") {
+        updateLoadoutProgress(payload.progress, payload.count);
       } else if (type === "error") {
         console.error("Loadout Worker Error:", payload);
         showNotification(
           "An error occurred in the loadout generator.",
           "error"
         );
+        hideLoadoutProgress();
         const resultsGrid = document.getElementById("loadoutResultsGrid");
         resultsGrid.innerHTML =
           '<div class="empty-state">An error occurred while generating loadouts.</div>';
@@ -1557,6 +1561,7 @@ function initLoadoutWorker() {
     loadoutWorker.onerror = function (e) {
       console.error("An error occurred in the loadout worker:", e);
       showNotification("Failed to run loadout generator.", "error");
+      hideLoadoutProgress();
       const resultsGrid = document.getElementById("loadoutResultsGrid");
       resultsGrid.innerHTML =
         '<div class="empty-state">The loadout generator failed to start.</div>';
@@ -1568,6 +1573,45 @@ function initLoadoutWorker() {
       "Your browser does not support features required for the loadout builder.",
       "error"
     );
+  }
+}
+
+function showLoadoutProgress() {
+  let progressContainer = document.querySelector(".loadout-progress-container");
+  if (!progressContainer) {
+    progressContainer = document.createElement("div");
+    progressContainer.className = "loadout-progress-container";
+    progressContainer.innerHTML = `
+      <div class="loadout-progress-bar">
+        <div class="loadout-progress-fill" style="width: 0%"></div>
+      </div>
+      <div class="loadout-progress-text">Analyzing armor combinations...</div>
+    `;
+    const resultsContainer = document.querySelector(
+      ".loadout-results-container h2"
+    );
+    resultsContainer.insertAdjacentElement("afterend", progressContainer);
+  }
+  progressContainer.style.display = "block";
+}
+
+function updateLoadoutProgress(progress, count) {
+  const progressFill = document.querySelector(".loadout-progress-fill");
+  const progressText = document.querySelector(".loadout-progress-text");
+  if (progressFill) {
+    progressFill.style.width = `${progress}%`;
+  }
+  if (progressText) {
+    progressText.textContent = `Analyzing armor combinations... ${progress}% (${count} valid builds found)`;
+  }
+}
+
+function hideLoadoutProgress() {
+  const progressContainer = document.querySelector(
+    ".loadout-progress-container"
+  );
+  if (progressContainer) {
+    progressContainer.style.display = "none";
   }
 }
 

@@ -92,11 +92,11 @@ function generateLoadouts(allItems, character, state) {
               const progress = Math.floor(
                 (combinationCount / totalCombinations) * 100
               );
-              if (progress > lastProgress + 5) {
+              if (progress > lastProgress + 2) {
                 lastProgress = progress;
                 postMessage({
                   type: "progress",
-                  payload: { count: Math.min(count, 1000) },
+                  payload: { progress, count: Math.min(count, 1000) },
                 });
               }
 
@@ -128,7 +128,7 @@ function generateLoadouts(allItems, character, state) {
                 if (count >= 1000) {
                   postMessage({
                     type: "progress",
-                    payload: { count: 1000 },
+                    payload: { progress: 100, count: 1000 },
                   });
                   break;
                 }
