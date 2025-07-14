@@ -88,57 +88,40 @@
       <div class="nav-tab" onclick="switchTab('build')">Build Info</div>
     </div>
 
-    <div id="armorDisplay" class="content-section active">
-      <div class="armor-display-container">
-        <div class="armor-filters">
-          <input
-            type="text"
-            id="armorSearchInput"
-            placeholder="Search armor..."
-            class="armor-search"
-          />
-          <select id="armorClassFilter" class="filter-select">
-            <option value="all">All Classes</option>
-            <option value="0">Titan</option>
-            <option value="1">Hunter</option>
-            <option value="2">Warlock</option>
-          </select>
-          <select id="armorSlotFilter" class="filter-select">
-            <option value="all">All Slots</option>
-            <option value="3448274439">Helmet</option>
-            <option value="3551918588">Gauntlets</option>
-            <option value="14239492">Chest</option>
-            <option value="20886954">Legs</option>
-            <option value="1585787867">Class Item</option>
-          </select>
+    <div id="armorDisplay" class="content-section">
+      <div class="armor-filters">
+        <select id="armorClassFilter">
+          <option value="all">All Classes</option>
+          <option value="0">Titan</option>
+          <option value="1">Hunter</option>
+          <option value="2">Warlock</option>
+        </select>
+
+        <select id="armorSlotFilter">
+          <option value="all">All Slots</option>
+          <option value="3448274439">Helmet</option>
+          <option value="3551918588">Gauntlets</option>
+          <option value="14239492">Chest</option>
+          <option value="20886954">Legs</option>
+          <option value="1585787867">Class Item</option>
+        </select>
+
+        <input
+          type="text"
+          id="armorSearchInput"
+          placeholder="Search Armor..."
+        />
+      </div>
+
+      <div class="inventory-layout">
+        <div class="inventory-column">
+          <h2>Character</h2>
+          <div id="character-inventories"></div>
         </div>
-        <div class="inventory-layout">
-          <div class="inventory-column">
-            <h2>Character</h2>
-            <div id="character-inventories" class="armor-grid"></div>
-            <div
-              id="armorPagination"
-              class="pagination-controls"
-              style="display: none"
-            >
-              <button id="armorPrevPage">Previous</button>
-              <span id="armorPageInfo"></span>
-              <button id="armorNextPage">Next</button>
-            </div>
-          </div>
-          <div class="inventory-column">
-            <h2>Vault</h2>
-            <div id="vault-items-container" class="armor-grid"></div>
-            <div
-              id="vaultPagination"
-              class="pagination-controls"
-              style="display: none"
-            >
-              <button id="vaultPrevPage">Previous</button>
-              <span id="vaultPageInfo"></span>
-              <button id="vaultNextPage">Next</button>
-            </div>
-          </div>
+
+        <div class="inventory-column">
+          <h2>Vault</h2>
+          <div id="vault-items-container"></div>
         </div>
       </div>
     </div>

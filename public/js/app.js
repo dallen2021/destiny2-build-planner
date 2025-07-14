@@ -251,7 +251,7 @@ const exoticClassItemCombinations = {
   },
 };
 
-/* ------------------- GLOBAL STATE ------------------- */
+/* ---------------- GLOBAL STATE ------------------- */
 let selectedMods = new Set();
 let columnCounts = [0, 0, 0, 0, 0];
 let activeElementFilters = new Set();
@@ -693,11 +693,16 @@ let filteredArmorItems = [];
 let filteredVaultItems = [];
 let armorLoaded = false;
 let armorLoading = false;
-let armorCurrentPage = 1;
-const armorItemsPerPage = 20;
-let vaultCurrentPage = 1;
-const vaultItemsPerPage = 20;
 let classDefinitions = {};
+
+const bucketOrder = [3448274439, 3551918588, 14239492, 20886954, 1585787867];
+const bucketNames = {
+  3448274439: "Helmets",
+  3551918588: "Gauntlets",
+  14239492: "Chest Armor",
+  20886954: "Leg Armor",
+  1585787867: "Class Items",
+};
 
 function combineInventoryItems(inventoryData) {
   console.log("=== COMBINING INVENTORY ITEMS ===");
@@ -720,7 +725,7 @@ function combineInventoryItems(inventoryData) {
     const vaultItems = inventoryData.profileInventory.data.items.map(
       (item) => ({
         ...item,
-        location: 2, // Vault location
+        location: "vault", // Vault location
       })
     );
 
@@ -742,7 +747,7 @@ function combineInventoryItems(inventoryData) {
           // Add location property to character inventory items
           const charItems = inv.items.map((item) => ({
             ...item,
-            location: 1, // Character inventory location
+            location: "character", // Character inventory location
             characterId: charId,
           }));
           all = all.concat(charItems);
@@ -768,7 +773,7 @@ function combineInventoryItems(inventoryData) {
           // Add location property to equipped items
           const equipItems = equip.items.map((item) => ({
             ...item,
-            location: 1, // Character location (equipped)
+            location: "character", // Character location (equipped)
             characterId: charId,
             isEquipped: true,
           }));
@@ -850,7 +855,7 @@ async function loadArmorInventory() {
     });
 
     // Log some vault items to see what they are
-    const vaultItems = allItems.filter((item) => item.location === 2);
+    const vaultItems = allItems.filter((item) => item.location === "vault");
     console.log(`Vault items after processing: ${vaultItems.length}`);
     if (vaultItems.length > 0) {
       console.log("Sample vault items (first 10):");
@@ -904,15 +909,36 @@ function displayCharacterItems(items) {
 
   charactersContainer.innerHTML = "";
 
-  const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
+  bucketOrder.forEach((bucketHash) => {
+    const bucketItems = items.filter((item) => item.bucketHash === bucketHash);
+    if (bucketItems.length === 0) return;
 
-  items.forEach((item) => {
-    const itemElement = createUniversalItemElement(item);
-    itemsGrid.appendChild(itemElement);
+    const typeDiv = document.createElement("div");
+    typeDiv.className = "armor-type";
+
+    typeDiv.innerHTML = `<h3>${bucketNames[bucketHash]}</h3>`;
+
+    const grid = document.createElement("div");
+    grid.className = "armor-grid character-grid";
+
+    // Find equipped
+    let equippedIndex = bucketItems.findIndex((item) => item.isEquipped);
+    let equipped = null;
+    if (equippedIndex !== -1) {
+      equipped = bucketItems.splice(equippedIndex, 1)[0];
+      const elem = createUniversalItemElement(equipped);
+      elem.classList.add("equipped");
+      grid.appendChild(elem);
+    }
+
+    // Remaining inventory items (assume API order is in-game order)
+    bucketItems.forEach((item) => {
+      grid.appendChild(createUniversalItemElement(item));
+    });
+
+    typeDiv.appendChild(grid);
+    charactersContainer.appendChild(typeDiv);
   });
-
-  charactersContainer.appendChild(itemsGrid);
 }
 
 function displayVaultItems(items) {
@@ -925,13 +951,35 @@ function displayVaultItems(items) {
   }
 
   vaultContainer.innerHTML = "";
-  const itemsGrid = document.createElement("div");
-  itemsGrid.className = "armor-grid";
-  items.forEach((item) => {
-    const itemElement = createUniversalItemElement(item);
-    itemsGrid.appendChild(itemElement);
+
+  bucketOrder.forEach((bucketHash) => {
+    let bucketItems = items.filter((item) => item.bucketHash === bucketHash);
+    if (bucketItems.length === 0) return;
+
+    // Sort: exotics high to low power, then legendaries high to low
+    const exotics = bucketItems
+      .filter((item) => item.definition.inventory.tierTypeHash === 2759492381)
+      .sort((a, b) => b.power - a.power);
+    const legendaries = bucketItems
+      .filter((item) => item.definition.inventory.tierTypeHash === 4008398120)
+      .sort((a, b) => b.power - a.power);
+    bucketItems = [...exotics, ...legendaries];
+
+    const typeDiv = document.createElement("div");
+    typeDiv.className = "vault-type";
+
+    typeDiv.innerHTML = `<h3>${bucketNames[bucketHash]}</h3>`;
+
+    const flex = document.createElement("div");
+    flex.className = "armor-grid vault-flex";
+
+    bucketItems.forEach((item) => {
+      flex.appendChild(createUniversalItemElement(item));
+    });
+
+    typeDiv.appendChild(flex);
+    vaultContainer.appendChild(typeDiv);
   });
-  vaultContainer.appendChild(itemsGrid);
 }
 
 function getCharacterName(characterId) {
@@ -1085,76 +1133,6 @@ function displayNoArmorMessage(
   }
 }
 
-function updateArmorPagination(totalPages) {
-  const info = document.getElementById("armorPageInfo");
-  const prev = document.getElementById("armorPrevPage");
-  const next = document.getElementById("armorNextPage");
-  const container = document.getElementById("armorPagination");
-  if (!info || !prev || !next || !container) return;
-
-  info.textContent = `Page ${armorCurrentPage} of ${totalPages}`;
-  prev.disabled = armorCurrentPage <= 1;
-  next.disabled = armorCurrentPage >= totalPages;
-  container.style.display = totalPages > 1 ? "flex" : "none";
-}
-
-function updateVaultPagination(totalPages) {
-  const info = document.getElementById("vaultPageInfo");
-  const prev = document.getElementById("vaultPrevPage");
-  const next = document.getElementById("vaultNextPage");
-  const container = document.getElementById("vaultPagination");
-  if (!info || !prev || !next || !container) return;
-
-  info.textContent = `Page ${vaultCurrentPage} of ${totalPages}`;
-  prev.disabled = vaultCurrentPage <= 1;
-  next.disabled = vaultCurrentPage >= totalPages;
-  container.style.display = totalPages > 1 ? "flex" : "none";
-}
-
-function renderArmorPage() {
-  const totalPages =
-    Math.ceil(filteredArmorItems.length / armorItemsPerPage) || 1;
-  if (armorCurrentPage > totalPages) armorCurrentPage = totalPages;
-  if (armorCurrentPage < 1) armorCurrentPage = 1;
-  const start = (armorCurrentPage - 1) * armorItemsPerPage;
-  const end = start + armorItemsPerPage;
-  const pageItems = filteredArmorItems.slice(start, end);
-  displayCharacterItems(pageItems);
-  updateArmorPagination(totalPages);
-}
-
-function renderVaultPage() {
-  const totalPages =
-    Math.ceil(filteredVaultItems.length / vaultItemsPerPage) || 1;
-  if (vaultCurrentPage > totalPages) vaultCurrentPage = totalPages;
-  if (vaultCurrentPage < 1) vaultCurrentPage = 1;
-  const start = (vaultCurrentPage - 1) * vaultItemsPerPage;
-  const end = start + vaultItemsPerPage;
-  const pageItems = filteredVaultItems.slice(start, end);
-  displayVaultItems(pageItems);
-  updateVaultPagination(totalPages);
-}
-
-function goToNextArmorPage() {
-  armorCurrentPage++;
-  renderArmorPage();
-}
-
-function goToPrevArmorPage() {
-  armorCurrentPage--;
-  renderArmorPage();
-}
-
-function goToNextVaultPage() {
-  vaultCurrentPage++;
-  renderVaultPage();
-}
-
-function goToPrevVaultPage() {
-  vaultCurrentPage--;
-  renderVaultPage();
-}
-
 function setupArmorFilters() {
   // Check if already set up
   const searchInput = document.getElementById("armorSearchInput");
@@ -1183,28 +1161,6 @@ function setupArmorFilters() {
   if (slotFilter && !slotFilter.dataset.initialized) {
     slotFilter.addEventListener("change", () => applyArmorFilters());
     slotFilter.dataset.initialized = "true";
-  }
-
-  const prev = document.getElementById("armorPrevPage");
-  const next = document.getElementById("armorNextPage");
-  if (prev && !prev.dataset.initialized) {
-    prev.addEventListener("click", () => goToPrevArmorPage());
-    prev.dataset.initialized = "true";
-  }
-  if (next && !next.dataset.initialized) {
-    next.addEventListener("click", () => goToNextArmorPage());
-    next.dataset.initialized = "true";
-  }
-
-  const vaultPrev = document.getElementById("vaultPrevPage");
-  const vaultNext = document.getElementById("vaultNextPage");
-  if (vaultPrev && !vaultPrev.dataset.initialized) {
-    vaultPrev.addEventListener("click", () => goToPrevVaultPage());
-    vaultPrev.dataset.initialized = "true";
-  }
-  if (vaultNext && !vaultNext.dataset.initialized) {
-    vaultNext.addEventListener("click", () => goToNextVaultPage());
-    vaultNext.dataset.initialized = "true";
   }
 }
 
@@ -1255,19 +1211,12 @@ function applyArmorFilters() {
 
     // Slot filter
     if (slotValue !== "all") {
-      if (item.location === 2) {
-        // Vault
-        if (item.definition?.inventory?.bucketTypeHash != parseInt(slotValue)) {
-          return;
-        }
-      } else {
-        if (item.bucketHash !== parseInt(slotValue)) {
-          return;
-        }
+      if (item.bucketHash !== parseInt(slotValue)) {
+        return;
       }
     }
 
-    if (item.location === 2) {
+    if (item.location === "vault") {
       vaultItems.push(item);
     } else {
       // Filter character items by selected character
@@ -1282,12 +1231,10 @@ function applyArmorFilters() {
   );
 
   filteredArmorItems = characterItems;
-  armorCurrentPage = 1;
-  renderArmorPage();
+  displayCharacterItems(filteredArmorItems);
 
   filteredVaultItems = vaultItems;
-  vaultCurrentPage = 1;
-  renderVaultPage();
+  displayVaultItems(filteredVaultItems);
 }
 
 async function refreshData() {
@@ -1386,7 +1333,7 @@ window.debugInventory = async function () {
 window.debugVault = function () {
   console.log("=== VAULT DEBUG ===");
 
-  const vaultItems = allItems.filter((item) => item.location === 2);
+  const vaultItems = allItems.filter((item) => item.location === "vault");
   console.log(`Total vault items: ${vaultItems.length}`);
 
   // Group by item type
