@@ -1661,21 +1661,21 @@ async function populateExoticSelector() {
   });
 }
 
-function selectExotic(hash) {
-  if (state.selectedExoticHash === hash) return;
+async function selectExotic(hash) {
+  // if (state.selectedExoticHash === hash) return; // Allow re-selecting 'none'
   state.selectedExoticHash = hash === "none" ? null : hash;
+
+  // Update visual selection
   document.querySelectorAll(".exotic-item-icon").forEach((el) => {
-    el.classList.toggle("selected", el.dataset.hash === hash);
+    el.classList.toggle("selected", el.dataset.hash === String(hash));
   });
+
   if (loadoutWorker && armorLoaded) {
     showLoading(true);
+    const character = charactersData[currentCharacterId];
     loadoutWorker.postMessage({
       type: "precompute",
-      payload: {
-        allItems,
-        character: charactersData[currentCharacterId],
-        state,
-      },
+      payload: { allItems, character, state },
     });
   }
   debouncedGenerateLoadouts();
@@ -1772,16 +1772,10 @@ function displayLoadouts(loadouts) {
       const card = document.createElement("div");
       card.className = "loadout-card";
 
-      let statsHtml = '<div class="loadout-stats">';
-      for (const statName in loadout.stats) {
-        statsHtml += `<div class="loadout-stat"><span class="stat-name">${statName}</span> <span class="stat-value">${loadout.stats[statName]} (T${Math.floor(loadout.stats[statName] / 10)})</span></div>`;
-      }
-      statsHtml += "</div>";
-
+      // Armor icons first
       let armorHtml = '<div class="loadout-armor">';
       loadout.set.forEach((piece) => {
         const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
-        // FIX: Corrected the image src URL format.
         armorHtml += `<div class="loadout-armor-piece">
                     <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
                     ${isExotic ? '<div class="exotic-glow"></div>' : ""}
@@ -1789,7 +1783,30 @@ function displayLoadouts(loadouts) {
       });
       armorHtml += "</div>";
 
-      card.innerHTML = statsHtml + armorHtml;
+      // Then stats in two columns
+      let statsHtml = '<div class="loadout-stats-grid">';
+      const statNames = Object.keys(loadout.stats);
+      const mid = Math.ceil(statNames.length / 2);
+
+      // Column 1
+      statsHtml += '<div class="loadout-stats-col">';
+      for (let i = 0; i < mid; i++) {
+        const statName = statNames[i];
+        statsHtml += `<div class="loadout-stat"><span class="stat-name">${statName}</span> <span class="stat-value">${loadout.stats[statName]} (T${Math.floor(loadout.stats[statName] / 10)})</span></div>`;
+      }
+      statsHtml += "</div>";
+
+      // Column 2
+      statsHtml += '<div class="loadout-stats-col">';
+      for (let i = mid; i < statNames.length; i++) {
+        const statName = statNames[i];
+        statsHtml += `<div class="loadout-stat"><span class="stat-name">${statName}</span> <span class="stat-value">${loadout.stats[statName]} (T${Math.floor(loadout.stats[statName] / 10)})</span></div>`;
+      }
+      statsHtml += "</div>";
+
+      statsHtml += "</div>";
+
+      card.innerHTML = armorHtml + statsHtml;
       resultsGrid.appendChild(card);
     });
   };
