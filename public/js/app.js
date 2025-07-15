@@ -1049,6 +1049,10 @@ function buildStatBoxes(stat) {
 }
 
 function onStatBoxClick(e) {
+  // FIX: Prevent clicking on disabled (grayed-out) boxes.
+  if (e.currentTarget.classList.contains("disabled")) {
+    return;
+  }
   const stat = e.currentTarget.dataset.stat;
   const val = Number(e.currentTarget.dataset.value);
   state.statValues[stat] = val;
@@ -1777,8 +1781,9 @@ function displayLoadouts(loadouts) {
       let armorHtml = '<div class="loadout-armor">';
       loadout.set.forEach((piece) => {
         const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
+        // FIX: Corrected the image src URL format.
         armorHtml += `<div class="loadout-armor-piece">
-                    <img src="[https://www.bungie.net](https://www.bungie.net)${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
+                    <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
                     ${isExotic ? '<div class="exotic-glow"></div>' : ""}
                 </div>`;
       });
