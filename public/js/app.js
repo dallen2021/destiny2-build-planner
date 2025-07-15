@@ -514,6 +514,7 @@ async function selectCharacter(characterId) {
   const character = charactersData[characterId];
   if (character) {
     const className = getClassName(character.classType);
+    console.log(`Swapped to character: ${characterId} (${className})`);
     const username = document.getElementById("username");
     const sideMenuUsername = document.getElementById("sideMenuUsername");
 
@@ -1701,6 +1702,7 @@ async function populateExoticSelector() {
 async function selectExotic(hash) {
   // if (state.selectedExoticHash === hash) return; // Allow re-selecting 'none'
   state.selectedExoticHash = hash === "none" ? null : hash;
+  console.log(`Selected exotic with hash: ${hash}`);
 
   // Update visual selection
   document.querySelectorAll(".exotic-item-icon").forEach((el) => {
@@ -1729,7 +1731,9 @@ async function generateLoadouts() {
   }
 
   if (isWorkerBusy) {
-    console.log("Worker is busy, terminating previous job.");
+    console.log(
+      "Worker is busy, terminating previous job and starting a new one."
+    );
     loadoutWorker.terminate();
     initLoadoutWorker();
   }
@@ -1738,6 +1742,7 @@ async function generateLoadouts() {
   const resultsGrid = document.getElementById("loadoutResultsGrid");
   resultsGrid.innerHTML = ""; // Clear previous results
   isWorkerBusy = true;
+  console.log("Starting new loadout generation process...");
 
   progressByClass = {}; // Reset on new generation
 

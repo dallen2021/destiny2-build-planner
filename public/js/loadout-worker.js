@@ -17,6 +17,7 @@ let precomputedDistributions = [];
  * Entry point for the worker
  */
 onmessage = function (e) {
+  console.log("Loadout worker received message:", e.data.type);
   const { type, payload } = e.data;
 
   if (type === "precompute") {
@@ -45,6 +46,7 @@ onmessage = function (e) {
     const { loadouts, limits } = generateLoadouts(allItems, character, state);
 
     // Send the results back to the main thread
+    console.log(`Worker found ${loadouts.length} valid loadouts.`);
     postMessage({ type: "loadoutsGenerated", payload: { loadouts, limits } });
   }
 };
@@ -141,6 +143,14 @@ function prepareArmorPieces(allItems, character, state) {
     }
   }
 
+  console.log("Prepared armor pieces for loadout generation:", {
+    helmets: armorPieces.helmet.length,
+    gauntlets: armorPieces.gauntlets.length,
+    chests: armorPieces.chest.length,
+    legs: armorPieces.legs.length,
+    classItems: armorPieces.classItem.length,
+  });
+
   return armorPieces;
 }
 
@@ -212,6 +222,7 @@ function generateLoadouts(allItems, character, state) {
       armorPieces.chest.length *
       armorPieces.legs.length *
       armorPieces.classItem.length;
+    console.log(`Estimated total combinations: ${totalCombos}`);
     let combinationCount = 0;
     postMessage({
       type: "progress",
