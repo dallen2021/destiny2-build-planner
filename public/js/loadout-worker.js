@@ -317,7 +317,6 @@ function addArrays(a, b) {
   return result;
 }
 
-/** Compute max per stat for a slot (array of maxes) */
 function computeMaxPerSlot(armorPieces) {
   const maxPerSlot = {};
   for (const slot in armorPieces) {
@@ -327,18 +326,20 @@ function computeMaxPerSlot(armorPieces) {
         if (piece.contrib[i] > maxStats[i]) maxStats[i] = piece.contrib[i];
       }
     }
-    maxPerSlot[slot] = maxStats.reduce((a, b) => a + b, 0); // For pruning, use sum or per-stat max
+    maxPerSlot[slot] = maxStats; // Array now
   }
   return maxPerSlot;
 }
 
-/** Pruning check: Can partial + max_remaining reach all targets - 50? */
-function canReachTarget(partial, targetPoints, maxRemainingSum) {
+// In canReachTarget, sum per-stat max from remaining slots
+function canReachTarget(partial, targetPoints, maxRemaining) {
+  // maxRemaining is now array sum of remaining slots' maxStats
   for (let i = 0; i < 6; i++) {
-    if (partial[i] + maxRemainingSum < targetPoints[i] - 50) return false;
+    if (partial[i] + maxRemaining[i] < targetPoints[i] - 50) return false;
   }
   return true;
 }
+// When calling, precompute summed max for each partial (e.g., for partial1: sum max.gauntlets[i] + max.chest[i] + ... for each i)
 
 /**
  * Evaluates a single loadout combination using array-based stats
