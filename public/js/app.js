@@ -1886,7 +1886,7 @@ function displayLoadouts(loadouts) {
  * Shows a detailed modal popup for a loadout
  * @param {Object} loadout - The loadout object containing armor set and stats
  */
-function showLoadoutModal(loadout) {
+async function showLoadoutModal(loadout) {
   // Remove any existing modal
   const existingModal = document.querySelector(".loadout-modal-overlay");
   if (existingModal) {
@@ -1912,6 +1912,37 @@ function showLoadoutModal(loadout) {
   // Modal content
   const content = document.createElement("div");
   content.className = "loadout-modal-content";
+
+  // Show loading while fetching mod definitions
+  content.innerHTML =
+    '<div style="text-align: center; padding: 40px;">Loading mod details...</div>';
+
+  // Assemble modal temporarily
+  modal.appendChild(header);
+  modal.appendChild(content);
+  modalOverlay.appendChild(modal);
+  document.body.appendChild(modalOverlay);
+
+  // Collect all unique mod hashes
+  const modHashes = new Set();
+  loadout.set.forEach((piece) => {
+    const sockets = piece.sockets || [];
+    sockets.forEach((socket, index) => {
+      if (index >= 2 && socket.plugHash && socket.isEnabled !== false) {
+        modHashes.add(socket.plugHash);
+      }
+    });
+  });
+
+  // Fetch mod definitions
+  let modDefinitions = {};
+  if (modHashes.size > 0) {
+    try {
+      modDefinitions = await Manifest.getItems([...modHashes]);
+    } catch (error) {
+      console.error("Failed to fetch mod definitions:", error);
+    }
+  }
 
   // Armor showcase section
   let armorShowcaseHtml = '<div class="loadout-armor-showcase">';
@@ -2023,17 +2054,36 @@ function showLoadoutModal(loadout) {
       }
     });
 
-    // Display found mods
-    modSockets.slice(0, 3).forEach((socket) => {
+    // Display found mods with names
+    modSockets.slice(0, 5).forEach((socket) => {
+      const modDef = modDefinitions[socket.plugHash];
+      const modName = modDef?.displayProperties?.name || `Unknown Mod`;
+
+      // Skip empty mod slots, default plugs, or deprecated mods
+      if (
+        modName.toLowerCase().includes("empty") ||
+        modName.toLowerCase().includes("default") ||
+        modName.toLowerCase().includes("no mod") ||
+        modName.toLowerCase().includes("deprecated") ||
+        modName === "Unknown Mod"
+      ) {
+        return;
+      }
+
+      // Clean up mod names
+      const cleanModName = modName
+        .replace(/\s+Mod$/i, "") // Remove trailing "Mod"
+        .replace(/^Armor\s+/i, ""); // Remove leading "Armor"
+
       detailSectionsHtml += `
-        <div class="mod-slot filled">
-          <div class="mod-hash">Mod #${socket.plugHash}</div>
+        <div class="mod-slot filled" title="${modDef?.displayProperties?.description || ""}">
+          <div class="mod-name">${cleanModName}</div>
         </div>
       `;
       modCount++;
     });
 
-    // Fill empty mod slots
+    // Fill empty mod slots if less than 3 mods
     while (modCount < 3) {
       detailSectionsHtml += `
         <div class="mod-slot empty">Empty Slot</div>
@@ -2046,14 +2096,8 @@ function showLoadoutModal(loadout) {
 
   detailSectionsHtml += "</div></div></div>";
 
-  // Combine all HTML
+  // Update content with all HTML
   content.innerHTML = armorShowcaseHtml + totalStatsHtml + detailSectionsHtml;
-
-  // Assemble modal
-  modal.appendChild(header);
-  modal.appendChild(content);
-  modalOverlay.appendChild(modal);
-  document.body.appendChild(modalOverlay);
 
   // Add close functionality
   const closeBtn = modal.querySelector(".loadout-modal-close");
