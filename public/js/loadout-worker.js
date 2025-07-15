@@ -9,6 +9,7 @@ const STAT_HASHES = [
 ];
 const CLASS_ITEM_BUCKET = 1585787867;
 const MAX_COMBOS_WARNING = 5000000; // Warn if >5M combos
+const MAX_DISPLAY_COMBOS = 100000; // Cap for progress display
 
 let precomputedDistributions = [];
 
@@ -216,7 +217,7 @@ function generateLoadouts(allItems, character, state) {
       type: "progress",
       payload: {
         current: 0,
-        total: totalCombos,
+        total: Math.min(totalCombos, MAX_DISPLAY_COMBOS),
         classType: character.classType,
       },
     }); // Initial progress
@@ -281,14 +282,15 @@ function generateLoadouts(allItems, character, state) {
               }
 
               combinationCount++;
-              if (combinationCount % 100000 === 0) {
+              if (combinationCount % 1000 === 0) {
                 postMessage({
                   type: "progress",
                   payload: {
                     current: combinationCount,
-                    total: totalCombos,
+                    total: Math.min(totalCombos, MAX_DISPLAY_COMBOS),
                     percentage: (
-                      (combinationCount / totalCombos) *
+                      (combinationCount /
+                        Math.min(totalCombos, MAX_DISPLAY_COMBOS)) *
                       100
                     ).toFixed(2),
                     classType: character.classType,
@@ -306,7 +308,7 @@ function generateLoadouts(allItems, character, state) {
       type: "progress",
       payload: {
         current: combinationCount,
-        total: totalCombos,
+        total: Math.min(totalCombos, MAX_DISPLAY_COMBOS),
         percentage: 100,
         classType: character.classType,
       },
@@ -336,8 +338,8 @@ function generateLoadouts(allItems, character, state) {
     });
 
     // Limit to 100,000 loadouts
-    if (validLoadouts.length > 100000) {
-      validLoadouts = validLoadouts.slice(0, 100000);
+    if (validLoadouts.length > MAX_DISPLAY_COMBOS) {
+      validLoadouts = validLoadouts.slice(0, MAX_DISPLAY_COMBOS);
     }
 
     // Calculate stat limits (using precomputed distributions)
