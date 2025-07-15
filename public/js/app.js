@@ -290,6 +290,9 @@ const bucketOrder = [
 ];
 // --- END: NEW CONSTANT FOR ARMOR ORDER ---
 
+// Add this global variable for tracking progress per class
+let progressByClass = {}; // { classType: { current, total, percentage } }
+
 window.addEventListener("DOMContentLoaded", async () => {
   console.log("DOM Content Loaded - initializing app");
 
@@ -1563,7 +1566,7 @@ function initLoadoutWorker() {
         const { loadouts } = payload;
         hideLoadingIndicator();
         displayLoadouts(loadouts);
-        updateDynamicLimits(); // Moved here as per your code
+        updateDynamicLimits();
       } else if (type === "error") {
         console.error("Loadout Worker Error:", payload);
         showNotification(
@@ -1578,6 +1581,10 @@ function initLoadoutWorker() {
         precomputedDistributions = payload.distributions;
         showLoading(false); // Fixed: Use showLoading(false) instead of hideLoading()
         updateDynamicLimits();
+      } else if (type === "progress") {
+        const { current, total, percentage, classType } = payload;
+        progressByClass[classType] = { current, total, percentage };
+        updateProgressDisplay();
       }
       isWorkerBusy = false;
     };
@@ -1597,6 +1604,32 @@ function initLoadoutWorker() {
       "error"
     );
   }
+}
+
+// New function to update visual progress
+function updateProgressDisplay() {
+  const progressText = document.getElementById("progress-text");
+  if (!progressText) {
+    // Dynamically add if not present
+    const indicator = document.getElementById("loading-indicator");
+    if (indicator) {
+      const textEl = document.createElement("span");
+      textEl.id = "progress-text";
+      indicator.appendChild(textEl);
+    } else {
+      return;
+    }
+  }
+
+  let displayStr = "";
+  Object.entries(progressByClass).forEach(([classType, prog]) => {
+    const className = getClassName(classType); // Use existing getClassName function
+    displayStr += `${className}: ${prog.current} / ${prog.total} (${prog.percentage}%) | `;
+  });
+
+  document.getElementById("progress-text").textContent = displayStr
+    .trim()
+    .slice(0, -1); // Remove trailing |
 }
 
 function showLoadingIndicator() {
@@ -1705,6 +1738,8 @@ async function generateLoadouts() {
   const resultsGrid = document.getElementById("loadoutResultsGrid");
   resultsGrid.innerHTML = ""; // Clear previous results
   isWorkerBusy = true;
+
+  progressByClass = {}; // Reset on new generation
 
   try {
     const character = charactersData[currentCharacterId];

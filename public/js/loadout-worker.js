@@ -210,6 +210,16 @@ function generateLoadouts(allItems, character, state) {
       armorPieces.chest.length *
       armorPieces.legs.length *
       armorPieces.classItem.length;
+    let combinationCount = 0;
+    postMessage({
+      type: "progress",
+      payload: {
+        current: 0,
+        total: totalCombos,
+        classType: character.classType,
+      },
+    }); // Initial progress
+
     if (totalCombos > MAX_COMBOS_WARNING) {
       console.warn(
         `Large inventory: ${totalCombos} combinations. May take time. Consider selecting an exotic to reduce.`
@@ -268,11 +278,38 @@ function generateLoadouts(allItems, character, state) {
               if (result) {
                 validLoadouts.push(result);
               }
+
+              combinationCount++;
+              if (combinationCount % 100000 === 0) {
+                postMessage({
+                  type: "progress",
+                  payload: {
+                    current: combinationCount,
+                    total: totalCombos,
+                    percentage: (
+                      (combinationCount / totalCombos) *
+                      100
+                    ).toFixed(2),
+                    classType: character.classType,
+                  },
+                });
+              }
             }
           }
         }
       }
     }
+
+    // Final progress
+    postMessage({
+      type: "progress",
+      payload: {
+        current: combinationCount,
+        total: totalCombos,
+        percentage: 100,
+        classType: character.classType,
+      },
+    });
 
     // Sort loadouts (unchanged)
     validLoadouts.sort((a, b) => {
