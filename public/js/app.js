@@ -271,6 +271,16 @@ const state = {
   selectedExoticHash: null,
 };
 
+// Stat hash constants for armor stats
+const STAT_HASHES = [
+  2996146975, // Mobility/Weapons
+  392767087, // Resilience/Health
+  1943323491, // Recovery/Class
+  1735777505, // Discipline/Grenade
+  144602215, // Intellect/Super
+  4244567218, // Strength/Melee
+];
+
 /* -------- NEW: WEB WORKER FOR LOADOUTS -------- */
 let loadoutWorker;
 let isWorkerBusy = false;
@@ -1820,6 +1830,10 @@ function displayLoadouts(loadouts) {
       statsHtml += "</div>";
 
       card.innerHTML = armorHtml + statsHtml;
+
+      // Add click handler to show detailed modal
+      card.addEventListener("click", () => showLoadoutModal(loadout));
+
       resultsGrid.appendChild(card);
     });
   };
@@ -1866,6 +1880,216 @@ function displayLoadouts(loadouts) {
 
   renderPage();
   setupPagination();
+}
+
+/**
+ * Shows a detailed modal popup for a loadout
+ * @param {Object} loadout - The loadout object containing armor set and stats
+ */
+function showLoadoutModal(loadout) {
+  // Remove any existing modal
+  const existingModal = document.querySelector(".loadout-modal-overlay");
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  // Create modal overlay
+  const modalOverlay = document.createElement("div");
+  modalOverlay.className = "loadout-modal-overlay";
+
+  // Create modal content
+  const modal = document.createElement("div");
+  modal.className = "loadout-modal";
+
+  // Modal header
+  const header = document.createElement("div");
+  header.className = "loadout-modal-header";
+  header.innerHTML = `
+    <h2 class="loadout-modal-title">Loadout Details</h2>
+    <button class="loadout-modal-close">&times;</button>
+  `;
+
+  // Modal content
+  const content = document.createElement("div");
+  content.className = "loadout-modal-content";
+
+  // Armor showcase section
+  let armorShowcaseHtml = '<div class="loadout-armor-showcase">';
+  loadout.set.forEach((piece) => {
+    const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
+    const power = piece.power || 0;
+    const bucketName = getBucketName(piece.definition.inventory.bucketTypeHash);
+
+    armorShowcaseHtml += `
+      <div class="loadout-armor-showcase-item ${isExotic ? "exotic" : ""}">
+        <div class="loadout-armor-icon-large">
+          <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" 
+               alt="${piece.definition.displayProperties.name}">
+          ${isExotic ? '<span class="exotic-badge">Exotic</span>' : ""}
+        </div>
+        <div class="loadout-armor-name">${piece.definition.displayProperties.name}</div>
+        <div class="loadout-armor-type">${bucketName}</div>
+        <div class="loadout-armor-power">${power}</div>
+      </div>
+    `;
+  });
+  armorShowcaseHtml += "</div>";
+
+  // Total stats section
+  let totalStatsHtml = `
+    <div class="loadout-total-stats">
+      <h3>Total Stats Distribution</h3>
+      <div class="total-stats-grid">
+  `;
+
+  Object.entries(loadout.stats).forEach(([statName, value]) => {
+    const tier = Math.floor(value / 10);
+    totalStatsHtml += `
+      <div class="total-stat-item">
+        <div class="total-stat-name">${statName}</div>
+        <div class="total-stat-value">${value}</div>
+        <div class="total-stat-tier">Tier ${tier}</div>
+      </div>
+    `;
+  });
+
+  totalStatsHtml += "</div></div>";
+
+  // Detail sections container
+  let detailSectionsHtml = '<div class="loadout-detail-sections">';
+
+  // Individual armor stats section
+  detailSectionsHtml += `
+    <div class="loadout-detail-section">
+      <h3>Individual Armor Stats</h3>
+      <div class="armor-stats-grid">
+  `;
+
+  loadout.set.forEach((piece) => {
+    const bucketName = getBucketName(piece.definition.inventory.bucketTypeHash);
+    detailSectionsHtml += `
+      <div class="armor-stat-item">
+        <h4>${bucketName}</h4>
+        <div class="armor-stat-values">
+    `;
+
+    // Get stats for this piece
+    ["Weapons", "Health", "Class", "Grenade", "Super", "Melee"].forEach(
+      (statName, index) => {
+        const statHash = STAT_HASHES[index];
+        const statValue = piece.stats?.[statHash]?.value || 0;
+        const statAbbr = statName.substring(0, 3);
+
+        detailSectionsHtml += `
+        <div class="mini-stat">
+          <div class="mini-stat-name">${statAbbr}</div>
+          <div class="mini-stat-value">${statValue}</div>
+        </div>
+      `;
+      }
+    );
+
+    detailSectionsHtml += "</div></div>";
+  });
+
+  detailSectionsHtml += "</div></div>";
+
+  // Mods section
+  detailSectionsHtml += `
+    <div class="loadout-detail-section">
+      <h3>Equipped Mods</h3>
+      <div class="loadout-mods-grid">
+  `;
+
+  loadout.set.forEach((piece) => {
+    const bucketName = getBucketName(piece.definition.inventory.bucketTypeHash);
+    const sockets = piece.sockets || [];
+
+    detailSectionsHtml += `
+      <div class="armor-mods-column">
+        <h4>${bucketName}</h4>
+    `;
+
+    // Get mod sockets (usually the last few sockets are for mods)
+    let modCount = 0;
+    const modSockets = [];
+
+    // In Destiny 2, mod sockets are typically after the first few sockets
+    // First sockets are usually for perks/intrinsic traits
+    sockets.forEach((socket, index) => {
+      // Skip first few sockets (usually intrinsic perks)
+      if (index >= 2 && socket.plugHash && socket.isEnabled !== false) {
+        modSockets.push(socket);
+      }
+    });
+
+    // Display found mods
+    modSockets.slice(0, 3).forEach((socket) => {
+      detailSectionsHtml += `
+        <div class="mod-slot filled">
+          <div class="mod-hash">Mod #${socket.plugHash}</div>
+        </div>
+      `;
+      modCount++;
+    });
+
+    // Fill empty mod slots
+    while (modCount < 3) {
+      detailSectionsHtml += `
+        <div class="mod-slot empty">Empty Slot</div>
+      `;
+      modCount++;
+    }
+
+    detailSectionsHtml += "</div>";
+  });
+
+  detailSectionsHtml += "</div></div></div>";
+
+  // Combine all HTML
+  content.innerHTML = armorShowcaseHtml + totalStatsHtml + detailSectionsHtml;
+
+  // Assemble modal
+  modal.appendChild(header);
+  modal.appendChild(content);
+  modalOverlay.appendChild(modal);
+  document.body.appendChild(modalOverlay);
+
+  // Add close functionality
+  const closeBtn = modal.querySelector(".loadout-modal-close");
+  closeBtn.addEventListener("click", () => modalOverlay.remove());
+
+  // Close on overlay click
+  modalOverlay.addEventListener("click", (e) => {
+    if (e.target === modalOverlay) {
+      modalOverlay.remove();
+    }
+  });
+
+  // Close on escape key
+  const escapeHandler = (e) => {
+    if (e.key === "Escape") {
+      modalOverlay.remove();
+      document.removeEventListener("keydown", escapeHandler);
+    }
+  };
+  document.addEventListener("keydown", escapeHandler);
+}
+
+/**
+ * Helper function to get bucket name from hash
+ * @param {number} bucketHash - The bucket type hash
+ * @returns {string} The bucket name
+ */
+function getBucketName(bucketHash) {
+  const bucketNames = {
+    3448274439: "Helmet",
+    3551918588: "Gauntlets",
+    14239492: "Chest",
+    20886954: "Legs",
+    1585787867: "Class Item",
+  };
+  return bucketNames[bucketHash] || "Unknown";
 }
 
 function updateDynamicLimits() {
