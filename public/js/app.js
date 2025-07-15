@@ -1553,7 +1553,7 @@ function initLoadoutWorker() {
         const { loadouts } = payload;
         hideLoadingIndicator();
         displayLoadouts(loadouts);
-        // CHANGE: Re-run the dynamic limits *after* displaying results
+        // Re-run the dynamic limits *after* displaying results
         // to ensure the UI state is consistent with what the user selected.
         updateDynamicLimits();
       } else if (type === "error") {
@@ -1591,7 +1591,6 @@ function initLoadoutWorker() {
   }
 }
 
-// CHANGE: Renamed for clarity
 function showLoadingIndicator() {
   const indicator = document.getElementById("loading-indicator");
   if (indicator) {
@@ -1599,7 +1598,6 @@ function showLoadingIndicator() {
   }
 }
 
-// CHANGE: Renamed for clarity
 function hideLoadingIndicator() {
   const indicator = document.getElementById("loading-indicator");
   if (indicator) {
@@ -1695,7 +1693,6 @@ async function generateLoadouts() {
     initLoadoutWorker();
   }
 
-  // CHANGE: Use the new loading indicator function
   showLoadingIndicator();
   const resultsGrid = document.getElementById("loadoutResultsGrid");
   resultsGrid.innerHTML = ""; // Clear previous results
@@ -1781,7 +1778,7 @@ function displayLoadouts(loadouts) {
       loadout.set.forEach((piece) => {
         const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
         armorHtml += `<div class="loadout-armor-piece">
-                    <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
+                    <img src="[https://www.bungie.net](https://www.bungie.net)${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
                     ${isExotic ? '<div class="exotic-glow"></div>' : ""}
                 </div>`;
       });

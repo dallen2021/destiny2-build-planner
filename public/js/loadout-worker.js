@@ -450,6 +450,14 @@ function evaluateLoadout(set, state, preferNoMods) {
 
   // Check if mod cost is within limit (5 armor pieces * 3 energy each = 15)
   if (totalModCost <= 15) {
+    // FINAL VALIDATION: Ensure all targets are met or exceeded.
+    for (const statName in state.statValues) {
+      if (moddedStats[statName] < state.statValues[statName]) {
+        // If even one stat is below the target, this is not a valid loadout.
+        return null;
+      }
+    }
+    // If all stats are good, return the loadout.
     return { set, stats: moddedStats, modPlan };
   }
 

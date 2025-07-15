@@ -559,7 +559,6 @@ body::before {
   flex-direction: column;
 }
 
-/* CHANGE: Added styles for the new inline loading indicator */
 #loading-indicator {
     display: inline-flex;
     align-items: center;
