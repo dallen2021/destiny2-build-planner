@@ -1563,9 +1563,7 @@ function initLoadoutWorker() {
         const { loadouts } = payload;
         hideLoadingIndicator();
         displayLoadouts(loadouts);
-        // Re-run the dynamic limits *after* displaying results
-        // to ensure the UI state is consistent with what the user selected.
-        updateDynamicLimits();
+        updateDynamicLimits(); // Moved here as per your code
       } else if (type === "error") {
         console.error("Loadout Worker Error:", payload);
         showNotification(
@@ -1578,7 +1576,7 @@ function initLoadoutWorker() {
           '<div class="empty-state">An error occurred while generating loadouts.</div>';
       } else if (type === "precomputeDone") {
         precomputedDistributions = payload.distributions;
-        hideLoading();
+        showLoading(false); // Fixed: Use showLoading(false) instead of hideLoading()
         updateDynamicLimits();
       }
       isWorkerBusy = false;

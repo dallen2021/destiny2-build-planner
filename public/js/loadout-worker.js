@@ -1,7 +1,6 @@
 /**
  * public/js/loadout-worker.js
- * This script runs in a separate thread to handle the computationally
- * intensive task of generating and evaluating Destiny 2 loadouts.
+ * Optimized with pruning and sorting for large inventories.
  */
 
 const STATS_ORDER = ["Weapons", "Health", "Class", "Grenade", "Super", "Melee"];
@@ -9,6 +8,7 @@ const STAT_HASHES = [
   2996146975, 392767087, 1943323491, 1735777505, 144602215, 4244567218,
 ];
 const CLASS_ITEM_BUCKET = 1585787867;
+const MAX_COMBOS_WARNING = 5000000; // Warn if >5M combos
 
 let precomputedDistributions = [];
 
@@ -47,7 +47,7 @@ onmessage = function (e) {
   }
 };
 
-function precomputeStatDistributions(allItems, character, state) {
+function prepareArmorPieces(allItems, character, state) {
   const armorPieces = {
     helmet: [],
     gauntlets: [],
@@ -82,20 +82,27 @@ function precomputeStatDistributions(allItems, character, state) {
       armorPieces.classItem.push(item);
   }
 
-  // Precompute contributions for each piece
+  // Precompute contributions and total stat sum for sorting
   for (const slot in armorPieces) {
     for (const piece of armorPieces[slot]) {
       piece.contrib = new Array(6).fill(0);
+      piece.totalStats = 0;
       for (let i = 0; i < 6; i++) {
         piece.contrib[i] = piece.stats?.[STAT_HASHES[i]]?.value || 0;
+        piece.totalStats += piece.contrib[i];
       }
       if (
         piece.definition.inventory.bucketTypeHash !== CLASS_ITEM_BUCKET &&
         piece.energy === 10
       ) {
-        for (let i = 0; i < 6; i++) piece.contrib[i] += 2;
+        for (let i = 0; i < 6; i++) {
+          piece.contrib[i] += 2;
+          piece.totalStats += 2;
+        }
       }
     }
+    // Sort by descending total stats for better pruning
+    armorPieces[slot].sort((a, b) => b.totalStats - a.totalStats);
   }
 
   if (state.selectedExoticHash) {
@@ -132,8 +139,16 @@ function precomputeStatDistributions(allItems, character, state) {
     }
   }
 
+  return armorPieces;
+}
+
+function precomputeStatDistributions(allItems, character, state) {
+  const armorPieces = prepareArmorPieces(allItems, character, state);
   const distributions = [];
   let combinationCount = 0;
+
+  // Compute max per stat per slot for pruning (not used in precompute, but for consistency)
+  const maxPerSlot = computeMaxPerSlot(armorPieces);
 
   for (const helmet of armorPieces.helmet) {
     const h_cont = helmet.contrib;
@@ -154,7 +169,7 @@ function precomputeStatDistributions(allItems, character, state) {
             combinationCount++;
             if (combinationCount > 10000000) {
               console.warn(
-                "Combination count exceeds 10,000,000. Aborting pre-computation to avoid performance issues."
+                "Combination count exceeds 10,000,000. Aborting pre-computation."
               );
               return distributions;
             }
@@ -167,94 +182,13 @@ function precomputeStatDistributions(allItems, character, state) {
 }
 
 /**
- * Generates loadout combinations
+ * Generates loadouts with pruning
  */
 function generateLoadouts(allItems, character, state) {
   try {
-    const armorPieces = {
-      helmet: [],
-      gauntlets: [],
-      chest: [],
-      legs: [],
-      classItem: [],
-    };
+    const armorPieces = prepareArmorPieces(allItems, character, state);
 
-    const bucketHashes = {
-      helmet: 3448274439,
-      gauntlets: 3551918588,
-      chest: 14239492,
-      legs: 20886954,
-      classItem: 1585787867,
-    };
-
-    const armorItems = allItems.filter(
-      (item) =>
-        item.definition?.itemType === 2 &&
-        (item.definition?.classType === character.classType ||
-          item.definition?.classType === 3)
-    );
-
-    for (const item of armorItems) {
-      const bucketHash = item.definition.inventory.bucketTypeHash;
-      if (bucketHash === bucketHashes.helmet) armorPieces.helmet.push(item);
-      else if (bucketHash === bucketHashes.gauntlets)
-        armorPieces.gauntlets.push(item);
-      else if (bucketHash === bucketHashes.chest) armorPieces.chest.push(item);
-      else if (bucketHash === bucketHashes.legs) armorPieces.legs.push(item);
-      else if (bucketHash === bucketHashes.classItem)
-        armorPieces.classItem.push(item);
-    }
-
-    // Precompute contributions for each piece
-    for (const slot in armorPieces) {
-      for (const piece of armorPieces[slot]) {
-        piece.contrib = new Array(6).fill(0);
-        for (let i = 0; i < 6; i++) {
-          piece.contrib[i] = piece.stats?.[STAT_HASHES[i]]?.value || 0;
-        }
-        if (
-          piece.definition.inventory.bucketTypeHash !== CLASS_ITEM_BUCKET &&
-          piece.energy === 10
-        ) {
-          for (let i = 0; i < 6; i++) piece.contrib[i] += 2;
-        }
-      }
-    }
-
-    if (state.selectedExoticHash) {
-      let exoticFound = false;
-      let exoticSlot = null;
-
-      for (const slot in armorPieces) {
-        const piece = armorPieces[slot].find(
-          (p) => p.itemHash == state.selectedExoticHash
-        );
-        if (piece) {
-          armorPieces[slot] = [piece];
-          exoticFound = true;
-          exoticSlot = slot;
-          break;
-        }
-      }
-
-      if (exoticFound) {
-        for (const slot in armorPieces) {
-          if (slot !== exoticSlot) {
-            armorPieces[slot] = armorPieces[slot].filter(
-              (p) => p.definition.inventory.tierTypeName !== "Exotic"
-            );
-          }
-        }
-      }
-    } else {
-      for (const slot in armorPieces) {
-        armorPieces[slot] = armorPieces[slot].filter(
-          (p) => p.definition.inventory.tierTypeName !== "Exotic"
-        );
-      }
-    }
-
-    // Precompute target points (actual stat values like 100)
+    // Precompute target points
     const targetPoints = new Array(6);
     targetPoints[0] = state.statValues.Weapons;
     targetPoints[1] = state.statValues.Health;
@@ -263,26 +197,68 @@ function generateLoadouts(allItems, character, state) {
     targetPoints[4] = state.statValues.Super;
     targetPoints[5] = state.statValues.Melee;
 
-    // Generate combinations
+    // Compute max per stat per remaining slots for pruning
+    const maxPerSlot = computeMaxPerSlot(armorPieces);
+
+    // Generate combinations with pruning
     let validLoadouts = [];
 
-    for (const helmet of armorPieces.helmet) {
-      const h_cont = helmet.contrib;
-      for (const gauntlets of armorPieces.gauntlets) {
-        const g_cont = gauntlets.contrib;
-        for (const chest of armorPieces.chest) {
-          const c_cont = chest.contrib;
-          for (const legs of armorPieces.legs) {
-            const l_cont = legs.contrib;
-            for (const classItem of armorPieces.classItem) {
-              const cl_cont = classItem.contrib;
+    // Total combos estimate
+    let totalCombos =
+      armorPieces.helmet.length *
+      armorPieces.gauntlets.length *
+      armorPieces.chest.length *
+      armorPieces.legs.length *
+      armorPieces.classItem.length;
+    if (totalCombos > MAX_COMBOS_WARNING) {
+      console.warn(
+        `Large inventory: ${totalCombos} combinations. May take time. Consider selecting an exotic to reduce.`
+      );
+    }
 
-              // Compute base stats
-              const base = new Array(6);
-              for (let i = 0; i < 6; i++) {
-                base[i] =
-                  h_cont[i] + g_cont[i] + c_cont[i] + l_cont[i] + cl_cont[i];
-              }
+    for (const helmet of armorPieces.helmet) {
+      const partial1 = helmet.contrib.slice();
+      if (
+        !canReachTarget(
+          partial1,
+          targetPoints,
+          maxPerSlot.gauntlets +
+            maxPerSlot.chest +
+            maxPerSlot.legs +
+            maxPerSlot.classItem
+        )
+      )
+        continue;
+
+      for (const gauntlets of armorPieces.gauntlets) {
+        const partial2 = addArrays(partial1, gauntlets.contrib);
+        if (
+          !canReachTarget(
+            partial2,
+            targetPoints,
+            maxPerSlot.chest + maxPerSlot.legs + maxPerSlot.classItem
+          )
+        )
+          continue;
+
+        for (const chest of armorPieces.chest) {
+          const partial3 = addArrays(partial2, chest.contrib);
+          if (
+            !canReachTarget(
+              partial3,
+              targetPoints,
+              maxPerSlot.legs + maxPerSlot.classItem
+            )
+          )
+            continue;
+
+          for (const legs of armorPieces.legs) {
+            const partial4 = addArrays(partial3, legs.contrib);
+            if (!canReachTarget(partial4, targetPoints, maxPerSlot.classItem))
+              continue;
+
+            for (const classItem of armorPieces.classItem) {
+              const base = addArrays(partial4, classItem.contrib);
 
               const result = evaluateLoadout(
                 [helmet, gauntlets, chest, legs, classItem],
@@ -298,7 +274,7 @@ function generateLoadouts(allItems, character, state) {
       }
     }
 
-    // Sort loadouts
+    // Sort loadouts (unchanged)
     validLoadouts.sort((a, b) => {
       const aTiers = Object.values(a.stats).reduce(
         (sum, val) => sum + Math.floor(val / 10),
@@ -330,6 +306,38 @@ function generateLoadouts(allItems, character, state) {
     postMessage({ type: "error", payload: e.message });
     return { loadouts: [], limits: {} };
   }
+}
+
+/** Helper: Add two arrays */
+function addArrays(a, b) {
+  const result = new Array(6);
+  for (let i = 0; i < 6; i++) {
+    result[i] = a[i] + b[i];
+  }
+  return result;
+}
+
+/** Compute max per stat for a slot (array of maxes) */
+function computeMaxPerSlot(armorPieces) {
+  const maxPerSlot = {};
+  for (const slot in armorPieces) {
+    const maxStats = new Array(6).fill(0);
+    for (const piece of armorPieces[slot]) {
+      for (let i = 0; i < 6; i++) {
+        if (piece.contrib[i] > maxStats[i]) maxStats[i] = piece.contrib[i];
+      }
+    }
+    maxPerSlot[slot] = maxStats.reduce((a, b) => a + b, 0); // For pruning, use sum or per-stat max
+  }
+  return maxPerSlot;
+}
+
+/** Pruning check: Can partial + max_remaining reach all targets - 50? */
+function canReachTarget(partial, targetPoints, maxRemainingSum) {
+  for (let i = 0; i < 6; i++) {
+    if (partial[i] + maxRemainingSum < targetPoints[i] - 50) return false;
+  }
+  return true;
 }
 
 /**

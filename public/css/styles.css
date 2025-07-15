@@ -42,6 +42,10 @@ body {
   position: relative;
 }
 
+body.loading * {
+  visibility: hidden;
+}
+
 /* Static background gradient */
 body::before {
   content: '';
@@ -659,6 +663,13 @@ body::before {
 
 .loadout-armor-piece {
   position: relative;
+}
+
+.loadout-armor-piece img {
+    width: 48px;  /* Or 40px/50px—adjust to fit your design */
+    height: 48px;
+    object-fit: cover;
+    border-radius: 4px;  /* Optional: Match other icons */
 }
 
 .exotic-glow {
