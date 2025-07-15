@@ -334,6 +334,11 @@ function generateLoadouts(allItems, character, state) {
       return aWasted - bWasted;
     });
 
+    // Limit to 100,000 loadouts
+    if (validLoadouts.length > 100000) {
+      validLoadouts = validLoadouts.slice(0, 100000);
+    }
+
     // Calculate stat limits (using precomputed distributions)
     const limits = calculateStatLimits(precomputedDistributions, targetPoints);
 
