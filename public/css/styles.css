@@ -1,5 +1,5 @@
 /* Enhanced Destiny 2 Build Planner Styles */
-@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Russo+One&family=Inter:wght@300;400;500;600&display=swap');
+@import url('[https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Russo+One&family=Inter:wght@300;400;500;600&display=swap](https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Russo+One&family=Inter:wght@300;400;500;600&display=swap)');
 
 /* CSS Variables for consistent theming */
 :root {
@@ -559,6 +559,43 @@ body::before {
   flex-direction: column;
 }
 
+/* CHANGE: Added styles for the new inline loading indicator */
+#loading-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: 15px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.loading-bar-inline {
+    width: 100px;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--glass-border);
+}
+
+.loading-bar-inline::after {
+    content: '';
+    display: block;
+    width: 40%;
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--primary-purple), var(--secondary-gold));
+    animation: loading-shimmer 1.8s infinite ease-in-out;
+}
+
+@keyframes loading-shimmer {
+    0% { transform: translateX(-150%); }
+    50% { transform: translateX(375%); }
+    100% { transform: translateX(-150%); }
+}
+
+
 .loadout-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -693,61 +730,6 @@ body::before {
   color: var(--text-secondary);
   border: 2px dashed var(--border-color);
   border-radius: 8px;
-}
-
-/* Loadout Progress Bar */
-.loadout-progress-container {
-  position: relative;
-  margin-bottom: 20px;
-  display: none;
-}
-
-.loadout-progress-bar {
-  width: 100%;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
-}
-
-.loadout-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--primary-purple), var(--secondary-purple));
-  width: 0%;
-  transition: width 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.loadout-progress-fill::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.3),
-    transparent
-  );
-  transform: translateX(-100%);
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-.loadout-progress-text {
-  text-align: center;
-  margin-top: 8px;
-  font-size: 0.9em;
-  color: var(--text-secondary);
 }
 
 /* --- END: NEW LOADOUT BUILDER STYLES --- */

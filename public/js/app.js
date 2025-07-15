@@ -1550,19 +1550,19 @@ function initLoadoutWorker() {
     loadoutWorker.onmessage = function (e) {
       const { type, payload } = e.data;
       if (type === "loadoutsGenerated") {
-        const { loadouts, limits } = payload;
-        hideLoadoutProgress();
+        const { loadouts } = payload;
+        hideLoadingIndicator();
         displayLoadouts(loadouts);
-        updateStatButtons(limits);
-      } else if (type === "progress") {
-        updateLoadoutProgress(payload.progress, payload.count);
+        // CHANGE: Re-run the dynamic limits *after* displaying results
+        // to ensure the UI state is consistent with what the user selected.
+        updateDynamicLimits();
       } else if (type === "error") {
         console.error("Loadout Worker Error:", payload);
         showNotification(
           "An error occurred in the loadout generator.",
           "error"
         );
-        hideLoadoutProgress();
+        hideLoadingIndicator();
         const resultsGrid = document.getElementById("loadoutResultsGrid");
         resultsGrid.innerHTML =
           '<div class="empty-state">An error occurred while generating loadouts.</div>';
@@ -1576,7 +1576,7 @@ function initLoadoutWorker() {
     loadoutWorker.onerror = function (e) {
       console.error("An error occurred in the loadout worker:", e);
       showNotification("Failed to run loadout generator.", "error");
-      hideLoadoutProgress();
+      hideLoadingIndicator();
       const resultsGrid = document.getElementById("loadoutResultsGrid");
       resultsGrid.innerHTML =
         '<div class="empty-state">The loadout generator failed to start.</div>';
@@ -1591,42 +1591,19 @@ function initLoadoutWorker() {
   }
 }
 
-function showLoadoutProgress() {
-  let progressContainer = document.querySelector(".loadout-progress-container");
-  if (!progressContainer) {
-    progressContainer = document.createElement("div");
-    progressContainer.className = "loadout-progress-container";
-    progressContainer.innerHTML = `
-      <div class="loadout-progress-bar">
-        <div class="loadout-progress-fill" style="width: 0%"></div>
-      </div>
-      <div class="loadout-progress-text">Analyzing armor combinations...</div>
-    `;
-    const resultsContainer = document.querySelector(
-      ".loadout-results-container h2"
-    );
-    resultsContainer.insertAdjacentElement("afterend", progressContainer);
-  }
-  progressContainer.style.display = "block";
-}
-
-function updateLoadoutProgress(progress, count) {
-  const progressFill = document.querySelector(".loadout-progress-fill");
-  const progressText = document.querySelector(".loadout-progress-text");
-  if (progressFill) {
-    progressFill.style.width = `${progress}%`;
-  }
-  if (progressText) {
-    progressText.textContent = `Analyzing armor combinations... ${progress}% (${count} valid builds found)`;
+// CHANGE: Renamed for clarity
+function showLoadingIndicator() {
+  const indicator = document.getElementById("loading-indicator");
+  if (indicator) {
+    indicator.style.display = "inline-flex";
   }
 }
 
-function hideLoadoutProgress() {
-  const progressContainer = document.querySelector(
-    ".loadout-progress-container"
-  );
-  if (progressContainer) {
-    progressContainer.style.display = "none";
+// CHANGE: Renamed for clarity
+function hideLoadingIndicator() {
+  const indicator = document.getElementById("loading-indicator");
+  if (indicator) {
+    indicator.style.display = "none";
   }
 }
 
@@ -1718,9 +1695,10 @@ async function generateLoadouts() {
     initLoadoutWorker();
   }
 
+  // CHANGE: Use the new loading indicator function
+  showLoadingIndicator();
   const resultsGrid = document.getElementById("loadoutResultsGrid");
-  resultsGrid.innerHTML =
-    '<div class="loading-spinner" style="margin: 40px auto;"></div><p style="text-align: center;">Calculating optimal builds...</p>';
+  resultsGrid.innerHTML = ""; // Clear previous results
   isWorkerBusy = true;
 
   try {
@@ -1729,6 +1707,7 @@ async function generateLoadouts() {
       resultsGrid.innerHTML =
         '<div class="empty-state">Please select a character.</div>';
       isWorkerBusy = false;
+      hideLoadingIndicator();
       return;
     }
 
@@ -1745,21 +1724,26 @@ async function generateLoadouts() {
     );
     resultsGrid.innerHTML = '<div class="empty-state">An error occurred.</div>';
     isWorkerBusy = false;
+    hideLoadingIndicator();
   }
 }
 
 /**
- * NEW: Updates the enabled/disabled state of stat boxes based on calculated limits.
+ * Updates the enabled/disabled state of stat boxes based on calculated limits.
  * @param {Object} limits - An object with stat names as keys and their max possible value as values.
  */
 function updateStatButtons(limits) {
+  // First, remove all disabled classes to reset the state
+  document
+    .querySelectorAll(".stat-box.disabled")
+    .forEach((box) => box.classList.remove("disabled"));
+
+  // Then, apply new limits
   document.querySelectorAll(".stat-box").forEach((box) => {
     const stat = box.dataset.stat;
     const value = parseInt(box.dataset.value, 10);
     if (limits[stat] !== undefined && value > limits[stat]) {
       box.classList.add("disabled");
-    } else {
-      box.classList.remove("disabled");
     }
   });
 }
@@ -1854,6 +1838,10 @@ function displayLoadouts(loadouts) {
 
 function updateDynamicLimits() {
   if (!precomputedDistributions || precomputedDistributions.length === 0) {
+    // If no precomputed data, enable all buttons
+    document
+      .querySelectorAll(".stat-box.disabled")
+      .forEach((box) => box.classList.remove("disabled"));
     return;
   }
 
@@ -1864,44 +1852,40 @@ function updateDynamicLimits() {
     for (const statName in currentTargets) {
       const needed = currentTargets[statName] - dist[statName];
       if (needed > 0) {
-        modPointsNeeded += needed;
+        modPointsNeeded += Math.ceil(needed / 10) * 10;
       }
     }
     return modPointsNeeded <= 50; // 5 major mods
   });
 
-  if (validDistributions.length === 0) {
-    const newLimits = {};
-    for (const statName in currentTargets) {
-      newLimits[statName] = currentTargets[statName];
-    }
-    updateStatButtons(newLimits);
-    return;
-  }
-
   const newLimits = {};
   for (const statName in currentTargets) {
     let maxForThisStat = 0;
-    for (const dist of validDistributions) {
-      let modPointsUsedByOthers = 0;
-      for (const otherStat in currentTargets) {
-        if (otherStat !== statName) {
-          const needed = currentTargets[otherStat] - dist[otherStat];
-          if (needed > 0) {
-            modPointsUsedByOthers += needed;
+    if (validDistributions.length > 0) {
+      for (const dist of validDistributions) {
+        let modPointsUsedByOthers = 0;
+        for (const otherStat in currentTargets) {
+          if (otherStat !== statName) {
+            const needed = currentTargets[otherStat] - dist[otherStat];
+            if (needed > 0) {
+              modPointsUsedByOthers += Math.ceil(needed / 10) * 10;
+            }
+          }
+        }
+
+        const remainingModPoints = 50 - modPointsUsedByOthers;
+        if (remainingModPoints >= 0) {
+          const potentialValue = dist[statName] + remainingModPoints;
+          if (potentialValue > maxForThisStat) {
+            maxForThisStat = potentialValue;
           }
         }
       }
-
-      const remainingModPoints = 50 - modPointsUsedByOthers;
-      if (remainingModPoints >= 0) {
-        const potentialValue = dist[statName] + remainingModPoints;
-        if (potentialValue > maxForThisStat) {
-          maxForThisStat = potentialValue;
-        }
-      }
+    } else {
+      // If no distributions are valid with current selections, the limit is the selection itself
+      maxForThisStat = currentTargets[statName];
     }
-    newLimits[statName] = Math.min(200, maxForThisStat);
+    newLimits[statName] = Math.floor(Math.min(200, maxForThisStat) / 10) * 10;
   }
 
   updateStatButtons(newLimits);
