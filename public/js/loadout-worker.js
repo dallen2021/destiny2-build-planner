@@ -118,6 +118,14 @@ function precomputeStatDistributions(allItems, character, state) {
       for (const chest of armorPieces.chest) {
         for (const legs of armorPieces.legs) {
           for (const classItem of armorPieces.classItem) {
+            combinationCount++;
+            if (combinationCount > 300000) {
+              console.warn(
+                "Combination count exceeds 300,000. Aborting pre-computation to avoid performance issues."
+              );
+              return distributions;
+            }
+
             const set = [helmet, gauntlets, chest, legs, classItem];
             const exoticCount = set.filter(
               (p) => p.definition.inventory.tierTypeName === "Exotic"
@@ -217,12 +225,38 @@ function generateLoadouts(allItems, character, state) {
 
     // Generate combinations and calculate stats with progress
     let validLoadouts = [];
+    let count = 0;
+    let lastProgress = 0;
+
+    // Calculate total combinations for progress tracking
+    const totalCombinations =
+      armorPieces.helmet.length *
+      armorPieces.gauntlets.length *
+      armorPieces.chest.length *
+      armorPieces.legs.length *
+      armorPieces.classItem.length;
+
+    let combinationCount = 0;
 
     for (const helmet of armorPieces.helmet) {
       for (const gauntlets of armorPieces.gauntlets) {
         for (const chest of armorPieces.chest) {
           for (const legs of armorPieces.legs) {
             for (const classItem of armorPieces.classItem) {
+              combinationCount++;
+
+              // Send progress updates
+              const progress = Math.floor(
+                (combinationCount / totalCombinations) * 100
+              );
+              if (progress > lastProgress + 2) {
+                lastProgress = progress;
+                postMessage({
+                  type: "progress",
+                  payload: { progress, count: Math.min(count, 1000) },
+                });
+              }
+
               const set = [helmet, gauntlets, chest, legs, classItem];
 
               // Check exotic constraints
@@ -245,11 +279,25 @@ function generateLoadouts(allItems, character, state) {
               const result = evaluateLoadout(set, state, allStatsMinimal);
               if (result) {
                 validLoadouts.push(result);
+                count++;
+
+                // Stop after 1000 valid loadouts
+                if (count >= 1000) {
+                  postMessage({
+                    type: "progress",
+                    payload: { progress: 100, count: 1000 },
+                  });
+                  break;
+                }
               }
             }
+            if (count >= 1000) break;
           }
+          if (count >= 1000) break;
         }
+        if (count >= 1000) break;
       }
+      if (count >= 1000) break;
     }
 
     // Sort loadouts
