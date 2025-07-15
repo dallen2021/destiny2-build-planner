@@ -663,18 +663,19 @@ async function loadArmorInventory() {
     const itemDefinitions = await Manifest.getItems(uniqueHashes);
 
     allItems = allItems.map((item) => {
-      const definition = itemDefinitions[item.itemHash];
-      const stats =
-        itemComponents.stats?.data?.[item.itemInstanceId]?.stats || {};
       return {
         ...item,
         definition: definition || {
           displayProperties: { name: `Item ${item.itemHash}` },
         },
         stats: stats,
+        sockets: sockets,
         power:
           itemComponents.instances?.data?.[item.itemInstanceId]?.primaryStat
             ?.value || 0,
+        energy:
+          itemComponents.energy?.data?.[item.itemInstanceId]?.energyCapacity ||
+          0,
       };
     });
 
@@ -1857,54 +1858,56 @@ function displayLoadouts(loadouts) {
 
 function updateDynamicLimits() {
   if (!precomputedDistributions || precomputedDistributions.length === 0) {
-    // If no precomputed data, enable all buttons
     document
       .querySelectorAll(".stat-box.disabled")
       .forEach((box) => box.classList.remove("disabled"));
     return;
   }
 
-  const currentTargets = state.statValues;
+  const targetPoints = [
+    state.statValues.Weapons,
+    state.statValues.Health,
+    state.statValues.Class,
+    state.statValues.Grenade,
+    state.statValues.Super,
+    state.statValues.Melee,
+  ];
 
   const validDistributions = precomputedDistributions.filter((dist) => {
-    let modPointsNeeded = 0;
-    for (const statName in currentTargets) {
-      const needed = currentTargets[statName] - dist[statName];
-      if (needed > 0) {
-        modPointsNeeded += Math.ceil(needed / 10) * 10;
-      }
+    let totalMods = 0;
+    for (let i = 0; i < 6; i++) {
+      let needed = targetPoints[i] - dist[i];
+      if (needed > 0) totalMods += Math.ceil(needed / 10);
     }
-    return modPointsNeeded <= 50; // 5 major mods
+    return totalMods <= 5;
   });
 
   const newLimits = {};
-  for (const statName in currentTargets) {
-    let maxForThisStat = 0;
-    if (validDistributions.length > 0) {
-      for (const dist of validDistributions) {
-        let modPointsUsedByOthers = 0;
-        for (const otherStat in currentTargets) {
-          if (otherStat !== statName) {
-            const needed = currentTargets[otherStat] - dist[otherStat];
-            if (needed > 0) {
-              modPointsUsedByOthers += Math.ceil(needed / 10) * 10;
-            }
-          }
-        }
-
-        const remainingModPoints = 50 - modPointsUsedByOthers;
-        if (remainingModPoints >= 0) {
-          const potentialValue = dist[statName] + remainingModPoints;
-          if (potentialValue > maxForThisStat) {
-            maxForThisStat = potentialValue;
-          }
+  const statsOrder = [
+    "Weapons",
+    "Health",
+    "Class",
+    "Grenade",
+    "Super",
+    "Melee",
+  ];
+  for (let s = 0; s < 6; s++) {
+    let maxForThis = 0;
+    for (const dist of validDistributions) {
+      let modsOthers = 0;
+      for (let o = 0; o < 6; o++) {
+        if (o !== s) {
+          let needed = targetPoints[o] - dist[o];
+          if (needed > 0) modsOthers += Math.ceil(needed / 10);
         }
       }
-    } else {
-      // If no distributions are valid with current selections, the limit is the selection itself
-      maxForThisStat = currentTargets[statName];
+      let remainingMods = 5 - modsOthers;
+      if (remainingMods >= 0) {
+        let potential = dist[s] + remainingMods * 10;
+        if (potential > maxForThis) maxForThis = potential;
+      }
     }
-    newLimits[statName] = Math.floor(Math.min(200, maxForThisStat) / 10) * 10;
+    newLimits[statsOrder[s]] = Math.floor(Math.min(200, maxForThis) / 10) * 10;
   }
 
   updateStatButtons(newLimits);
