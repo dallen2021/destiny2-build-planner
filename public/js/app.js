@@ -511,7 +511,7 @@ async function selectCharacter(characterId) {
   });
 
   // Update side menu username with character class
-  const character = charactersData[characterId];
+  const character = charactersData[currentCharacterId];
   if (character) {
     const className = getClassName(character.classType);
     console.log(`Swapped to character: ${characterId} (${className})`);
@@ -534,16 +534,8 @@ async function selectCharacter(characterId) {
 
   // Update exotics for the new character
   await populateExoticSelector();
-  // Pre-compute stat distributions
-  if (loadoutWorker && armorLoaded) {
-    showLoading(true);
-    loadoutWorker.postMessage({
-      type: "precompute",
-      payload: { allItems, character, state },
-    });
-  }
-  // Trigger dynamic loadout generation
-  debouncedGenerateLoadouts();
+  // Trigger a new loadout generation process
+  generateLoadouts();
 }
 
 async function handleAuth() {
@@ -1068,7 +1060,7 @@ function onStatBoxClick(e) {
   state.statValues[stat] = val;
   updateAllStatCalculations();
   updateDynamicLimits();
-  debouncedGenerateLoadouts();
+  generateLoadouts();
 }
 
 /* ----------- Calculation & UI refresh ----------- */
@@ -1212,9 +1204,9 @@ function toggleMod(t, e) {
       selectedMods.delete(t);
       columnCounts[e]--;
     } else if (selectedMods.size >= 12) {
-      alert("Maximum 12 mods can be selected!");
+      showNotification("Maximum 12 mods can be selected!", "error");
     } else if (4 === e && columnCounts[4] >= 2) {
-      alert("Maximum 2 mods can be selected in Column 5!");
+      showNotification("Maximum 2 mods can be selected in Column 5!", "error");
     } else {
       selectedMods.add(t);
       columnCounts[e]++;
@@ -1556,47 +1548,66 @@ function updateMeleeClassRestrictions() {
 /* -------- NEW/UPDATED LOADOUT BUILDER FUNCTIONS -------- */
 
 /**
- * Initializes the Web Worker for loadout calculations.
+ * Resets the worker by terminating it if it exists and creating a new one.
+ * Posts a message to the new worker.
+ * @param {string} type - The type of message to post (e.g., 'generate', 'precompute').
+ * @param {object} payload - The data payload for the message.
  */
+function resetAndRunWorker(type, payload) {
+  if (isWorkerBusy) {
+    console.log("Worker is busy, terminating previous job...");
+    loadoutWorker.terminate();
+  }
+  console.log(`Initializing new worker for task: ${type}`);
+  initLoadoutWorker();
+
+  isWorkerBusy = true;
+  showLoadingIndicator();
+  loadoutWorker.postMessage({ type, payload });
+}
+
 function initLoadoutWorker() {
   if (window.Worker) {
     loadoutWorker = new Worker("js/loadout-worker.js");
     loadoutWorker.onmessage = function (e) {
       const { type, payload } = e.data;
+      console.log(`Main thread received message from worker: ${type}`);
+
       if (type === "loadoutsGenerated") {
         const { loadouts } = payload;
-        hideLoadingIndicator();
         displayLoadouts(loadouts);
         updateDynamicLimits();
+        isWorkerBusy = false;
+        hideLoadingIndicator();
       } else if (type === "error") {
         console.error("Loadout Worker Error:", payload);
         showNotification(
           "An error occurred in the loadout generator.",
           "error"
         );
-        hideLoadingIndicator();
         const resultsGrid = document.getElementById("loadoutResultsGrid");
         resultsGrid.innerHTML =
           '<div class="empty-state">An error occurred while generating loadouts.</div>';
+        isWorkerBusy = false;
+        hideLoadingIndicator();
       } else if (type === "precomputeDone") {
         precomputedDistributions = payload.distributions;
-        showLoading(false); // Fixed: Use showLoading(false) instead of hideLoading()
-        updateDynamicLimits();
+        console.log("Pre-computation complete. Now starting full generation.");
+        generateLoadouts(); // Chain the full generation after pre-computation
       } else if (type === "progress") {
         const { current, total, percentage, classType } = payload;
         progressByClass[classType] = { current, total, percentage };
         updateProgressDisplay();
       }
-      isWorkerBusy = false;
     };
     loadoutWorker.onerror = function (e) {
       console.error("An error occurred in the loadout worker:", e);
       showNotification("Failed to run loadout generator.", "error");
-      hideLoadingIndicator();
       const resultsGrid = document.getElementById("loadoutResultsGrid");
       resultsGrid.innerHTML =
         '<div class="empty-state">The loadout generator failed to start.</div>';
       isWorkerBusy = false;
+      hideLoadingIndicator();
     };
   } else {
     console.error("Web Workers are not supported in this browser.");
@@ -1646,8 +1657,6 @@ function hideLoadingIndicator() {
     indicator.style.display = "none";
   }
 }
-
-const debouncedGenerateLoadouts = debounce(() => generateLoadouts(), 500);
 
 async function populateExoticSelector() {
   const selector = document.getElementById("exoticSelector");
@@ -1700,9 +1709,10 @@ async function populateExoticSelector() {
 }
 
 async function selectExotic(hash) {
-  // if (state.selectedExoticHash === hash) return; // Allow re-selecting 'none'
   state.selectedExoticHash = hash === "none" ? null : hash;
-  console.log(`Selected exotic with hash: ${hash}`);
+  console.log(
+    `Selected exotic with hash: ${hash}. Triggering pre-computation.`
+  );
 
   // Update visual selection
   document.querySelectorAll(".exotic-item-icon").forEach((el) => {
@@ -1710,14 +1720,10 @@ async function selectExotic(hash) {
   });
 
   if (loadoutWorker && armorLoaded) {
-    showLoading(true);
     const character = charactersData[currentCharacterId];
-    loadoutWorker.postMessage({
-      type: "precompute",
-      payload: { allItems, character, state },
-    });
+    // This will now terminate the old worker and start a new one for pre-computation
+    resetAndRunWorker("precompute", { allItems, character, state });
   }
-  debouncedGenerateLoadouts();
 }
 
 /**
@@ -1725,52 +1731,15 @@ async function selectExotic(hash) {
  * Updates the UI to show a loading state while the worker is busy.
  */
 async function generateLoadouts() {
-  if (!loadoutWorker) {
-    console.error("Loadout worker is not initialized.");
+  const character = charactersData[currentCharacterId];
+  if (!character) {
+    document.getElementById("loadoutResultsGrid").innerHTML =
+      '<div class="empty-state">Please select a character.</div>';
     return;
   }
 
-  if (isWorkerBusy) {
-    console.log(
-      "Worker is busy, terminating previous job and starting a new one."
-    );
-    loadoutWorker.terminate();
-    initLoadoutWorker();
-  }
-
-  showLoadingIndicator();
-  const resultsGrid = document.getElementById("loadoutResultsGrid");
-  resultsGrid.innerHTML = ""; // Clear previous results
-  isWorkerBusy = true;
-  console.log("Starting new loadout generation process...");
-
-  progressByClass = {}; // Reset on new generation
-
-  try {
-    const character = charactersData[currentCharacterId];
-    if (!character) {
-      resultsGrid.innerHTML =
-        '<div class="empty-state">Please select a character.</div>';
-      isWorkerBusy = false;
-      hideLoadingIndicator();
-      return;
-    }
-
-    // Post data to the worker to start calculations
-    loadoutWorker.postMessage({
-      type: "generate",
-      payload: { allItems, character, state },
-    });
-  } catch (e) {
-    console.error("Error starting loadout generation:", e);
-    showNotification(
-      "An error occurred while starting the loadout generation.",
-      "error"
-    );
-    resultsGrid.innerHTML = '<div class="empty-state">An error occurred.</div>';
-    isWorkerBusy = false;
-    hideLoadingIndicator();
-  }
+  console.log("Preparing to generate loadouts with state:", state);
+  resetAndRunWorker("generate", { allItems, character, state });
 }
 
 /**

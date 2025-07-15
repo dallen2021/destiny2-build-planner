@@ -318,7 +318,8 @@ function generateLoadouts(allItems, character, state) {
     postMessage({
       type: "progress",
       payload: {
-        current: combinationCount,
+        // Corrected the final progress report
+        current: Math.min(combinationCount, MAX_DISPLAY_COMBOS),
         total: Math.min(totalCombos, MAX_DISPLAY_COMBOS),
         percentage: 100,
         classType: character.classType,
