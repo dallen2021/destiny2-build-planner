@@ -663,6 +663,11 @@ async function loadArmorInventory() {
     const itemDefinitions = await Manifest.getItems(uniqueHashes);
 
     allItems = allItems.map((item) => {
+      const definition = itemDefinitions[item.itemHash];
+      const stats =
+        itemComponents.stats?.data?.[item.itemInstanceId]?.stats || {};
+      const sockets =
+        itemComponents.sockets?.data?.[item.itemInstanceId]?.sockets || {};
       return {
         ...item,
         definition: definition || {
