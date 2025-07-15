@@ -25,6 +25,7 @@ onmessage = function (e) {
       character,
       state
     );
+    precomputedDistributions = distributions; // Add this line to update worker global
     postMessage({ type: "precomputeDone", payload: { distributions } });
     return;
   }
