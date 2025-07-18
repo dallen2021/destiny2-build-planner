@@ -1,6 +1,7 @@
 /**
  * public/js/loadout-worker.js
  * Optimized with pruning and sorting for large inventories.
+ * Updated to track required mods for achieving target stats.
  */
 
 const STATS_ORDER = ["Weapons", "Health", "Class", "Grenade", "Super", "Melee"];
@@ -91,17 +92,26 @@ function prepareArmorPieces(allItems, character, state) {
     for (const piece of armorPieces[slot]) {
       piece.contrib = new Array(6).fill(0);
       piece.totalStats = 0;
+
+      // Base stats from the armor
       for (let i = 0; i < 6; i++) {
         piece.contrib[i] = piece.stats?.[STAT_HASHES[i]]?.value || 0;
         piece.totalStats += piece.contrib[i];
       }
-      if (
-        piece.definition.inventory.bucketTypeHash !== CLASS_ITEM_BUCKET &&
-        piece.energy === 10
-      ) {
-        for (let i = 0; i < 6; i++) {
-          piece.contrib[i] += 2;
-          piece.totalStats += 2;
+
+      // Check if the armor is already masterworked (energy capacity 10)
+      const isMasterworked = piece.energy === 10;
+
+      // For non-class items, add +2 to all stats for masterwork
+      // Class items don't get stat bonuses from masterworking
+      if (piece.definition.inventory.bucketTypeHash !== CLASS_ITEM_BUCKET) {
+        // If already masterworked, the +2 is already in the base stats
+        // If not masterworked, assume it will be and add +2
+        if (!isMasterworked) {
+          for (let i = 0; i < 6; i++) {
+            piece.contrib[i] += 2;
+            piece.totalStats += 2;
+          }
         }
       }
     }
@@ -400,17 +410,29 @@ function canReachTarget(partial, targetPoints, maxRemaining) {
 
 /**
  * Evaluates a single loadout combination using array-based stats
+ * Now tracks which mods are required to achieve target stats
  */
 function evaluateLoadout(set, base, targetPoints) {
   let totalMods = 0;
   const added = new Array(6).fill(0);
+  const requiredMods = [];
 
+  // Calculate mods needed for each stat
   for (let i = 0; i < 6; i++) {
     let needed = targetPoints[i] - base[i];
     if (needed > 0) {
       let mods = Math.ceil(needed / 10);
       totalMods += mods;
       added[i] = mods * 10;
+
+      // Track which mods are needed
+      for (let j = 0; j < mods; j++) {
+        requiredMods.push({
+          stat: STATS_ORDER[i],
+          statIndex: i,
+          value: 10, // Major mod value
+        });
+      }
     }
   }
 
@@ -419,7 +441,7 @@ function evaluateLoadout(set, base, targetPoints) {
     for (let i = 0; i < 6; i++) {
       stats[STATS_ORDER[i]] = base[i] + added[i];
     }
-    return { set, stats };
+    return { set, stats, requiredMods };
   }
 
   return null;
