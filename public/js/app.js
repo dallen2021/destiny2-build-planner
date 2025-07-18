@@ -2099,6 +2099,20 @@ async function showLoadoutModal(loadout) {
   // Update content with all HTML
   content.innerHTML = armorShowcaseHtml + totalStatsHtml + detailSectionsHtml;
 
+  // Add transfer & equip button
+  const buttonContainer = document.createElement("div");
+  buttonContainer.style.cssText = "text-align: center; margin-top: 24px;";
+  buttonContainer.innerHTML = `
+    <button id="transferEquipBtn" class="transfer-equip-btn">
+      Transfer & Equip Loadout
+    </button>
+  `;
+  content.appendChild(buttonContainer);
+
+  // Add click handler for transfer & equip
+  const transferBtn = document.getElementById("transferEquipBtn");
+  transferBtn.addEventListener("click", () => transferAndEquipLoadout(loadout));
+
   // Add close functionality
   const closeBtn = modal.querySelector(".loadout-modal-close");
   closeBtn.addEventListener("click", () => modalOverlay.remove());
@@ -2134,6 +2148,150 @@ function getBucketName(bucketHash) {
     1585787867: "Class Item",
   };
   return bucketNames[bucketHash] || "Unknown";
+}
+
+/**
+ * Transfers and equips a complete loadout to the current character
+ * @param {Object} loadout - The loadout object containing armor set
+ */
+async function transferAndEquipLoadout(loadout) {
+  const transferBtn = document.getElementById("transferEquipBtn");
+  if (!transferBtn) return;
+
+  const originalText = transferBtn.textContent;
+  transferBtn.disabled = true;
+  transferBtn.classList.add("processing");
+  transferBtn.textContent = "Processing...";
+
+  try {
+    if (!currentCharacterId) {
+      throw new Error("No character selected");
+    }
+
+    // Get auth status for membership info
+    const authStatus = await API.auth.checkStatus();
+    if (!authStatus.authenticated || !authStatus.destinyMembership) {
+      throw new Error("Not authenticated");
+    }
+
+    const { membershipType } = authStatus.destinyMembership;
+
+    // Process each armor piece
+    const transferPromises = [];
+    let transferCount = 0;
+    let equipCount = 0;
+
+    for (const piece of loadout.set) {
+      const itemId = piece.itemInstanceId;
+      const itemHash = piece.itemHash;
+      const itemName = piece.definition.displayProperties.name;
+      const bucketName = getBucketName(
+        piece.definition.inventory.bucketTypeHash
+      );
+
+      transferBtn.textContent = `Transferring ${bucketName}...`;
+
+      // Check if item needs to be transferred
+      if (piece.location === 2) {
+        // Item is in vault, transfer to character
+        console.log(`Transferring ${itemName} from vault to character`);
+        transferCount++;
+
+        await API.inventory.transfer(
+          itemId,
+          itemHash,
+          currentCharacterId,
+          membershipType,
+          piece.quantity || 1
+        );
+
+        // Small delay to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      } else if (
+        piece.characterId &&
+        piece.characterId !== currentCharacterId
+      ) {
+        // Item is on another character, transfer to vault first then to target character
+        console.log(`Transferring ${itemName} from another character`);
+        transferCount++;
+
+        // Transfer to vault (characterId = false)
+        await API.inventory.transfer(
+          itemId,
+          itemHash,
+          false,
+          membershipType,
+          piece.quantity || 1
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
+        // Then transfer to target character
+        await API.inventory.transfer(
+          itemId,
+          itemHash,
+          currentCharacterId,
+          membershipType,
+          piece.quantity || 1
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+    }
+
+    // Now equip all items
+    transferBtn.textContent = "Equipping armor...";
+
+    for (const piece of loadout.set) {
+      const itemId = piece.itemInstanceId;
+      const bucketName = getBucketName(
+        piece.definition.inventory.bucketTypeHash
+      );
+
+      console.log(`Equipping ${piece.definition.displayProperties.name}`);
+      equipCount++;
+
+      await API.inventory.equip(itemId, currentCharacterId, membershipType);
+
+      // Small delay to avoid rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    transferBtn.classList.remove("processing");
+    transferBtn.classList.add("success");
+    transferBtn.textContent = "✓ Loadout Equipped!";
+
+    showNotification(
+      `Successfully equipped loadout! Transferred ${transferCount} items and equipped ${equipCount} pieces.`,
+      "success"
+    );
+
+    // Reset button after 3 seconds
+    setTimeout(() => {
+      transferBtn.textContent = originalText;
+      transferBtn.disabled = false;
+      transferBtn.classList.remove("success");
+    }, 3000);
+
+    // Refresh armor display to show the changes
+    if (armorLoaded) {
+      applyArmorFilters();
+    }
+  } catch (error) {
+    console.error("Failed to transfer/equip loadout:", error);
+    transferBtn.classList.remove("processing");
+    transferBtn.classList.add("error");
+    transferBtn.textContent = "❌ Failed";
+
+    showNotification(`Failed to equip loadout: ${error.message}`, "error");
+
+    // Reset button after 3 seconds
+    setTimeout(() => {
+      transferBtn.textContent = originalText;
+      transferBtn.disabled = false;
+      transferBtn.classList.remove("error");
+    }, 3000);
+  }
 }
 
 function updateDynamicLimits() {
