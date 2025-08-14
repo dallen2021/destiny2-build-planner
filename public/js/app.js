@@ -269,6 +269,8 @@ const state = {
     Super: 10,
   },
   selectedExoticHash: null,
+  // NEW: For stat priority weighting
+  statPriorities: {},
 };
 
 // Stat hash constants for armor stats
@@ -309,6 +311,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   await initializeApp();
   initializeArtifact();
   initStatAllocator();
+  // NEW: initialize stat priorities UI
+  initStatPriorities();
   updateAllStatCalculations();
   const savedClass = localStorage.getItem("d2SelectedClass") || "hunter";
   selectClass(savedClass);
@@ -319,6 +323,11 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Initialize the loadout worker
   initLoadoutWorker();
+
+  // NEW: Keyboard shortcuts, offline mode, saved loadouts UI
+  KeyboardShortcuts.init();
+  initOfflineMode();
+  loadSavedLoadoutsUI();
 
   console.log("App initialization complete");
 });
@@ -1015,10 +1024,16 @@ function setupArmorFilters() {
 
 async function refreshData() {
   showNotification("Refreshing armor data...", "info");
+  if (API && typeof API.clearCache === "function") API.clearCache();
   armorLoaded = false;
   armorLoading = false;
-  await loadArmorInventory();
-  showNotification("Armor data refreshed!", "success");
+  try {
+    await loadArmorInventory();
+    showNotification("Armor data refreshed!", "success");
+  } catch (error) {
+    console.error("Failed to refresh data:", error);
+    showNotification("Failed to refresh data. Please try again.", "error");
+  }
 }
 
 function debounce(func, wait) {
@@ -1555,798 +1570,299 @@ function updateMeleeClassRestrictions() {
   recalculateAllDamage();
 }
 
-/* -------- NEW/UPDATED LOADOUT BUILDER FUNCTIONS -------- */
-
-/**
- * Resets the worker by terminating it if it exists and creating a new one.
- * Posts a message to the new worker.
- * @param {string} type - The type of message to post (e.g., 'generate', 'precompute').
- * @param {object} payload - The data payload for the message.
- */
-function resetAndRunWorker(type, payload) {
-  if (isWorkerBusy) {
-    console.log("Worker is busy, terminating previous job...");
-    loadoutWorker.terminate();
-  }
-  console.log(`Initializing new worker for task: ${type}`);
-  initLoadoutWorker();
-
-  isWorkerBusy = true;
-  showLoadingIndicator();
-  loadoutWorker.postMessage({ type, payload });
-}
-
-function initLoadoutWorker() {
-  if (window.Worker) {
-    loadoutWorker = new Worker("js/loadout-worker.js");
-    loadoutWorker.onmessage = function (e) {
-      const { type, payload } = e.data;
-      console.log(`Main thread received message from worker: ${type}`);
-
-      if (type === "loadoutsGenerated") {
-        const { loadouts } = payload;
-        displayLoadouts(loadouts);
-        updateDynamicLimits();
-        isWorkerBusy = false;
-        hideLoadingIndicator();
-      } else if (type === "error") {
-        console.error("Loadout Worker Error:", payload);
-        showNotification(
-          "An error occurred in the loadout generator.",
-          "error"
-        );
-        const resultsGrid = document.getElementById("loadoutResultsGrid");
-        resultsGrid.innerHTML =
-          '<div class="empty-state">An error occurred while generating loadouts.</div>';
-        isWorkerBusy = false;
-        hideLoadingIndicator();
-      } else if (type === "precomputeDone") {
-        precomputedDistributions = payload.distributions;
-        console.log("Pre-computation complete. Now starting full generation.");
-        generateLoadouts(); // Chain the full generation after pre-computation
-      } else if (type === "progress") {
-        const { current, total, percentage, classType } = payload;
-        progressByClass[classType] = { current, total, percentage };
-        updateProgressDisplay();
-      }
-    };
-    loadoutWorker.onerror = function (e) {
-      console.error("An error occurred in the loadout worker:", e);
-      showNotification("Failed to run loadout generator.", "error");
-      const resultsGrid = document.getElementById("loadoutResultsGrid");
-      resultsGrid.innerHTML =
-        '<div class="empty-state">The loadout generator failed to start.</div>';
-      isWorkerBusy = false;
-      hideLoadingIndicator();
-    };
-  } else {
-    console.error("Web Workers are not supported in this browser.");
-    showNotification(
-      "Your browser does not support features required for the loadout builder.",
-      "error"
-    );
-  }
-}
-
-// New function to update visual progress
-function updateProgressDisplay() {
-  const progressText = document.getElementById("progress-text");
-  if (!progressText) {
-    // Dynamically add if not present
-    const indicator = document.getElementById("loading-indicator");
-    if (indicator) {
-      const textEl = document.createElement("span");
-      textEl.id = "progress-text";
-      indicator.appendChild(textEl);
-    } else {
-      return;
-    }
-  }
-
-  let displayStr = "";
-  Object.entries(progressByClass).forEach(([classType, prog]) => {
-    const className = getClassName(classType); // Use existing getClassName function
-    displayStr += `${className}: ${prog.current} / ${prog.total} (${prog.percentage}%) | `;
-  });
-
-  document.getElementById("progress-text").textContent = displayStr
-    .trim()
-    .slice(0, -1); // Remove trailing |
-}
-
-function showLoadingIndicator() {
-  const indicator = document.getElementById("loading-indicator");
-  if (indicator) {
-    indicator.style.display = "inline-flex";
-  }
-}
-
-function hideLoadingIndicator() {
-  const indicator = document.getElementById("loading-indicator");
-  if (indicator) {
-    indicator.style.display = "none";
-  }
-}
-
-async function populateExoticSelector() {
-  const selector = document.getElementById("exoticSelector");
-  if (!selector) return;
-  selector.innerHTML = ""; // Clear previous exotics
-
-  const character = charactersData[currentCharacterId];
-  if (!character) return;
-  const characterClass = character.classType;
-
-  // Add "No Exotic" option
-  const noExoticEl = document.createElement("div");
-  noExoticEl.className = "exotic-item-icon selected";
-  noExoticEl.dataset.hash = "none";
-  noExoticEl.innerHTML = `<div class="placeholder">Ø</div>`;
-  noExoticEl.title = "No Exotic";
-  noExoticEl.addEventListener("click", () => selectExotic("none"));
-  selector.appendChild(noExoticEl);
-  state.selectedExoticHash = null; // Default to no exotic
-
-  const exoticArmor = allItems.filter(
-    (item) =>
-      item.definition?.inventory?.tierTypeName === "Exotic" &&
-      item.definition?.itemType === 2 && // is Armor
-      (item.definition?.classType === characterClass ||
-        item.definition?.classType === 3)
-  );
-
-  // Create a unique set of exotics based on hash
-  const uniqueExotics = [
-    ...new Map(exoticArmor.map((item) => [item.itemHash, item])).values(),
-  ];
-
-  uniqueExotics.sort((a, b) =>
-    a.definition.displayProperties.name.localeCompare(
-      b.definition.displayProperties.name
-    )
-  );
-
-  uniqueExotics.forEach((item) => {
-    const iconUrl = `https://www.bungie.net${item.definition.displayProperties.icon}`;
-    const el = document.createElement("div");
-    el.className = "exotic-item-icon";
-    el.dataset.hash = item.itemHash;
-    el.title = item.definition.displayProperties.name;
-    el.innerHTML = `<img src="${iconUrl}" alt="${item.definition.displayProperties.name}">`;
-    el.addEventListener("click", () => selectExotic(item.itemHash));
-    selector.appendChild(el);
-  });
-}
-
-async function selectExotic(hash) {
-  state.selectedExoticHash = hash === "none" ? null : hash;
-  console.log(
-    `Selected exotic with hash: ${hash}. Triggering pre-computation.`
-  );
-
-  // Update visual selection
-  document.querySelectorAll(".exotic-item-icon").forEach((el) => {
-    el.classList.toggle("selected", el.dataset.hash === String(hash));
-  });
-
-  if (loadoutWorker && armorLoaded) {
-    const character = charactersData[currentCharacterId];
-    // This will now terminate the old worker and start a new one for pre-computation
-    resetAndRunWorker("precompute", { allItems, character, state });
-  }
-}
-
-/**
- * Asynchronously generates loadouts by offloading the work to a Web Worker.
- * Updates the UI to show a loading state while the worker is busy.
- */
-async function generateLoadouts() {
-  const character = charactersData[currentCharacterId];
-  if (!character) {
-    document.getElementById("loadoutResultsGrid").innerHTML =
-      '<div class="empty-state">Please select a character.</div>';
-    return;
-  }
-
-  console.log("Preparing to generate loadouts with state:", state);
-  resetAndRunWorker("generate", { allItems, character, state });
-}
-
-/**
- * Updates the enabled/disabled state of stat boxes based on calculated limits.
- * @param {Object} limits - An object with stat names as keys and their max possible value as values.
- */
-function updateStatButtons(limits) {
-  // First, remove all disabled classes to reset the state
-  document
-    .querySelectorAll(".stat-box.disabled")
-    .forEach((box) => box.classList.remove("disabled"));
-
-  // Then, apply new limits
-  document.querySelectorAll(".stat-box").forEach((box) => {
-    const stat = box.dataset.stat;
-    const value = parseInt(box.dataset.value, 10);
-    if (limits[stat] !== undefined && value > limits[stat]) {
-      box.classList.add("disabled");
-    }
-  });
-}
-
-function displayLoadouts(loadouts) {
-  const resultsGrid = document.getElementById("loadoutResultsGrid");
-  resultsGrid.innerHTML = "";
-
-  if (loadouts.length === 0) {
-    resultsGrid.innerHTML =
-      '<div class="empty-state">No loadouts found with the selected criteria. Try different stats or another exotic.</div>';
-    return;
-  }
-
-  const itemsPerPage = 12;
-  let currentPage = 1;
-
-  const renderPage = () => {
-    resultsGrid.innerHTML = "";
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    const pageItems = loadouts.slice(start, end);
-
-    pageItems.forEach((loadout) => {
-      const card = document.createElement("div");
-      card.className = "loadout-card";
-
-      // Armor icons first
-      let armorHtml = '<div class="loadout-armor">';
-      loadout.set.forEach((piece) => {
-        const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
-        armorHtml += `<div class="loadout-armor-piece">
-                    <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" title="${piece.definition.displayProperties.name}">
-                    ${isExotic ? '<div class="exotic-glow"></div>' : ""}
-                </div>`;
-      });
-      armorHtml += "</div>";
-
-      // Then stats in two columns
-      let statsHtml = '<div class="loadout-stats-grid">';
-      const statNames = Object.keys(loadout.stats);
-      const mid = Math.ceil(statNames.length / 2);
-
-      // Column 1
-      statsHtml += '<div class="loadout-stats-col">';
-      for (let i = 0; i < mid; i++) {
-        const statName = statNames[i];
-        statsHtml += `<div class="loadout-stat"><span class="stat-name">${statName}</span> <span class="stat-value">${loadout.stats[statName]} (T${Math.floor(loadout.stats[statName] / 10)})</span></div>`;
-      }
-      statsHtml += "</div>";
-
-      // Column 2
-      statsHtml += '<div class="loadout-stats-col">';
-      for (let i = mid; i < statNames.length; i++) {
-        const statName = statNames[i];
-        statsHtml += `<div class="loadout-stat"><span class="stat-name">${statName}</span> <span class="stat-value">${loadout.stats[statName]} (T${Math.floor(loadout.stats[statName] / 10)})</span></div>`;
-      }
-      statsHtml += "</div>";
-
-      statsHtml += "</div>";
-
-      card.innerHTML = armorHtml + statsHtml;
-
-      // Add click handler to show detailed modal
-      card.addEventListener("click", () => showLoadoutModal(loadout));
-
-      resultsGrid.appendChild(card);
-    });
-  };
-
-  const setupPagination = () => {
-    const paginationContainer = document.getElementById("loadoutPagination");
-    paginationContainer.innerHTML = "";
-    const pageCount = Math.ceil(loadouts.length / itemsPerPage);
-
-    if (pageCount <= 1) {
-      paginationContainer.style.display = "none";
-      return;
-    }
-    paginationContainer.style.display = "flex";
-
-    const prevButton = document.createElement("button");
-    prevButton.textContent = "◀";
-    prevButton.disabled = currentPage === 1;
-    prevButton.addEventListener("click", () => {
-      if (currentPage > 1) {
-        currentPage--;
-        renderPage();
-        setupPagination();
-      }
-    });
-    paginationContainer.appendChild(prevButton);
-
-    const pageInfo = document.createElement("span");
-    pageInfo.textContent = `Page ${currentPage} of ${pageCount}`;
-    paginationContainer.appendChild(pageInfo);
-
-    const nextButton = document.createElement("button");
-    nextButton.textContent = "▶";
-    nextButton.disabled = currentPage === pageCount;
-    nextButton.addEventListener("click", () => {
-      if (currentPage < pageCount) {
-        currentPage++;
-        renderPage();
-        setupPagination();
-      }
-    });
-    paginationContainer.appendChild(nextButton);
-  };
-
-  renderPage();
-  setupPagination();
-}
-
-/**
- * Shows a detailed modal popup for a loadout
- * @param {Object} loadout - The loadout object containing armor set and stats
- */
-async function showLoadoutModal(loadout) {
-  // Remove any existing modal
-  const existingModal = document.querySelector(".loadout-modal-overlay");
-  if (existingModal) {
-    existingModal.remove();
-  }
-
-  // Create modal overlay
-  const modalOverlay = document.createElement("div");
-  modalOverlay.className = "loadout-modal-overlay";
-
-  // Create modal content
-  const modal = document.createElement("div");
-  modal.className = "loadout-modal";
-
-  // Modal header
-  const header = document.createElement("div");
-  header.className = "loadout-modal-header";
-  header.innerHTML = `
-    <h2 class="loadout-modal-title">Loadout Details</h2>
-    <button class="loadout-modal-close">&times;</button>
-  `;
-
-  // Modal content
-  const content = document.createElement("div");
-  content.className = "loadout-modal-content";
-
-  // Show loading while fetching mod definitions
-  content.innerHTML =
-    '<div style="text-align: center; padding: 40px;">Loading mod details...</div>';
-
-  // Assemble modal temporarily
-  modal.appendChild(header);
-  modal.appendChild(content);
-  modalOverlay.appendChild(modal);
-  document.body.appendChild(modalOverlay);
-
-  // Collect all unique mod hashes
-  const modHashes = new Set();
-  loadout.set.forEach((piece) => {
-    const sockets = piece.sockets || [];
-    sockets.forEach((socket, index) => {
-      if (index >= 2 && socket.plugHash && socket.isEnabled !== false) {
-        modHashes.add(socket.plugHash);
-      }
-    });
-  });
-
-  // Fetch mod definitions
-  let modDefinitions = {};
-  if (modHashes.size > 0) {
-    try {
-      modDefinitions = await Manifest.getItems([...modHashes]);
-    } catch (error) {
-      console.error("Failed to fetch mod definitions:", error);
-    }
-  }
-
-  // Armor showcase section
-  let armorShowcaseHtml = '<div class="loadout-armor-showcase">';
-  loadout.set.forEach((piece) => {
-    const isExotic = piece.definition.inventory.tierTypeName === "Exotic";
-    const power = piece.power || 0;
-    const bucketName = getBucketName(piece.definition.inventory.bucketTypeHash);
-
-    armorShowcaseHtml += `
-      <div class="loadout-armor-showcase-item ${isExotic ? "exotic" : ""}">
-        <div class="loadout-armor-icon-large">
-          <img src="https://www.bungie.net${piece.definition.displayProperties.icon}" 
-               alt="${piece.definition.displayProperties.name}">
-          ${isExotic ? '<span class="exotic-badge">Exotic</span>' : ""}
-        </div>
-        <div class="loadout-armor-name">${piece.definition.displayProperties.name}</div>
-        <div class="loadout-armor-type">${bucketName}</div>
-        <div class="loadout-armor-power">${power}</div>
-      </div>
-    `;
-  });
-  armorShowcaseHtml += "</div>";
-
-  // Total stats section
-  let totalStatsHtml = `
-    <div class="loadout-total-stats">
-      <h3>Total Stats Distribution</h3>
-      <div class="total-stats-grid">
-  `;
-
-  Object.entries(loadout.stats).forEach(([statName, value]) => {
-    const tier = Math.floor(value / 10);
-    totalStatsHtml += `
-      <div class="total-stat-item">
-        <div class="total-stat-name">${statName}</div>
-        <div class="total-stat-value">${value}</div>
-        <div class="total-stat-tier">Tier ${tier}</div>
-      </div>
-    `;
-  });
-
-  totalStatsHtml += "</div></div>";
-
-  // Detail sections container
-  let detailSectionsHtml = '<div class="loadout-detail-sections">';
-
-  // Individual armor stats section
-  detailSectionsHtml += `
-    <div class="loadout-detail-section">
-      <h3>Individual Armor Stats</h3>
-      <div class="armor-stats-grid">
-  `;
-
-  loadout.set.forEach((piece) => {
-    const bucketName = getBucketName(piece.definition.inventory.bucketTypeHash);
-    detailSectionsHtml += `
-      <div class="armor-stat-item">
-        <h4>${bucketName}</h4>
-        <div class="armor-stat-values">
-    `;
-
-    // Get stats for this piece
-    ["Weapons", "Health", "Class", "Grenade", "Super", "Melee"].forEach(
-      (statName, index) => {
-        const statHash = STAT_HASHES[index];
-        const statValue = piece.stats?.[statHash]?.value || 0;
-        const statAbbr = statName.substring(0, 3);
-
-        detailSectionsHtml += `
-        <div class="mini-stat">
-          <div class="mini-stat-name">${statAbbr}</div>
-          <div class="mini-stat-value">${statValue}</div>
-        </div>
-      `;
-      }
-    );
-
-    detailSectionsHtml += "</div></div>";
-  });
-
-  detailSectionsHtml += "</div></div>";
-
-  // Mods section
-  detailSectionsHtml += `
-    <div class="loadout-detail-section">
-      <h3>Equipped Mods</h3>
-      <div class="loadout-mods-grid">
-  `;
-
-  loadout.set.forEach((piece) => {
-    const bucketName = getBucketName(piece.definition.inventory.bucketTypeHash);
-    const sockets = piece.sockets || [];
-
-    detailSectionsHtml += `
-      <div class="armor-mods-column">
-        <h4>${bucketName}</h4>
-    `;
-
-    // Get mod sockets (usually the last few sockets are for mods)
-    let modCount = 0;
-    const modSockets = [];
-
-    // In Destiny 2, mod sockets are typically after the first few sockets
-    // First sockets are usually for perks/intrinsic traits
-    sockets.forEach((socket, index) => {
-      // Skip first few sockets (usually intrinsic perks)
-      if (index >= 2 && socket.plugHash && socket.isEnabled !== false) {
-        modSockets.push(socket);
-      }
-    });
-
-    // Display found mods with names
-    modSockets.slice(0, 5).forEach((socket) => {
-      const modDef = modDefinitions[socket.plugHash];
-      const modName = modDef?.displayProperties?.name || `Unknown Mod`;
-
-      // Skip empty mod slots, default plugs, or deprecated mods
-      if (
-        modName.toLowerCase().includes("empty") ||
-        modName.toLowerCase().includes("default") ||
-        modName.toLowerCase().includes("no mod") ||
-        modName.toLowerCase().includes("deprecated") ||
-        modName === "Unknown Mod"
-      ) {
-        return;
-      }
-
-      // Clean up mod names
-      const cleanModName = modName
-        .replace(/\s+Mod$/i, "") // Remove trailing "Mod"
-        .replace(/^Armor\s+/i, ""); // Remove leading "Armor"
-
-      detailSectionsHtml += `
-        <div class="mod-slot filled" title="${modDef?.displayProperties?.description || ""}">
-          <div class="mod-name">${cleanModName}</div>
-        </div>
-      `;
-      modCount++;
-    });
-
-    // Fill empty mod slots if less than 3 mods
-    while (modCount < 3) {
-      detailSectionsHtml += `
-        <div class="mod-slot empty">Empty Slot</div>
-      `;
-      modCount++;
-    }
-
-    detailSectionsHtml += "</div>";
-  });
-
-  detailSectionsHtml += "</div></div></div>";
-
-  // Update content with all HTML
-  content.innerHTML = armorShowcaseHtml + totalStatsHtml + detailSectionsHtml;
-
-  // Add transfer & equip button
-  const buttonContainer = document.createElement("div");
-  buttonContainer.style.cssText = "text-align: center; margin-top: 24px;";
-  buttonContainer.innerHTML = `
-    <button id="transferEquipBtn" class="transfer-equip-btn">
-      Transfer & Equip Loadout
-    </button>
-  `;
-  content.appendChild(buttonContainer);
-
-  // Add click handler for transfer & equip
-  const transferBtn = document.getElementById("transferEquipBtn");
-  transferBtn.addEventListener("click", () => transferAndEquipLoadout(loadout));
-
-  // Add close functionality
-  const closeBtn = modal.querySelector(".loadout-modal-close");
-  closeBtn.addEventListener("click", () => modalOverlay.remove());
-
-  // Close on overlay click
-  modalOverlay.addEventListener("click", (e) => {
-    if (e.target === modalOverlay) {
-      modalOverlay.remove();
-    }
-  });
-
-  // Close on escape key
-  const escapeHandler = (e) => {
-    if (e.key === "Escape") {
-      modalOverlay.remove();
-      document.removeEventListener("keydown", escapeHandler);
-    }
-  };
-  document.addEventListener("keydown", escapeHandler);
-}
-
-/**
- * Helper function to get bucket name from hash
- * @param {number} bucketHash - The bucket type hash
- * @returns {string} The bucket name
- */
-function getBucketName(bucketHash) {
-  const bucketNames = {
-    3448274439: "Helmet",
-    3551918588: "Gauntlets",
-    14239492: "Chest",
-    20886954: "Legs",
-    1585787867: "Class Item",
-  };
-  return bucketNames[bucketHash] || "Unknown";
-}
-
-/**
- * Transfers and equips a complete loadout to the current character
- * @param {Object} loadout - The loadout object containing armor set
- */
-async function transferAndEquipLoadout(loadout) {
-  const transferBtn = document.getElementById("transferEquipBtn");
-  if (!transferBtn) return;
-
-  const originalText = transferBtn.textContent;
-  transferBtn.disabled = true;
-  transferBtn.classList.add("processing");
-  transferBtn.textContent = "Processing...";
-
-  try {
-    if (!currentCharacterId) {
-      throw new Error("No character selected");
-    }
-
-    // Get auth status for membership info
-    const authStatus = await API.auth.checkStatus();
-    if (!authStatus.authenticated || !authStatus.destinyMembership) {
-      throw new Error("Not authenticated");
-    }
-
-    const { membershipType } = authStatus.destinyMembership;
-
-    // Process each armor piece
-    const transferPromises = [];
-    let transferCount = 0;
-    let equipCount = 0;
-
-    for (const piece of loadout.set) {
-      const itemId = piece.itemInstanceId;
-      const itemHash = piece.itemHash;
-      const itemName = piece.definition.displayProperties.name;
-      const bucketName = getBucketName(
-        piece.definition.inventory.bucketTypeHash
-      );
-
-      transferBtn.textContent = `Transferring ${bucketName}...`;
-
-      // Check if item needs to be transferred
-      if (piece.location === 2) {
-        // Item is in vault, transfer to character
-        console.log(`Transferring ${itemName} from vault to character`);
-        transferCount++;
-
-        await API.inventory.transfer(
-          itemId,
-          itemHash,
-          currentCharacterId,
-          membershipType,
-          piece.quantity || 1
-        );
-
-        // Small delay to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      } else if (
-        piece.characterId &&
-        piece.characterId !== currentCharacterId
-      ) {
-        // Item is on another character, transfer to vault first then to target character
-        console.log(`Transferring ${itemName} from another character`);
-        transferCount++;
-
-        // Transfer to vault (characterId = false)
-        await API.inventory.transfer(
-          itemId,
-          itemHash,
-          false,
-          membershipType,
-          piece.quantity || 1
-        );
-
-        await new Promise((resolve) => setTimeout(resolve, 250));
-
-        // Then transfer to target character
-        await API.inventory.transfer(
-          itemId,
-          itemHash,
-          currentCharacterId,
-          membershipType,
-          piece.quantity || 1
-        );
-
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
-    }
-
-    // Now equip all items
-    transferBtn.textContent = "Equipping armor...";
-
-    for (const piece of loadout.set) {
-      const itemId = piece.itemInstanceId;
-      const bucketName = getBucketName(
-        piece.definition.inventory.bucketTypeHash
-      );
-
-      console.log(`Equipping ${piece.definition.displayProperties.name}`);
-      equipCount++;
-
-      await API.inventory.equip(itemId, currentCharacterId, membershipType);
-
-      // Small delay to avoid rate limiting
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-
-    transferBtn.classList.remove("processing");
-    transferBtn.classList.add("success");
-    transferBtn.textContent = "✓ Loadout Equipped!";
-
-    showNotification(
-      `Successfully equipped loadout! Transferred ${transferCount} items and equipped ${equipCount} pieces.`,
-      "success"
-    );
-
-    // Reset button after 3 seconds
-    setTimeout(() => {
-      transferBtn.textContent = originalText;
-      transferBtn.disabled = false;
-      transferBtn.classList.remove("success");
-    }, 3000);
-
-    // Refresh armor display to show the changes
-    if (armorLoaded) {
-      applyArmorFilters();
-    }
-  } catch (error) {
-    console.error("Failed to transfer/equip loadout:", error);
-    transferBtn.classList.remove("processing");
-    transferBtn.classList.add("error");
-    transferBtn.textContent = "❌ Failed";
-
-    showNotification(`Failed to equip loadout: ${error.message}`, "error");
-
-    // Reset button after 3 seconds
-    setTimeout(() => {
-      transferBtn.textContent = originalText;
-      transferBtn.disabled = false;
-      transferBtn.classList.remove("error");
-    }, 3000);
-  }
-}
-
-function updateDynamicLimits() {
-  if (!precomputedDistributions || precomputedDistributions.length === 0) {
-    document
-      .querySelectorAll(".stat-box.disabled")
-      .forEach((box) => box.classList.remove("disabled"));
-    return;
-  }
-
-  const targetPoints = [
-    state.statValues.Weapons,
-    state.statValues.Health,
-    state.statValues.Class,
-    state.statValues.Grenade,
-    state.statValues.Super,
-    state.statValues.Melee,
-  ];
-
-  const validDistributions = precomputedDistributions.filter((dist) => {
-    let totalMods = 0;
-    for (let i = 0; i < 6; i++) {
-      let needed = targetPoints[i] - dist[i];
-      if (needed > 0) totalMods += Math.ceil(needed / 10);
-    }
-    return totalMods <= 5;
-  });
-
-  const newLimits = {};
-  const statsOrder = [
-    "Weapons",
-    "Health",
-    "Class",
-    "Grenade",
-    "Super",
-    "Melee",
-  ];
-  for (let s = 0; s < 6; s++) {
-    let maxForThis = 0;
-    for (const dist of validDistributions) {
-      let modsOthers = 0;
-      for (let o = 0; o < 6; o++) {
-        if (o !== s) {
-          let needed = targetPoints[o] - dist[o];
-          if (needed > 0) modsOthers += Math.ceil(needed / 10);
+/* -------- NEW ADDITIONS: Keyboard Shortcuts, Loadout Manager, Offline Mode, Stat Priority System, Saved Loadouts, Enhanced Refresh, Drag & Drop --- */
+// Guard against redefinition if file is reloaded
+if (typeof KeyboardShortcuts === "undefined") {
+  const KeyboardShortcuts = {
+    shortcuts: {
+      r: { handler: () => refreshData(), description: "Refresh data" },
+      1: { handler: () => switchTab("armorDisplay"), description: "Armor tab" },
+      2: {
+        handler: () => switchTab("loadoutBuilder"),
+        description: "Loadout Builder tab",
+      },
+      3: {
+        handler: () => switchTab("artifact"),
+        description: "Artifact Mods tab",
+      },
+      4: {
+        handler: () => switchTab("damage"),
+        description: "Damage Calculator tab",
+      },
+      5: { handler: () => switchTab("build"), description: "Build Info tab" },
+      Escape: { handler: () => closeAllModals(), description: "Close modals" },
+      s: {
+        handler: () => saveCurrentLoadout(),
+        description: "Save current loadout",
+      },
+      l: {
+        handler: () => showSavedLoadouts(),
+        description: "Show saved loadouts",
+      },
+      "?": {
+        handler: () => showKeyboardShortcuts(),
+        description: "Show shortcuts",
+      },
+    },
+    init() {
+      document.addEventListener("keydown", (e) => {
+        if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")
+          return;
+        const shortcut = this.shortcuts[e.key];
+        if (shortcut && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          shortcut.handler();
         }
-      }
-      let remainingMods = 5 - modsOthers;
-      if (remainingMods >= 0) {
-        let potential = dist[s] + remainingMods * 10;
-        if (potential > maxForThis) maxForThis = potential;
-      }
-    }
-    newLimits[statsOrder[s]] = Math.floor(Math.min(200, maxForThis) / 10) * 10;
-  }
+      });
+    },
+  };
+  window.KeyboardShortcuts = KeyboardShortcuts;
+}
 
-  updateStatButtons(newLimits);
+if (typeof LoadoutManager === "undefined") {
+  class LoadoutManager {
+    static saveLoadout(loadout, name) {
+      const id = API.loadouts.saveLocal(loadout, name);
+      showNotification(`Loadout "${name}" saved!`, "success");
+      return id;
+    }
+    static getLoadouts() {
+      return API.loadouts.getLocal();
+    }
+    static deleteLoadout(id) {
+      API.loadouts.deleteLocal(id);
+      showNotification("Loadout deleted", "info");
+    }
+    static exportLoadout(loadout) {
+      const dimFormat = API.utils.exportToDIM(loadout);
+      navigator.clipboard
+        .writeText(dimFormat)
+        .then(() =>
+          showNotification(
+            "Loadout copied to clipboard (DIM format)",
+            "success"
+          )
+        );
+    }
+    static shareLoadout(loadout) {
+      const shareLink = API.utils.generateShareLink(loadout);
+      navigator.clipboard
+        .writeText(shareLink)
+        .then(() =>
+          showNotification("Share link copied to clipboard", "success")
+        );
+    }
+  }
+  window.LoadoutManager = LoadoutManager;
+}
+
+// Offline mode detection
+function initOfflineMode() {
+  window.addEventListener("online", () => {
+    showNotification("Connection restored", "success");
+    disableOfflineMode();
+  });
+  window.addEventListener("offline", () => {
+    showNotification("Connection lost. Working offline", "warning");
+    enableOfflineMode();
+  });
+}
+function enableOfflineMode() {
+  document.body.classList.add("offline-mode");
+  document.querySelectorAll(".requires-connection").forEach((el) => {
+    el.disabled = true;
+  });
+}
+function disableOfflineMode() {
+  document.body.classList.remove("offline-mode");
+  document.querySelectorAll(".requires-connection").forEach((el) => {
+    el.disabled = false;
+  });
+  if (isAuthenticated) refreshData();
+}
+
+// Stat priority system
+function initStatPriorities() {
+  const container = document.createElement("div");
+  container.className = "stat-priorities-container";
+  container.innerHTML = `
+    <h3>Stat Priorities (Optional)</h3>
+    <div class="stat-priorities-grid">
+      ${statsArr
+        .map(
+          (stat) => `
+        <div class="priority-row">
+          <label>${stat}</label>
+          <input type="range" id="priority-${stat}" min="0" max="10" value="5" onchange="updateStatPriority('${stat}', this.value)">
+          <span id="priority-value-${stat}">5</span>
+        </div>`
+        )
+        .join("")}
+    </div>
+    <button onclick="resetPriorities()">Reset Priorities</button>`;
+  const builderSection = document.querySelector(".exotic-selection-container");
+  if (builderSection)
+    builderSection.parentNode.insertBefore(
+      container,
+      builderSection.nextSibling
+    );
+}
+function updateStatPriority(stat, value) {
+  state.statPriorities[stat] = parseInt(value);
+  const vEl = document.getElementById(`priority-value-${stat}`);
+  if (vEl) vEl.textContent = value;
+  if (window.loadoutWorker && typeof armorLoaded !== "undefined" && armorLoaded)
+    generateLoadouts();
+}
+function resetPriorities() {
+  statsArr.forEach((stat) => {
+    state.statPriorities[stat] = 5;
+    const input = document.getElementById(`priority-${stat}`);
+    const span = document.getElementById(`priority-value-${stat}`);
+    if (input) input.value = 5;
+    if (span) span.textContent = 5;
+  });
+  if (window.loadoutWorker && typeof armorLoaded !== "undefined" && armorLoaded)
+    generateLoadouts();
+}
+
+// Saved loadouts UI
+function loadSavedLoadoutsUI() {
+  if (document.getElementById("saved-loadouts-container")) return; // prevent duplicates
+  const savedContainer = document.createElement("div");
+  savedContainer.id = "saved-loadouts-container";
+  savedContainer.className = "saved-loadouts-section";
+  savedContainer.innerHTML = `<h3>Saved Loadouts</h3><div id="saved-loadouts-list" class="saved-loadouts-grid"></div>`;
+  const loadoutBuilder = document.getElementById("loadoutBuilder");
+  if (loadoutBuilder)
+    loadoutBuilder.insertBefore(savedContainer, loadoutBuilder.firstChild);
+  updateSavedLoadoutsList();
+}
+function updateSavedLoadoutsList() {
+  const container = document.getElementById("saved-loadouts-list");
+  if (!container) return;
+  const savedLoadouts = LoadoutManager.getLoadouts();
+  const loadoutIds = Object.keys(savedLoadouts);
+  if (loadoutIds.length === 0) {
+    container.innerHTML = '<div class="empty-state">No saved loadouts</div>';
+    return;
+  }
+  container.innerHTML = loadoutIds
+    .map((id) => {
+      const loadout = savedLoadouts[id];
+      return `<div class="saved-loadout-card" data-id="${id}">
+      <div class="loadout-name">${loadout.name}</div>
+      <div class="loadout-date">${new Date(loadout.created).toLocaleDateString()}</div>
+      <div class="loadout-actions">
+        <button onclick="loadSavedLoadout('${id}')">Load</button>
+        <button onclick="exportSavedLoadout('${id}')">Export</button>
+        <button onclick="deleteSavedLoadout('${id}')">Delete</button>
+      </div></div>`;
+    })
+    .join("");
+}
+function saveCurrentLoadout() {
+  const selectedLoadout = document.querySelector(".loadout-card.selected");
+  if (!selectedLoadout) {
+    showNotification("Please select a loadout first", "warning");
+    return;
+  }
+  const name = prompt("Enter a name for this loadout:");
+  if (name) {
+    const loadoutData = selectedLoadout.dataset.loadout;
+    if (loadoutData) {
+      LoadoutManager.saveLoadout(JSON.parse(loadoutData), name);
+      updateSavedLoadoutsList();
+    }
+  }
+}
+function loadSavedLoadout(id) {
+  const savedLoadouts = LoadoutManager.getLoadouts();
+  const loadout = savedLoadouts[id];
+  if (loadout) showLoadoutModal(loadout);
+}
+function exportSavedLoadout(id) {
+  const savedLoadouts = LoadoutManager.getLoadouts();
+  const loadout = savedLoadouts[id];
+  if (loadout) LoadoutManager.exportLoadout(loadout);
+}
+function deleteSavedLoadout(id) {
+  if (confirm("Are you sure you want to delete this loadout?")) {
+    LoadoutManager.deleteLoadout(id);
+    updateSavedLoadoutsList();
+  }
+}
+function showSavedLoadouts() {
+  const container = document.getElementById("saved-loadouts-container");
+  if (container) container.scrollIntoView({ behavior: "smooth" });
+}
+
+// UI helper modals
+function showKeyboardShortcuts() {
+  const modal = document.createElement("div");
+  modal.className = "shortcuts-modal";
+  modal.innerHTML = `<div class="shortcuts-content"><h2>Keyboard Shortcuts</h2><div class="shortcuts-list">${Object.entries(
+    KeyboardShortcuts.shortcuts
+  )
+    .map(
+      ([key, info]) =>
+        `<div class="shortcut-item"><kbd>${key}</kbd><span>${info.description}</span></div>`
+    )
+    .join(
+      ""
+    )}</div><button onclick="this.closest('.shortcuts-modal').remove()">Close</button></div>`;
+  document.body.appendChild(modal);
+}
+function closeAllModals() {
+  document
+    .querySelectorAll(".loadout-modal-overlay, .shortcuts-modal")
+    .forEach((modal) => modal.remove());
+}
+
+// Drag & Drop support
+function initDragAndDrop() {
+  document.addEventListener("dragstart", (e) => {
+    if (e.target.classList.contains("armor-item")) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("itemId", e.target.dataset.itemId);
+      e.target.classList.add("dragging");
+    }
+  });
+  document.addEventListener("dragend", (e) => {
+    if (e.target.classList.contains("armor-item"))
+      e.target.classList.remove("dragging");
+  });
+  document.querySelectorAll(".loadout-slot").forEach((slot) => {
+    slot.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      slot.classList.add("drag-over");
+    });
+    slot.addEventListener("dragleave", () =>
+      slot.classList.remove("drag-over")
+    );
+    slot.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const itemId = e.dataTransfer.getData("itemId");
+      slot.classList.remove("drag-over");
+      handleArmorDrop(itemId, slot);
+    });
+  });
+}
+function handleArmorDrop(itemId, slot) {
+  console.log(`Dropped item ${itemId} on slot`, slot);
+}
+
+// Enhanced data refresh overrides earlier refreshData
+async function refreshData() {
+  showNotification("Refreshing armor data...", "info");
+  if (API && typeof API.clearCache === "function") API.clearCache();
+  armorLoaded = false;
+  armorLoading = false;
+  try {
+    await loadArmorInventory();
+    showNotification("Armor data refreshed!", "success");
+  } catch (error) {
+    console.error("Failed to refresh data:", error);
+    showNotification("Failed to refresh data. Please try again.", "error");
+  }
 }
