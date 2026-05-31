@@ -5,7 +5,11 @@ import {
   pickDestinyMembership,
 } from "@/lib/bungie/client";
 import { getOptionalBungieConfig } from "@/lib/bungie/config";
-import { exchangeAuthorizationCode } from "@/lib/bungie/oauth";
+import {
+  DEFAULT_BUNGIE_SCOPES,
+  exchangeAuthorizationCode,
+  normalizeOAuthScopes,
+} from "@/lib/bungie/oauth";
 import {
   clearOAuthStateCookie,
   readOAuthStateCookie,
@@ -65,6 +69,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const expiresAt = new Date(
       now.getTime() + Math.max(token.expires_in - 60, 60) * 1000,
     ).toISOString();
+    const tokenScopes = normalizeOAuthScopes(token.scope);
     const session: StoredSession = {
       id: createSessionId(),
       accessToken: token.access_token,
@@ -78,6 +83,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       expiresAt,
       membershipId: token.membership_id ?? destinyMembership.membershipId,
       refreshToken: token.refresh_token,
+      scopes: tokenScopes.length > 0 ? tokenScopes : [...DEFAULT_BUNGIE_SCOPES],
       updatedAt: now.toISOString(),
     };
 

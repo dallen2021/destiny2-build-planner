@@ -1,17 +1,124 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  collectArmorItemHashes,
   collectInventoryDefinitionHashes,
+  getArmorStatDisplayName,
+  getItemStatValue,
   isArmorBucketHash,
   isWeaponBucketHash,
   normalizeDestinyInventory,
-  type DestinyItemDefinition,
+  type DestinyDefinitionBundle,
   type DestinyProfileResponse,
 } from "./inventory";
 
+function makeDefinitions(): DestinyDefinitionBundle {
+  return {
+    buckets: {
+      3448274439: {
+        bucketOrder: 10,
+        displayProperties: { name: "Helmet" },
+        hash: 3448274439,
+        scope: 0,
+      },
+      1498876634: {
+        bucketOrder: 20,
+        displayProperties: { name: "Kinetic Weapons" },
+        hash: 1498876634,
+        scope: 0,
+      },
+      215593132: {
+        bucketOrder: 100,
+        displayProperties: { name: "Postmaster" },
+        hash: 215593132,
+        scope: 0,
+      },
+      138197802: {
+        bucketOrder: 200,
+        displayProperties: { name: "Engrams" },
+        hash: 138197802,
+        scope: 0,
+      },
+    },
+    damageTypes: {
+      3373582085: {
+        color: { blue: 255, green: 180, red: 60 },
+        displayProperties: { icon: "/arc.png", name: "Arc" },
+        hash: 3373582085,
+      },
+    },
+    inventoryItems: {
+      1001: {
+        classType: 1,
+        displayProperties: {
+          description: "A helmet for testing.",
+          icon: "/helmet.png",
+          name: "Test Helmet",
+        },
+        iconWatermark: "/watermark.png",
+        inventory: { bucketTypeHash: 3448274439, tierTypeName: "Legendary" },
+        itemType: 2,
+        itemTypeDisplayName: "Helmet",
+      },
+      2001: {
+        displayProperties: {
+          description: "A weapon for testing.",
+          icon: "/weapon.png",
+          name: "Test Cannon",
+        },
+        inventory: { bucketTypeHash: 1498876634, tierTypeName: "Legendary" },
+        isAdept: true,
+        itemType: 3,
+        itemTypeDisplayName: "Hand Cannon",
+      },
+      3001: {
+        displayProperties: { icon: "/engram.png", name: "Prime Engram" },
+        inventory: { bucketTypeHash: 138197802, tierTypeName: "Legendary" },
+        itemType: 8,
+        itemTypeDisplayName: "Engram",
+      },
+      9001: {
+        displayProperties: {
+          description: "Precision final blows make this better.",
+          icon: "/perk.png",
+          name: "Peak Perk",
+        },
+        plug: { plugCategoryIdentifier: "weapon_perks" },
+      },
+      9002: {
+        displayProperties: { icon: "/masterwork.png", name: "Range Masterwork" },
+        plug: { plugCategoryIdentifier: "v400.plugs.weapons.masterworks" },
+      },
+      9003: {
+        displayProperties: { icon: "/ornament.png", name: "Shiny Ornament" },
+        plug: { plugCategoryIdentifier: "v400.plugs.armor_skins" },
+      },
+    },
+    stats: {
+      1240592695: {
+        displayProperties: { name: "Range" },
+        hash: 1240592695,
+        index: 3,
+      },
+      4043523819: {
+        displayProperties: { name: "Impact" },
+        hash: 4043523819,
+        index: 1,
+      },
+    },
+  };
+}
+
 describe("normalizeDestinyInventory", () => {
-  it("normalizes equipped, character, and vault armor with definitions and stats", () => {
+  it("uses current Armor 3.0 names for legacy armor stat hashes", () => {
+    expect(getArmorStatDisplayName("2996146975", "Mobility")).toBe("Weapons");
+    expect(getArmorStatDisplayName("392767087", "Resilience")).toBe("Health");
+    expect(getArmorStatDisplayName("1943323491", "Recovery")).toBe("Class");
+    expect(getArmorStatDisplayName("1735777505", "Discipline")).toBe("Grenade");
+    expect(getArmorStatDisplayName("144602215", "Intellect")).toBe("Super");
+    expect(getArmorStatDisplayName("4244567218", "Strength")).toBe("Melee");
+  });
+
+  it("normalizes equipped, carried, vault, postmaster, and engram items", () => {
     const profile: DestinyProfileResponse = {
       characters: {
         data: {
@@ -20,6 +127,10 @@ describe("normalizeDestinyInventory", () => {
             classType: 1,
             emblemBackgroundPath: "/img/theme/destiny/bgs/card.png",
             light: 2010,
+            stats: {
+              2996146975: 77,
+              392767087: 120,
+            },
           },
         },
       },
@@ -31,6 +142,7 @@ describe("normalizeDestinyInventory", () => {
                 bucketHash: 3448274439,
                 itemHash: 1001,
                 itemInstanceId: "helmet-instance",
+                state: 1,
               },
             ],
           },
@@ -41,9 +153,17 @@ describe("normalizeDestinyInventory", () => {
           char1: {
             items: [
               {
-                bucketHash: 3551918588,
-                itemHash: 1002,
-                itemInstanceId: "gauntlet-instance",
+                bucketHash: 1498876634,
+                itemHash: 2001,
+                itemInstanceId: "weapon-instance",
+                state: 44,
+                transferStatus: 0,
+              },
+              {
+                bucketHash: 215593132,
+                itemHash: 3001,
+                itemInstanceId: "postmaster-engram",
+                quantity: 2,
               },
             ],
           },
@@ -52,34 +172,46 @@ describe("normalizeDestinyInventory", () => {
       itemComponents: {
         instances: {
           data: {
-            "chest-instance": { gearTier: 4, primaryStat: { value: 1990 } },
-            "gauntlet-instance": { gearTier: 5, primaryStat: { value: 2000 } },
-            "helmet-instance": { gearTier: 3, primaryStat: { value: 2010 } },
+            "helmet-instance": {
+              canEquip: true,
+              gearTier: 3,
+              primaryStat: { value: 2010 },
+            },
+            "weapon-instance": {
+              canEquip: true,
+              damageTypeHash: 3373582085,
+              gearTier: 4,
+              primaryStat: { value: 550 },
+            },
           },
         },
         sockets: {
           data: {
             "helmet-instance": {
-              sockets: [{ isEnabled: true, isVisible: true, plugHash: 9001 }],
+              sockets: [
+                { isEnabled: true, isVisible: true, plugHash: 9003 },
+              ],
+            },
+            "weapon-instance": {
+              sockets: [
+                { isEnabled: true, isVisible: true, plugHash: 9001 },
+                { isEnabled: true, isVisible: true, plugHash: 9002 },
+              ],
             },
           },
         },
         stats: {
           data: {
-            "chest-instance": {
-              stats: {
-                4244567218: { value: 30 },
-              },
-            },
-            "gauntlet-instance": {
-              stats: {
-                1943323491: { value: 18 },
-              },
-            },
             "helmet-instance": {
               stats: {
-                2996146975: { value: 12 },
-                392767087: { value: 20 },
+                2996146975: { value: 42 },
+                392767087: { value: 68 },
+              },
+            },
+            "weapon-instance": {
+              stats: {
+                1240592695: { value: 72 },
+                4043523819: { value: 84 },
               },
             },
           },
@@ -89,139 +221,99 @@ describe("normalizeDestinyInventory", () => {
         data: {
           items: [
             {
-              bucketHash: 14239492,
-              itemHash: 1003,
-              itemInstanceId: "chest-instance",
+              bucketHash: 1498876634,
+              itemHash: 2001,
+              itemInstanceId: "vault-weapon",
             },
           ],
         },
       },
     };
 
-    const definitions: Record<string, DestinyItemDefinition> = {
-      1001: {
-        classType: 1,
-        displayProperties: { icon: "/helmet.png", name: "Test Helmet" },
-        inventory: { bucketTypeHash: 3448274439, tierTypeName: "Legendary" },
-        itemType: 2,
-      },
-      1002: {
-        classType: 1,
-        displayProperties: { icon: "/gauntlets.png", name: "Test Gauntlets" },
-        inventory: { bucketTypeHash: 3551918588, tierTypeName: "Exotic" },
-        itemType: 2,
-      },
-      1003: {
-        classType: 3,
-        displayProperties: { icon: "/chest.png", name: "Test Chest" },
-        inventory: { bucketTypeHash: 14239492, tierTypeName: "Legendary" },
-        itemType: 2,
-      },
-      9001: {
-        displayProperties: { icon: "/perk.png", name: "Peak Perk" },
-        plug: { plugCategoryIdentifier: "weapon_perks" },
-      },
-    };
+    const normalized = normalizeDestinyInventory(profile, makeDefinitions());
 
-    const normalized = normalizeDestinyInventory(profile, definitions);
-
-    expect(normalized.characters).toEqual([
-      {
-        className: "Hunter",
-        classType: 1,
-        emblemBackgroundPath: "/img/theme/destiny/bgs/card.png",
-        id: "char1",
-        light: 2010,
-      },
+    expect(normalized.characters[0]).toMatchObject({
+      className: "Hunter",
+      stats: [
+        { hash: 2996146975, name: "Weapons", value: 77 },
+        { hash: 392767087, name: "Health", value: 120 },
+      ],
+    });
+    expect(normalized.items.map((item) => item.location)).toEqual([
+      "equipped",
+      "carried",
+      "postmaster",
+      "vault",
     ]);
-    expect(normalized.items).toHaveLength(3);
-    expect(normalized.armor).toHaveLength(3);
-    expect(normalized.armor[0]).toMatchObject({
-      gearTier: 3,
+    expect(normalized.postmasterItems).toHaveLength(1);
+    expect(normalized.postmasterSummary).toEqual({
+      itemCount: 1,
+      quantity: 2,
+    });
+
+    const helmet = normalized.items[0];
+    expect(helmet).toMatchObject({
+      className: "Hunter",
+      description: "A helmet for testing.",
+      icon: "/helmet.png",
       id: "helmet-instance",
-      isEquipped: true,
-      itemHash: 1001,
       kind: "armor",
-      location: "character",
-      name: "Test Helmet",
-      power: 2010,
-      slot: "Helmet",
-      statTotal: 32,
-      stats: {
-        Mobility: 12,
-        Resilience: 20,
+      location: "equipped",
+      quantity: 1,
+      rarity: "Legendary",
+      slot: { hash: 3448274439, name: "Helmet", order: 10 },
+      state: {
+        canEquip: true,
+        canTransfer: true,
+        crafted: false,
+        enhanced: false,
+        locked: true,
+        masterworked: false,
+        tracked: false,
       },
-      tier: "Legendary",
     });
-    expect(normalized.armor[0].perks).toEqual([
-      {
-        category: "weapon_perks",
-        icon: "/perk.png",
-        index: 0,
-        isEnabled: true,
-        isVisible: true,
-        name: "Peak Perk",
-        plugHash: 9001,
-      },
+    expect(helmet.stats).toEqual([
+      { display: "bar", hash: 2996146975, name: "Weapons", sortOrder: 1, value: 42 },
+      { display: "bar", hash: 392767087, name: "Health", sortOrder: 2, value: 68 },
     ]);
-    expect(normalized.armor[1]).toMatchObject({
-      gearTier: 5,
-      id: "gauntlet-instance",
-      name: "Test Gauntlets",
-      slot: "Gauntlets",
-      tier: "Exotic",
-    });
-    expect(normalized.armor[2]).toMatchObject({
-      characterId: null,
-      id: "chest-instance",
-      location: "vault",
-      name: "Test Chest",
-      slot: "Chest",
-    });
-  });
+    expect(helmet.ornament).toMatchObject({ name: "Shiny Ornament" });
 
-  it("normalizes weapons alongside armor", () => {
-    const profile: DestinyProfileResponse = {
-      characterEquipment: {
-        data: {
-          char1: {
-            items: [
-              {
-                bucketHash: 1498876634,
-                itemHash: 2001,
-                itemInstanceId: "weapon-instance",
-              },
-            ],
-          },
-        },
+    const weapon = normalized.items[1];
+    expect(weapon).toMatchObject({
+      damageType: {
+        color: "rgb(60, 180, 255)",
+        hash: 3373582085,
+        icon: "/arc.png",
+        name: "Arc",
       },
-      itemComponents: {
-        instances: {
-          data: {
-            "weapon-instance": { gearTier: 4, primaryStat: { value: 400 } },
-          },
-        },
-      },
-    };
-    const definitions: Record<string, DestinyItemDefinition> = {
-      2001: {
-        displayProperties: { icon: "/weapon.png", name: "Test Cannon" },
-        inventory: { bucketTypeHash: 1498876634, tierTypeName: "Legendary" },
-        itemType: 3,
-      },
-    };
-
-    const normalized = normalizeDestinyInventory(profile, definitions);
-
-    expect(normalized.armor).toHaveLength(0);
-    expect(normalized.weapons).toHaveLength(1);
-    expect(normalized.weapons[0]).toMatchObject({
-      gearTier: 4,
       kind: "weapon",
-      name: "Test Cannon",
-      power: 400,
-      slot: "Kinetic",
+      location: "carried",
+      state: {
+        adept: true,
+        crafted: true,
+        enhanced: true,
+        masterworked: true,
+      },
       weaponTier: 4,
+    });
+    expect(weapon.stats.map((stat) => stat.name)).toEqual(["Impact", "Range"]);
+    expect(weapon.perks).toEqual([
+      expect.objectContaining({
+        category: "weapon_perks",
+        description: "Precision final blows make this better.",
+        icon: "/perk.png",
+        name: "Peak Perk",
+      }),
+    ]);
+    expect(weapon.masterwork).toMatchObject({ name: "Range Masterwork" });
+    expect(getItemStatValue(weapon, "Range")).toBe(72);
+
+    const engram = normalized.items[2];
+    expect(engram).toMatchObject({
+      kind: "engram",
+      location: "postmaster",
+      name: "Prime Engram",
+      quantity: 2,
     });
   });
 });
@@ -233,39 +325,7 @@ describe("gear bucket helpers", () => {
     expect(isWeaponBucketHash(1498876634)).toBe(true);
   });
 
-  it("collects unique armor item hashes from profile buckets", () => {
-    const profile: DestinyProfileResponse = {
-      characterEquipment: {
-        data: {
-          char1: {
-            items: [
-              { bucketHash: 3448274439, itemHash: 1001 },
-              { bucketHash: 3448274439, itemHash: 1001 },
-            ],
-          },
-        },
-      },
-      characterInventories: {
-        data: {
-          char1: {
-            items: [{ bucketHash: 3551918588, itemHash: 1002 }],
-          },
-        },
-      },
-      profileInventory: {
-        data: {
-          items: [
-            { bucketHash: 14239492, itemHash: 1003 },
-            { bucketHash: 1498876634, itemHash: 2001 },
-          ],
-        },
-      },
-    };
-
-    expect(collectArmorItemHashes(profile)).toEqual([1001, 1002, 1003]);
-  });
-
-  it("collects gear and socket plug definition hashes", () => {
+  it("collects unique gear, non-gear, and socket plug definition hashes", () => {
     const profile: DestinyProfileResponse = {
       characterEquipment: {
         data: {
@@ -274,7 +334,23 @@ describe("gear bucket helpers", () => {
           },
         },
       },
+      characterInventories: {
+        data: {
+          char1: {
+            items: [{ bucketHash: 215593132, itemHash: 3001 }],
+          },
+        },
+      },
       itemComponents: {
+        reusablePlugs: {
+          data: {
+            "weapon-instance": {
+              plugs: {
+                123: [{ plugItemHash: 9003 }],
+              },
+            },
+          },
+        },
         sockets: {
           data: {
             "weapon-instance": {
@@ -285,6 +361,12 @@ describe("gear bucket helpers", () => {
       },
     };
 
-    expect(collectInventoryDefinitionHashes(profile)).toEqual([2001, 9001, 9002]);
+    expect(collectInventoryDefinitionHashes(profile)).toEqual([
+      2001,
+      3001,
+      9001,
+      9002,
+      9003,
+    ]);
   });
 });

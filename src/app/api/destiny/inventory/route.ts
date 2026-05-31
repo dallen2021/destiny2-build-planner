@@ -5,12 +5,23 @@ import {
   getDestinyProfile,
 } from "@/lib/bungie/client";
 import { getOptionalBungieConfig } from "@/lib/bungie/config";
-import { getInventoryItemDefinitionsFromManifest } from "@/lib/bungie/manifest";
+import {
+  DESTINY_DAMAGE_TYPE_DEFINITION,
+  DESTINY_INVENTORY_BUCKET_DEFINITION,
+  DESTINY_STAT_DEFINITION,
+  getInventoryItemDefinitionsFromManifest,
+  getManifestComponentDefinitions,
+} from "@/lib/bungie/manifest";
+import { hasMoveEquipScope } from "@/lib/bungie/oauth";
 import {
   collectInventoryDefinitionHashes,
   normalizeDestinyInventory,
+  type DestinyDamageTypeDefinition,
+  type DestinyDefinitionBundle,
+  type DestinyInventoryBucketDefinition,
   type DestinyItemDefinition,
   type DestinyProfileResponse,
+  type DestinyStatDefinition,
 } from "@/lib/destiny/inventory";
 import { readSessionCookie } from "@/lib/session/cookies";
 import { unsealSession } from "@/lib/session/session";
@@ -48,23 +59,52 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       membershipType: session.destinyMembership.membershipType,
     });
     const definitionHashes = collectInventoryDefinitionHashes(profile);
-    const manifestDefinitions =
-      await getInventoryItemDefinitionsFromManifest<DestinyItemDefinition>({
+    const [
+      manifestDefinitions,
+      statDefinitions,
+      bucketDefinitions,
+      damageTypeDefinitions,
+    ] = await Promise.all([
+      getInventoryItemDefinitionsFromManifest<DestinyItemDefinition>({
         apiKey: config.apiKey,
         itemHashes: definitionHashes,
-      });
+      }),
+      getManifestComponentDefinitions<DestinyStatDefinition>({
+        apiKey: config.apiKey,
+        componentType: DESTINY_STAT_DEFINITION,
+      }),
+      getManifestComponentDefinitions<DestinyInventoryBucketDefinition>({
+        apiKey: config.apiKey,
+        componentType: DESTINY_INVENTORY_BUCKET_DEFINITION,
+      }),
+      getManifestComponentDefinitions<DestinyDamageTypeDefinition>({
+        apiKey: config.apiKey,
+        componentType: DESTINY_DAMAGE_TYPE_DEFINITION,
+      }),
+    ]);
+    const definitionBundle: DestinyDefinitionBundle = {
+      buckets: bucketDefinitions.definitions,
+      damageTypes: damageTypeDefinitions.definitions,
+      inventoryItems: manifestDefinitions.definitions,
+      stats: statDefinitions.definitions,
+    };
 
     return NextResponse.json({
-      ...normalizeDestinyInventory(profile, manifestDefinitions.definitions),
+      ...normalizeDestinyInventory(profile, definitionBundle),
       definitionSource: manifestDefinitions.definitionSource,
       fetchedAt: new Date().toISOString(),
-      manifestDefinitionCount: Object.keys(manifestDefinitions.definitions).length,
+      manifestDefinitionCount:
+        Object.keys(manifestDefinitions.definitions).length +
+        Object.keys(statDefinitions.definitions).length +
+        Object.keys(bucketDefinitions.definitions).length +
+        Object.keys(damageTypeDefinitions.definitions).length,
       manifestLanguage: manifestDefinitions.language,
       manifestMissingDefinitionCount: manifestDefinitions.missingHashes.length,
       manifestVersion: manifestDefinitions.version,
       membershipDisplayName: session.destinyMembership.displayName,
       membershipId: session.destinyMembership.membershipId,
       membershipType: session.destinyMembership.membershipType,
+      requiresMoveEquipReauth: !hasMoveEquipScope(session.scopes),
     });
   } catch (error) {
     const status = error instanceof BungieApiError ? 502 : 500;

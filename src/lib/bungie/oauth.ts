@@ -8,6 +8,7 @@ export const BUNGIE_TOKEN_URL =
 export const DEFAULT_BUNGIE_SCOPES = [
   "ReadBasicUserProfile",
   "ReadDestinyInventoryAndVault",
+  "MoveEquipDestinyItems",
 ] as const;
 
 export type BungieOAuthScope = (typeof DEFAULT_BUNGIE_SCOPES)[number] | string;
@@ -23,6 +24,7 @@ export type BungieTokenResponse = {
   refresh_token: string;
   expires_in: number;
   membership_id?: string;
+  scope?: string;
 };
 
 export function createOAuthState(): string {
@@ -40,8 +42,27 @@ export function buildBungieAuthorizationUrl({
   url.searchParams.set("response_type", "code");
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
+  url.searchParams.set("scope", DEFAULT_BUNGIE_SCOPES.join(" "));
 
   return url;
+}
+
+export function normalizeOAuthScopes(
+  scopes: string | readonly string[] | undefined,
+): string[] {
+  if (!scopes) {
+    return [];
+  }
+
+  return (typeof scopes === "string" ? scopes.split(/\s+/) : scopes)
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+}
+
+export function hasMoveEquipScope(
+  scopes: string | readonly string[] | undefined,
+): boolean {
+  return normalizeOAuthScopes(scopes).includes("MoveEquipDestinyItems");
 }
 
 export async function exchangeAuthorizationCode({

@@ -4,33 +4,55 @@ export type DestinyInventoryItem = {
   bucketHash?: number;
   itemHash: number;
   itemInstanceId?: string;
+  location?: number;
+  lockable?: boolean;
+  overrideStyleItemHash?: number;
+  quantity?: number;
   state?: number;
+  transferStatus?: number;
+};
+
+export type DestinyDisplayProperties = {
+  description?: string;
+  icon?: string;
+  name?: string;
 };
 
 export type DestinyItemDefinition = {
   classType?: DestinyClassType;
-  displayProperties?: {
-    description?: string;
-    icon?: string;
-    name?: string;
-  };
+  collectibleHash?: number;
+  displayProperties?: DestinyDisplayProperties;
+  displaySource?: string;
   equippingBlock?: {
     equipmentSlotTypeHash?: number;
     uniqueLabel?: string;
   };
+  flavorText?: string;
+  iconWatermark?: string;
+  iconWatermarkFeatured?: string;
+  iconWatermarkShelved?: string;
   inventory?: {
     bucketTypeHash?: number;
     tierType?: number;
     tierTypeHash?: number;
     tierTypeName?: string;
   };
+  isAdept?: boolean;
+  isFeaturedItem?: boolean;
+  isHolofoil?: boolean;
   itemCategoryHashes?: number[];
   itemSubType?: number;
   itemType?: number;
+  itemTypeAndTierDisplayName?: string;
+  itemTypeDisplayName?: string;
   plug?: {
     plugCategoryHash?: number;
     plugCategoryIdentifier?: string;
   };
+  screenshot?: string;
+  secondaryIcon?: string;
+  secondaryOverlay?: string;
+  secondarySpecial?: string;
   setData?: {
     itemList?: { itemHash?: number }[];
     questLineName?: string;
@@ -49,8 +71,46 @@ export type DestinyItemDefinition = {
   };
 };
 
+export type DestinyStatDefinition = {
+  displayProperties?: DestinyDisplayProperties;
+  hash?: number;
+  index?: number;
+  statCategory?: number;
+};
+
+export type DestinyInventoryBucketDefinition = {
+  bucketOrder?: number;
+  category?: number;
+  displayProperties?: DestinyDisplayProperties;
+  hash?: number;
+  itemCount?: number;
+  location?: number;
+  scope?: number;
+};
+
+export type DestinyDamageTypeDefinition = {
+  color?: {
+    alpha?: number;
+    blue?: number;
+    green?: number;
+    red?: number;
+  };
+  displayProperties?: DestinyDisplayProperties;
+  hash?: number;
+  transparentIconPath?: string;
+};
+
+export type DestinyDefinitionBundle = {
+  buckets?: Record<string, DestinyInventoryBucketDefinition>;
+  damageTypes?: Record<string, DestinyDamageTypeDefinition>;
+  inventoryItems: Record<string, DestinyItemDefinition>;
+  stats?: Record<string, DestinyStatDefinition>;
+};
+
 type DestinyItemInstanceComponent = {
+  canEquip?: boolean;
   damageType?: number;
+  damageTypeHash?: number;
   energy?: {
     energyCapacity?: number;
     energyType?: number;
@@ -72,6 +132,10 @@ type DestinyItemSocketComponent = {
   }[];
 };
 
+type DestinyItemReusablePlugComponent = {
+  plugs?: Record<string, { plugItemHash?: number }[]>;
+};
+
 export type DestinyProfileResponse = {
   characters?: {
     data?: Record<
@@ -81,6 +145,7 @@ export type DestinyProfileResponse = {
         classType?: DestinyClassType;
         emblemBackgroundPath?: string;
         light?: number;
+        stats?: Record<string, number>;
       }
     >;
   };
@@ -94,6 +159,9 @@ export type DestinyProfileResponse = {
     instances?: {
       data?: Record<string, DestinyItemInstanceComponent>;
     };
+    reusablePlugs?: {
+      data?: Record<string, DestinyItemReusablePlugComponent>;
+    };
     sockets?: {
       data?: Record<string, DestinyItemSocketComponent>;
     };
@@ -106,11 +174,24 @@ export type DestinyProfileResponse = {
       >;
     };
   };
+  profileCurrencies?: {
+    data?: {
+      items?: DestinyInventoryItem[];
+    };
+  };
   profileInventory?: {
     data?: {
       items?: DestinyInventoryItem[];
     };
   };
+};
+
+export type NormalizedStat = {
+  display: "bar" | "number";
+  hash: number;
+  name: string;
+  sortOrder: number;
+  value: number;
 };
 
 export type CharacterSummary = {
@@ -119,13 +200,56 @@ export type CharacterSummary = {
   emblemBackgroundPath: string | null;
   id: string;
   light: number | null;
+  stats: NormalizedStat[];
 };
 
-export type GearLocation = "character" | "vault";
-export type NormalizedItemKind = "armor" | "weapon";
+export type ItemLocation = "equipped" | "carried" | "vault" | "postmaster";
+export type GearLocation = ItemLocation;
+export type ItemKind =
+  | "weapon"
+  | "armor"
+  | "ghost"
+  | "ship"
+  | "vehicle"
+  | "engram"
+  | "consumable"
+  | "currency"
+  | "mod"
+  | "quest"
+  | "unknown";
+export type NormalizedItemKind = ItemKind;
 
-export type NormalizedSocket = {
+export type NormalizedBucket = {
+  hash: number | null;
+  name: string;
+  scope: "character" | "account" | "unknown";
+};
+
+export type NormalizedSlot = {
+  hash: number | null;
+  name: string;
+  order: number;
+};
+
+export type NormalizedDamageType = {
+  color: string | null;
+  hash: number | null;
+  icon: string | null;
+  name: string | null;
+};
+
+export type NormalizedIconLayers = {
+  background: string | null;
+  featuredWatermark: string | null;
+  ornamentWatermark: string | null;
+  overlay: string | null;
+  shelvedWatermark: string | null;
+  watermark: string | null;
+};
+
+export type NormalizedPlug = {
   category: string | null;
+  description: string | null;
   icon: string | null;
   index: number;
   isEnabled: boolean;
@@ -134,32 +258,60 @@ export type NormalizedSocket = {
   plugHash: number;
 };
 
+export type NormalizedSocket = NormalizedPlug & {
+  reusablePlugHashes: number[];
+};
+
+export type NormalizedPerk = NormalizedPlug;
+
 export type NormalizedSetData = {
   itemCount: number;
   itemHashes: number[];
   name: string | null;
 };
 
+export type NormalizedItemState = {
+  adept: boolean;
+  canEquip: boolean;
+  canTransfer: boolean;
+  crafted: boolean;
+  enhanced: boolean;
+  locked: boolean;
+  masterworked: boolean;
+  tracked: boolean;
+};
+
 export type NormalizedDestinyItem = {
+  bucket: NormalizedBucket;
   bucketHash: number | null;
   characterId: string | null;
   className: string;
   classType: DestinyClassType | null;
+  damageType: NormalizedDamageType;
+  description: string | null;
   gearTier: number | null;
   icon: string | null;
+  iconLayers: NormalizedIconLayers;
   id: string;
   isEquipped: boolean;
   itemHash: number;
-  kind: NormalizedItemKind;
-  location: GearLocation;
+  itemInstanceId: string | null;
+  kind: ItemKind;
+  location: ItemLocation;
+  masterwork: NormalizedPlug | null;
   name: string;
-  perks: NormalizedSocket[];
+  ornament: NormalizedPlug | null;
+  perks: NormalizedPerk[];
   power: number | null;
+  quantity: number;
+  rarity: string | null;
   setData: NormalizedSetData | null;
-  slot: string;
+  slot: NormalizedSlot;
+  slotName: string;
   sockets: NormalizedSocket[];
   statTotal: number;
-  stats: Record<string, number>;
+  stats: NormalizedStat[];
+  state: NormalizedItemState;
   tier: string | null;
   weaponTier: number | null;
 };
@@ -167,10 +319,26 @@ export type NormalizedDestinyItem = {
 export type NormalizedArmorItem = NormalizedDestinyItem & { kind: "armor" };
 export type NormalizedWeaponItem = NormalizedDestinyItem & { kind: "weapon" };
 
+export type CurrencySummary = {
+  icon: string | null;
+  itemHash: number;
+  name: string;
+  quantity: number;
+};
+
 export type NormalizedDestinyInventory = {
   armor: NormalizedArmorItem[];
   characters: CharacterSummary[];
+  currencies: CurrencySummary[];
   items: NormalizedDestinyItem[];
+  postmasterItems: NormalizedDestinyItem[];
+  postmasterSummary: {
+    itemCount: number;
+    quantity: number;
+  };
+  vaultSummary: {
+    itemCount: number;
+  };
   weapons: NormalizedWeaponItem[];
 };
 
@@ -184,6 +352,7 @@ export type DestinyInventoryApiPayload = NormalizedDestinyInventory & {
   membershipDisplayName?: string;
   membershipId: string;
   membershipType: number;
+  requiresMoveEquipReauth: boolean;
 };
 
 export const ARMOR_SLOT_BY_BUCKET_HASH: Record<number, string> = {
@@ -195,22 +364,26 @@ export const ARMOR_SLOT_BY_BUCKET_HASH: Record<number, string> = {
 };
 
 export const WEAPON_SLOT_BY_BUCKET_HASH: Record<number, string> = {
-  1498876634: "Kinetic",
-  2465295065: "Energy",
-  953998645: "Power",
+  1498876634: "Kinetic Weapons",
+  2465295065: "Energy Weapons",
+  953998645: "Power Weapons",
 };
 
 const DESTINY_ITEM_TYPE_ARMOR = 2;
 const DESTINY_ITEM_TYPE_WEAPON = 3;
+const DESTINY_ITEM_TYPE_ENGRAM = 8;
+const DESTINY_ITEM_TYPE_CONSUMABLE = 9;
+const DESTINY_ITEM_TYPE_QUEST = 12;
+const DESTINY_ITEM_TYPE_MOD = 19;
 
-const STAT_NAME_BY_HASH: Record<string, string> = {
-  "2996146975": "Mobility",
-  "392767087": "Resilience",
-  "1943323491": "Recovery",
-  "1735777505": "Discipline",
-  "144602215": "Intellect",
-  "4244567218": "Strength",
-};
+const ITEM_STATE_LOCKED = 1;
+const ITEM_STATE_TRACKED = 2;
+const ITEM_STATE_MASTERWORK = 4;
+const ITEM_STATE_CRAFTED = 8;
+const ITEM_STATE_ENHANCED = 32;
+
+const ITEM_LOCATION_POSTMASTER = 4;
+const TRANSFER_STATUS_CAN_TRANSFER = 0;
 
 const CLASS_NAME_BY_TYPE: Record<number, string> = {
   0: "Titan",
@@ -218,6 +391,141 @@ const CLASS_NAME_BY_TYPE: Record<number, string> = {
   2: "Warlock",
   3: "Any",
 };
+
+const ARMOR_3_STAT_NAME_BY_HASH: Record<string, string> = {
+  "2996146975": "Weapons",
+  "392767087": "Health",
+  "1943323491": "Class",
+  "1735777505": "Grenade",
+  "144602215": "Super",
+  "4244567218": "Melee",
+};
+
+const ARMOR_3_STAT_ORDER_BY_NAME: Record<string, number> = {
+  Weapons: 1,
+  Health: 2,
+  Class: 3,
+  Grenade: 4,
+  Super: 5,
+  Melee: 6,
+};
+
+const LEGACY_ARMOR_STAT_NAME: Record<string, string> = {
+  Discipline: "Grenade",
+  Intellect: "Super",
+  Mobility: "Weapons",
+  Recovery: "Class",
+  Resilience: "Health",
+  Strength: "Melee",
+};
+
+function isDefinitionBundle(
+  definitions: Record<string, DestinyItemDefinition> | DestinyDefinitionBundle,
+): definitions is DestinyDefinitionBundle {
+  return "inventoryItems" in definitions;
+}
+
+function normalizeDefinitions(
+  definitions: Record<string, DestinyItemDefinition> | DestinyDefinitionBundle,
+): DestinyDefinitionBundle {
+  return isDefinitionBundle(definitions)
+    ? definitions
+    : { inventoryItems: definitions };
+}
+
+export function getArmorStatDisplayName(
+  hash: string,
+  manifestName?: string,
+): string {
+  if (ARMOR_3_STAT_NAME_BY_HASH[hash]) {
+    return ARMOR_3_STAT_NAME_BY_HASH[hash];
+  }
+
+  if (manifestName && LEGACY_ARMOR_STAT_NAME[manifestName]) {
+    return LEGACY_ARMOR_STAT_NAME[manifestName];
+  }
+
+  return manifestName?.trim() || "Unknown Stat";
+}
+
+function getClassName(classType: DestinyClassType | null | undefined): string {
+  return classType == null ? "Unknown" : (CLASS_NAME_BY_TYPE[classType] ?? "Unknown");
+}
+
+function getByHash<T>(
+  definitions: Record<string, T> | undefined,
+  hash: number | null | undefined,
+): T | null {
+  if (hash == null) {
+    return null;
+  }
+
+  return definitions?.[String(hash)] ?? null;
+}
+
+function getInventoryDefinition(
+  definitions: DestinyDefinitionBundle,
+  itemHash: number,
+): DestinyItemDefinition | null {
+  return getByHash(definitions.inventoryItems, itemHash);
+}
+
+function getBucketHash(
+  item: DestinyInventoryItem,
+  definition: DestinyItemDefinition,
+): number | null {
+  return item.bucketHash ?? definition.inventory?.bucketTypeHash ?? null;
+}
+
+function getBucketScope(scope: number | undefined): NormalizedBucket["scope"] {
+  if (scope === 0) {
+    return "character";
+  }
+
+  if (scope === 1) {
+    return "account";
+  }
+
+  return "unknown";
+}
+
+function normalizeBucket(
+  bucketHash: number | null,
+  definitions: DestinyDefinitionBundle,
+): NormalizedBucket {
+  const bucketDefinition = getByHash(definitions.buckets, bucketHash);
+
+  return {
+    hash: bucketHash,
+    name:
+      bucketDefinition?.displayProperties?.name?.trim() ||
+      (bucketHash == null ? "Unknown Bucket" : `Bucket ${bucketHash}`),
+    scope: getBucketScope(bucketDefinition?.scope),
+  };
+}
+
+function normalizeSlot(
+  bucketHash: number | null,
+  bucket: NormalizedBucket,
+  kind: ItemKind,
+  definitions: DestinyDefinitionBundle,
+): NormalizedSlot {
+  const bucketDefinition = getByHash(definitions.buckets, bucketHash);
+  const knownSlotName =
+    bucketHash == null
+      ? null
+      : kind === "armor"
+        ? ARMOR_SLOT_BY_BUCKET_HASH[bucketHash]
+        : kind === "weapon"
+          ? WEAPON_SLOT_BY_BUCKET_HASH[bucketHash]
+          : null;
+
+  return {
+    hash: bucketHash,
+    name: knownSlotName ?? bucket.name,
+    order: bucketDefinition?.bucketOrder ?? 9999,
+  };
+}
 
 export function isArmorBucketHash(bucketHash: number | undefined): boolean {
   return bucketHash != null && bucketHash in ARMOR_SLOT_BY_BUCKET_HASH;
@@ -229,6 +537,13 @@ export function isWeaponBucketHash(bucketHash: number | undefined): boolean {
 
 export function isGearBucketHash(bucketHash: number | undefined): boolean {
   return isArmorBucketHash(bucketHash) || isWeaponBucketHash(bucketHash);
+}
+
+function addItemDefinitionHash(hashes: Set<number>, item: DestinyInventoryItem) {
+  hashes.add(item.itemHash);
+  if (item.overrideStyleItemHash != null) {
+    hashes.add(item.overrideStyleItemHash);
+  }
 }
 
 export function collectArmorItemHashes(
@@ -260,19 +575,23 @@ export function collectInventoryDefinitionHashes(
   profile: DestinyProfileResponse,
 ): number[] {
   const hashes = new Set<number>();
-  const addItem = (item: DestinyInventoryItem) => hashes.add(item.itemHash);
 
   for (const inventory of Object.values(profile.characterEquipment?.data ?? {})) {
-    inventory.items?.forEach(addItem);
+    inventory.items?.forEach((item) => addItemDefinitionHash(hashes, item));
   }
 
   for (const inventory of Object.values(
     profile.characterInventories?.data ?? {},
   )) {
-    inventory.items?.forEach(addItem);
+    inventory.items?.forEach((item) => addItemDefinitionHash(hashes, item));
   }
 
-  profile.profileInventory?.data?.items?.forEach(addItem);
+  profile.profileInventory?.data?.items?.forEach((item) =>
+    addItemDefinitionHash(hashes, item),
+  );
+  profile.profileCurrencies?.data?.items?.forEach((item) =>
+    addItemDefinitionHash(hashes, item),
+  );
 
   for (const socketComponent of Object.values(
     profile.itemComponents?.sockets?.data ?? {},
@@ -284,79 +603,198 @@ export function collectInventoryDefinitionHashes(
     }
   }
 
+  for (const reusablePlugComponent of Object.values(
+    profile.itemComponents?.reusablePlugs?.data ?? {},
+  )) {
+    for (const plugs of Object.values(reusablePlugComponent.plugs ?? {})) {
+      for (const plug of plugs) {
+        if (plug.plugItemHash != null) {
+          hashes.add(plug.plugItemHash);
+        }
+      }
+    }
+  }
+
   return [...hashes];
 }
 
-function getClassName(classType: DestinyClassType | null | undefined): string {
-  return classType == null ? "Unknown" : (CLASS_NAME_BY_TYPE[classType] ?? "Unknown");
-}
+function getKindFromText(value: string | undefined): ItemKind | null {
+  const text = value?.toLowerCase() ?? "";
 
-function getDefinition(
-  definitions: Record<string, DestinyItemDefinition>,
-  itemHash: number,
-): DestinyItemDefinition | null {
-  return definitions[String(itemHash)] ?? null;
-}
-
-function getBucketHash(
-  item: DestinyInventoryItem,
-  definition: DestinyItemDefinition,
-): number | null {
-  return item.bucketHash ?? definition.inventory?.bucketTypeHash ?? null;
-}
-
-function getItemKind(
-  item: DestinyInventoryItem,
-  definition: DestinyItemDefinition,
-): NormalizedItemKind | null {
-  const bucketHash = getBucketHash(item, definition) ?? undefined;
-
-  if (isArmorBucketHash(bucketHash) || definition.itemType === DESTINY_ITEM_TYPE_ARMOR) {
-    return "armor";
+  if (!text) {
+    return null;
   }
 
-  if (isWeaponBucketHash(bucketHash) || definition.itemType === DESTINY_ITEM_TYPE_WEAPON) {
-    return "weapon";
+  if (text.includes("ghost")) {
+    return "ghost";
+  }
+
+  if (text.includes("ship")) {
+    return "ship";
+  }
+
+  if (text.includes("sparrow") || text.includes("vehicle")) {
+    return "vehicle";
+  }
+
+  if (text.includes("engram")) {
+    return "engram";
+  }
+
+  if (text.includes("mod")) {
+    return "mod";
+  }
+
+  if (text.includes("quest") || text.includes("bounty")) {
+    return "quest";
+  }
+
+  if (text.includes("currency")) {
+    return "currency";
+  }
+
+  if (text.includes("consumable")) {
+    return "consumable";
   }
 
   return null;
 }
 
-function getSlot(
-  item: DestinyInventoryItem,
-  definition: DestinyItemDefinition,
-  kind: NormalizedItemKind,
-): string {
-  const bucketHash = getBucketHash(item, definition);
-  if (bucketHash != null) {
-    const bucketName =
-      kind === "armor"
-        ? ARMOR_SLOT_BY_BUCKET_HASH[bucketHash]
-        : WEAPON_SLOT_BY_BUCKET_HASH[bucketHash];
+function getItemKind({
+  bucket,
+  bucketHash,
+  definition,
+}: {
+  bucket: NormalizedBucket;
+  bucketHash: number | null;
+  definition: DestinyItemDefinition;
+}): ItemKind {
+  const bucketHashOrUndefined = bucketHash ?? undefined;
 
-    if (bucketName) {
-      return bucketName;
-    }
+  if (
+    isArmorBucketHash(bucketHashOrUndefined) ||
+    definition.itemType === DESTINY_ITEM_TYPE_ARMOR
+  ) {
+    return "armor";
   }
 
-  return kind === "armor" ? "Armor" : "Weapon";
+  if (
+    isWeaponBucketHash(bucketHashOrUndefined) ||
+    definition.itemType === DESTINY_ITEM_TYPE_WEAPON
+  ) {
+    return "weapon";
+  }
+
+  if (definition.itemType === DESTINY_ITEM_TYPE_ENGRAM) {
+    return "engram";
+  }
+
+  if (definition.itemType === DESTINY_ITEM_TYPE_CONSUMABLE) {
+    return "consumable";
+  }
+
+  if (definition.itemType === DESTINY_ITEM_TYPE_QUEST) {
+    return "quest";
+  }
+
+  if (definition.itemType === DESTINY_ITEM_TYPE_MOD) {
+    return "mod";
+  }
+
+  return (
+    getKindFromText(definition.itemTypeDisplayName) ??
+    getKindFromText(definition.itemTypeAndTierDisplayName) ??
+    getKindFromText(bucket.name) ??
+    "unknown"
+  );
 }
 
-function normalizeStats(
-  itemInstanceId: string | undefined,
-  profile: DestinyProfileResponse,
-): Record<string, number> {
+function getStatDisplayMode(statName: string): NormalizedStat["display"] {
+  return /rpm|rounds per minute|magazine|ammo/i.test(statName) ? "number" : "bar";
+}
+
+function normalizeItemStats({
+  definitions,
+  isArmor,
+  itemInstanceId,
+  profile,
+}: {
+  definitions: DestinyDefinitionBundle;
+  isArmor: boolean;
+  itemInstanceId: string | undefined;
+  profile: DestinyProfileResponse;
+}): NormalizedStat[] {
   if (!itemInstanceId) {
-    return {};
+    return [];
   }
 
-  const rawStats = profile.itemComponents?.stats?.data?.[itemInstanceId]?.stats ?? {};
+  return normalizeRawStats({
+    definitions,
+    isArmor,
+    rawStats: Object.fromEntries(
+      Object.entries(
+        profile.itemComponents?.stats?.data?.[itemInstanceId]?.stats ?? {},
+      ).map(([hash, stat]) => [hash, stat.value ?? 0]),
+    ),
+  });
+}
 
-  return Object.fromEntries(
-    Object.entries(rawStats)
-      .map(([hash, stat]) => [STAT_NAME_BY_HASH[hash] ?? hash, stat.value ?? 0] as const)
-      .filter(([, value]) => value > 0),
-  );
+function normalizeRawStats({
+  definitions,
+  isArmor,
+  rawStats,
+}: {
+  definitions: DestinyDefinitionBundle;
+  isArmor: boolean;
+  rawStats: Record<string, number>;
+}): NormalizedStat[] {
+  return Object.entries(rawStats)
+    .map(([hash, value]) => {
+      const statHash = Number(hash);
+      const statDefinition = getByHash(definitions.stats, statHash);
+      const manifestName = statDefinition?.displayProperties?.name;
+      const name = isArmor
+        ? getArmorStatDisplayName(hash, manifestName)
+        : manifestName?.trim() || "Unknown Stat";
+
+      return {
+        display: getStatDisplayMode(name),
+        hash: statHash,
+        name,
+        sortOrder:
+          (isArmor ? ARMOR_3_STAT_ORDER_BY_NAME[name] : undefined) ??
+          statDefinition?.index ??
+          statHash,
+        value,
+      };
+    })
+    .filter((stat) => stat.value > 0)
+    .sort((first, second) => first.sortOrder - second.sortOrder);
+}
+
+function normalizePlug(
+  definitions: DestinyDefinitionBundle,
+  plugHash: number,
+  index: number,
+  state: {
+    isEnabled?: boolean;
+    isVisible?: boolean;
+  } = {},
+): NormalizedPlug {
+  const plugDefinition = getInventoryDefinition(definitions, plugHash);
+
+  return {
+    category: plugDefinition?.plug?.plugCategoryIdentifier ?? null,
+    description: plugDefinition?.displayProperties?.description ?? null,
+    icon: plugDefinition?.displayProperties?.icon ?? null,
+    index,
+    isEnabled: state.isEnabled ?? true,
+    isVisible: state.isVisible ?? true,
+    name:
+      plugDefinition?.displayProperties?.name?.trim() ||
+      `Plug ${plugHash}`,
+    plugHash,
+  };
 }
 
 function normalizeSockets({
@@ -364,7 +802,7 @@ function normalizeSockets({
   itemInstanceId,
   profile,
 }: {
-  definitions: Record<string, DestinyItemDefinition>;
+  definitions: DestinyDefinitionBundle;
   itemInstanceId: string | undefined;
   profile: DestinyProfileResponse;
 }): NormalizedSocket[] {
@@ -372,43 +810,49 @@ function normalizeSockets({
     return [];
   }
 
-  const sockets = profile.itemComponents?.sockets?.data?.[itemInstanceId]?.sockets ?? [];
+  const socketComponent =
+    profile.itemComponents?.sockets?.data?.[itemInstanceId]?.sockets ?? [];
+  const reusablePlugGroups =
+    profile.itemComponents?.reusablePlugs?.data?.[itemInstanceId]?.plugs ?? {};
 
-  return sockets.flatMap((socket, index) => {
+  return socketComponent.flatMap((socket, index) => {
     if (socket.plugHash == null) {
       return [];
     }
 
-    const plugDefinition = getDefinition(definitions, socket.plugHash);
-    const plugName =
-      plugDefinition?.displayProperties?.name?.trim() ||
-      `Plug ${socket.plugHash}`;
-
     return {
-      category: plugDefinition?.plug?.plugCategoryIdentifier ?? null,
-      icon: plugDefinition?.displayProperties?.icon ?? null,
-      index,
-      isEnabled: socket.isEnabled ?? true,
-      isVisible: socket.isVisible ?? true,
-      name: plugName,
-      plugHash: socket.plugHash,
+      ...normalizePlug(definitions, socket.plugHash, index, socket),
+      reusablePlugHashes: (reusablePlugGroups[String(index)] ?? [])
+        .map((plug) => plug.plugItemHash)
+        .filter((plugHash): plugHash is number => plugHash != null),
     };
   });
 }
 
-function normalizePerks(sockets: NormalizedSocket[]): NormalizedSocket[] {
+function categoryIncludes(plug: NormalizedPlug, pattern: RegExp): boolean {
+  return pattern.test(`${plug.category ?? ""} ${plug.name}`.toLowerCase());
+}
+
+function normalizePerks(sockets: NormalizedSocket[]): NormalizedPerk[] {
   return sockets
     .filter((socket) => {
-      const category = socket.category?.toLowerCase() ?? "";
-      return (
-        socket.isVisible &&
-        socket.isEnabled &&
-        !category.includes("shader") &&
-        !category.includes("ornament") &&
-        !category.includes("masterwork")
+      if (!socket.isVisible || !socket.isEnabled) {
+        return false;
+      }
+
+      return !categoryIncludes(
+        socket,
+        /shader|ornament|skin|masterwork|tracker|memento/,
       );
     })
-    .slice(0, 8);
+    .slice(0, 12);
+}
+
+function findPlugByCategory(
+  sockets: readonly NormalizedSocket[],
+  pattern: RegExp,
+): NormalizedPlug | null {
+  return sockets.find((socket) => categoryIncludes(socket, pattern)) ?? null;
 }
 
 function normalizeSetData(
@@ -430,70 +874,235 @@ function normalizeSetData(
   };
 }
 
+function normalizeColor(
+  color: DestinyDamageTypeDefinition["color"],
+): string | null {
+  if (!color) {
+    return null;
+  }
+
+  return `rgb(${color.red ?? 0}, ${color.green ?? 0}, ${color.blue ?? 0})`;
+}
+
+function normalizeDamageType({
+  definitions,
+  instance,
+}: {
+  definitions: DestinyDefinitionBundle;
+  instance: DestinyItemInstanceComponent | undefined;
+}): NormalizedDamageType {
+  const hash = instance?.damageTypeHash ?? null;
+  const definition = getByHash(definitions.damageTypes, hash);
+
+  return {
+    color: normalizeColor(definition?.color),
+    hash,
+    icon:
+      definition?.transparentIconPath ??
+      definition?.displayProperties?.icon ??
+      null,
+    name: definition?.displayProperties?.name ?? null,
+  };
+}
+
+function normalizeIconLayers(
+  definition: DestinyItemDefinition,
+): NormalizedIconLayers {
+  return {
+    background: definition.secondarySpecial ?? null,
+    featuredWatermark: definition.iconWatermarkFeatured ?? null,
+    ornamentWatermark: null,
+    overlay: definition.secondaryOverlay ?? null,
+    shelvedWatermark: definition.iconWatermarkShelved ?? null,
+    watermark: definition.iconWatermark ?? null,
+  };
+}
+
+function hasStateBit(state: number | undefined, bit: number): boolean {
+  return Boolean((state ?? 0) & bit);
+}
+
+function normalizeItemState({
+  definition,
+  instance,
+  item,
+}: {
+  definition: DestinyItemDefinition;
+  instance: DestinyItemInstanceComponent | undefined;
+  item: DestinyInventoryItem;
+}): NormalizedItemState {
+  return {
+    adept: Boolean(definition.isAdept),
+    canEquip: instance?.canEquip ?? Boolean(definition.equippingBlock),
+    canTransfer:
+      item.transferStatus == null ||
+      item.transferStatus === TRANSFER_STATUS_CAN_TRANSFER,
+    crafted: hasStateBit(item.state, ITEM_STATE_CRAFTED),
+    enhanced: hasStateBit(item.state, ITEM_STATE_ENHANCED),
+    locked: hasStateBit(item.state, ITEM_STATE_LOCKED),
+    masterworked: hasStateBit(item.state, ITEM_STATE_MASTERWORK),
+    tracked: hasStateBit(item.state, ITEM_STATE_TRACKED),
+  };
+}
+
+function getItemLocation({
+  bucket,
+  isEquipped,
+  item,
+  source,
+}: {
+  bucket: NormalizedBucket;
+  isEquipped: boolean;
+  item: DestinyInventoryItem;
+  source: "character" | "profile";
+}): ItemLocation {
+  if (isEquipped) {
+    return "equipped";
+  }
+
+  if (
+    item.location === ITEM_LOCATION_POSTMASTER ||
+    bucket.name.toLowerCase().includes("postmaster")
+  ) {
+    return "postmaster";
+  }
+
+  return source === "profile" ? "vault" : "carried";
+}
+
 function normalizeItem({
   characterId,
   definitions,
   isEquipped,
   item,
-  location,
   profile,
+  source,
 }: {
   characterId: string | null;
-  definitions: Record<string, DestinyItemDefinition>;
+  definitions: DestinyDefinitionBundle;
   isEquipped: boolean;
   item: DestinyInventoryItem;
-  location: GearLocation;
   profile: DestinyProfileResponse;
+  source: "character" | "profile";
 }): NormalizedDestinyItem | null {
-  const definition = getDefinition(definitions, item.itemHash);
+  const definition = getInventoryDefinition(definitions, item.itemHash);
   if (!definition) {
     return null;
   }
 
-  const kind = getItemKind(item, definition);
-  if (!kind) {
-    return null;
-  }
-
+  const bucketHash = getBucketHash(item, definition);
+  const bucket = normalizeBucket(bucketHash, definitions);
+  const kind = getItemKind({ bucket, bucketHash, definition });
+  const slot = normalizeSlot(bucketHash, bucket, kind, definitions);
   const itemInstanceId = item.itemInstanceId;
   const instance = itemInstanceId
     ? profile.itemComponents?.instances?.data?.[itemInstanceId]
     : undefined;
-  const stats = normalizeStats(itemInstanceId, profile);
-  const statTotal = Object.values(stats).reduce((total, value) => total + value, 0);
   const sockets = normalizeSockets({ definitions, itemInstanceId, profile });
+  const stats = normalizeItemStats({
+    definitions,
+    isArmor: kind === "armor",
+    itemInstanceId,
+    profile,
+  });
+  const location = getItemLocation({ bucket, isEquipped, item, source });
   const classType = definition.classType ?? null;
   const gearTier = instance?.gearTier ?? null;
+  const rarity = definition.inventory?.tierTypeName ?? null;
 
   return {
-    bucketHash: getBucketHash(item, definition),
+    bucket,
+    bucketHash,
     characterId,
     className: getClassName(classType),
     classType,
+    damageType: normalizeDamageType({ definitions, instance }),
+    description:
+      definition.displayProperties?.description ??
+      definition.flavorText ??
+      null,
     gearTier,
     icon: definition.displayProperties?.icon ?? null,
+    iconLayers: normalizeIconLayers(definition),
     id: itemInstanceId ?? `${item.itemHash}:${characterId ?? "profile"}`,
-    isEquipped,
+    isEquipped: location === "equipped",
     itemHash: item.itemHash,
+    itemInstanceId: itemInstanceId ?? null,
     kind,
     location,
+    masterwork: findPlugByCategory(sockets, /masterwork/),
     name: definition.displayProperties?.name ?? `Unknown item ${item.itemHash}`,
+    ornament: findPlugByCategory(sockets, /ornament|skin/),
     perks: normalizePerks(sockets),
     power: instance?.primaryStat?.value ?? null,
+    quantity: item.quantity ?? 1,
+    rarity,
     setData: normalizeSetData(definition),
-    slot: getSlot(item, definition, kind),
+    slot,
+    slotName: slot.name,
     sockets,
-    statTotal,
+    statTotal: stats.reduce((total, stat) => total + stat.value, 0),
     stats,
-    tier: definition.inventory?.tierTypeName ?? null,
+    state: normalizeItemState({ definition, instance, item }),
+    tier: rarity,
     weaponTier: kind === "weapon" ? gearTier : null,
   };
 }
 
+function normalizeCharacterStats(
+  definitions: DestinyDefinitionBundle,
+  rawStats: Record<string, number> | undefined,
+): NormalizedStat[] {
+  return normalizeRawStats({
+    definitions,
+    isArmor: true,
+    rawStats: rawStats ?? {},
+  });
+}
+
+function normalizeCurrency(
+  item: DestinyInventoryItem,
+  definitions: DestinyDefinitionBundle,
+): CurrencySummary | null {
+  const definition = getInventoryDefinition(definitions, item.itemHash);
+  if (!definition) {
+    return null;
+  }
+
+  return {
+    icon: definition.displayProperties?.icon ?? null,
+    itemHash: item.itemHash,
+    name: definition.displayProperties?.name ?? `Currency ${item.itemHash}`,
+    quantity: item.quantity ?? 0,
+  };
+}
+
+export function getItemStatValue(
+  item: Pick<NormalizedDestinyItem, "stats">,
+  statName: string,
+): number {
+  return item.stats.find((stat) => stat.name === statName)?.value ?? 0;
+}
+
+export function getItemStatTotals(
+  items: readonly Pick<NormalizedDestinyItem, "stats">[],
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+
+  for (const item of items) {
+    for (const stat of item.stats) {
+      totals[stat.name] = (totals[stat.name] ?? 0) + stat.value;
+    }
+  }
+
+  return totals;
+}
+
 export function normalizeDestinyInventory(
   profile: DestinyProfileResponse,
-  definitions: Record<string, DestinyItemDefinition>,
+  inputDefinitions: Record<string, DestinyItemDefinition> | DestinyDefinitionBundle,
 ): NormalizedDestinyInventory {
+  const definitions = normalizeDefinitions(inputDefinitions);
   const characters = Object.values(profile.characters?.data ?? {}).map(
     (character): CharacterSummary => {
       const classType = character.classType ?? null;
@@ -504,10 +1113,10 @@ export function normalizeDestinyInventory(
         emblemBackgroundPath: character.emblemBackgroundPath ?? null,
         id: character.characterId ?? "",
         light: character.light ?? null,
+        stats: normalizeCharacterStats(definitions, character.stats),
       };
     },
   );
-
   const items: NormalizedDestinyItem[] = [];
 
   for (const [characterId, equipment] of Object.entries(
@@ -519,8 +1128,8 @@ export function normalizeDestinyInventory(
         definitions,
         isEquipped: true,
         item,
-        location: "character",
         profile,
+        source: "character",
       });
       if (normalized) {
         items.push(normalized);
@@ -537,8 +1146,8 @@ export function normalizeDestinyInventory(
         definitions,
         isEquipped: false,
         item,
-        location: "character",
         profile,
+        source: "character",
       });
       if (normalized) {
         items.push(normalized);
@@ -552,20 +1161,34 @@ export function normalizeDestinyInventory(
       definitions,
       isEquipped: false,
       item,
-      location: "vault",
       profile,
+      source: "profile",
     });
     if (normalized) {
       items.push(normalized);
     }
   }
 
+  const postmasterItems = items.filter((item) => item.location === "postmaster");
+  const currencies = (profile.profileCurrencies?.data?.items ?? [])
+    .map((item) => normalizeCurrency(item, definitions))
+    .filter((item): item is CurrencySummary => Boolean(item));
+
   return {
     armor: items.filter(
       (item): item is NormalizedArmorItem => item.kind === "armor",
     ),
     characters,
+    currencies,
     items,
+    postmasterItems,
+    postmasterSummary: {
+      itemCount: postmasterItems.length,
+      quantity: postmasterItems.reduce((total, item) => total + item.quantity, 0),
+    },
+    vaultSummary: {
+      itemCount: items.filter((item) => item.location === "vault").length,
+    },
     weapons: items.filter(
       (item): item is NormalizedWeaponItem => item.kind === "weapon",
     ),

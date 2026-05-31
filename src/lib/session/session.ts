@@ -19,6 +19,7 @@ export type StoredSession = {
   accessToken: string;
   refreshToken: string;
   membershipId: string;
+  scopes?: string[];
   destinyMembership?: DestinyMembership;
   bungieUser?: BungieUserSummary;
 };
@@ -31,6 +32,7 @@ export type PublicSession =
       authenticated: true;
       destinyMembership?: DestinyMembership;
       bungieUser?: BungieUserSummary;
+      scopes?: string[];
     };
 
 export type SessionStore = {
@@ -54,6 +56,7 @@ export function toPublicSession(session: StoredSession | null): PublicSession {
     authenticated: true,
     destinyMembership: session.destinyMembership,
     bungieUser: session.bungieUser,
+    scopes: session.scopes,
   };
 }
 
@@ -98,6 +101,9 @@ function isStoredSession(value: unknown): value is StoredSession {
     typeof value.accessToken === "string" &&
     typeof value.refreshToken === "string" &&
     typeof value.membershipId === "string" &&
+    (value.scopes == null ||
+      (Array.isArray(value.scopes) &&
+        value.scopes.every((scope) => typeof scope === "string"))) &&
     (value.destinyMembership == null ||
       isDestinyMembership(value.destinyMembership)) &&
     (value.bungieUser == null || isBungieUserSummary(value.bungieUser))

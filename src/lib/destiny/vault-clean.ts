@@ -23,7 +23,7 @@ export function scoreVaultItem(item: NormalizedDestinyItem): number {
   const powerScore = item.power == null ? 0 : Math.min(item.power / 10, 70);
   const perkScore = item.perks.length * 5;
   const setScore = item.setData ? 20 : 0;
-  const equippedScore = item.isEquipped ? 500 : 0;
+  const equippedScore = item.isEquipped || item.location === "equipped" ? 500 : 0;
   const exoticScore = item.tier === "Exotic" ? 250 : 0;
 
   return Math.round(
@@ -38,7 +38,7 @@ export function scoreVaultItem(item: NormalizedDestinyItem): number {
 }
 
 function getDuplicateKey(item: NormalizedDestinyItem): string {
-  return `${item.kind}:${item.itemHash}:${item.slot}:${item.classType ?? "any"}`;
+  return `${item.kind}:${item.itemHash}:${item.slot.name}:${item.classType ?? "any"}`;
 }
 
 function getDuplicateBestScores(items: NormalizedDestinyItem[]): Map<string, number> {
@@ -74,7 +74,7 @@ export function evaluateVaultItem({
     };
   }
 
-  if (item.isEquipped) {
+  if (item.isEquipped || item.location === "equipped") {
     return {
       action: "save",
       confidence: "high",

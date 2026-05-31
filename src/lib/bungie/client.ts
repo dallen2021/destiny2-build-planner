@@ -1,4 +1,5 @@
 import type { DestinyMembership } from "@/lib/session/session";
+import type { BungieItemActionCommand } from "@/lib/destiny/item-actions";
 
 const BUNGIE_PLATFORM_BASE_URL = "https://www.bungie.net/Platform";
 
@@ -6,13 +7,18 @@ export const DESTINY_PROFILE_COMPONENTS = [
   "Profiles",
   "Characters",
   "ProfileInventories",
+  "ProfileCurrencies",
   "CharacterInventories",
   "CharacterEquipment",
   "CharacterRenderData",
+  "ItemCommonData",
   "ItemInstances",
+  "ItemObjectives",
   "ItemPerks",
+  "ItemRenderData",
   "ItemReusablePlugs",
   "ItemSockets",
+  "ItemPlugObjectives",
   "ItemPlugStates",
   "ItemStats",
 ] as const;
@@ -207,5 +213,22 @@ export async function getInventoryItemDefinition<T = unknown>({
   return bungieFetch<T>({
     apiKey,
     path: `/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemHash}/`,
+  });
+}
+
+export async function executeDestinyItemAction<T = unknown>({
+  accessToken,
+  apiKey,
+  command,
+}: {
+  accessToken: string;
+  apiKey: string;
+  command: BungieItemActionCommand;
+}): Promise<T> {
+  return bungieFetch<T>({
+    accessToken,
+    apiKey,
+    body: command.body,
+    path: command.path,
   });
 }

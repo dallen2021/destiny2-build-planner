@@ -3,6 +3,7 @@ import type {
   NormalizedArmorItem,
   NormalizedDestinyItem,
 } from "./inventory";
+import { getItemStatTotals, getItemStatValue } from "./inventory";
 import { scoreVaultItem } from "./vault-clean";
 import type { ItemTagMap } from "./tags";
 
@@ -39,7 +40,7 @@ function getGoalScore(
   preferredStats: readonly string[],
 ): number {
   const preferredScore = preferredStats.reduce(
-    (total, statName) => total + (item.stats[statName] ?? 0),
+    (total, statName) => total + getItemStatValue(item, statName),
     0,
   );
 
@@ -47,15 +48,7 @@ function getGoalScore(
 }
 
 function sumStats(items: readonly NormalizedArmorItem[]): Record<string, number> {
-  const totals: Record<string, number> = {};
-
-  for (const item of items) {
-    for (const [statName, value] of Object.entries(item.stats)) {
-      totals[statName] = (totals[statName] ?? 0) + value;
-    }
-  }
-
-  return totals;
+  return getItemStatTotals(items);
 }
 
 function meetsMinimumStats(
@@ -85,7 +78,7 @@ export function rankArmorForGoal({
       .filter(
         (item): item is NormalizedArmorItem =>
           item.kind === "armor" &&
-          item.slot === slot &&
+          item.slot.name === slot &&
           isClassCompatible(item, goal.classType) &&
           !(tagMap[item.id] ?? []).includes("slop"),
       )

@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBungieAuthorizationUrl, createOAuthState } from "./oauth";
+import {
+  DEFAULT_BUNGIE_SCOPES,
+  buildBungieAuthorizationUrl,
+  createOAuthState,
+  hasMoveEquipScope,
+  normalizeOAuthScopes,
+} from "./oauth";
 
 describe("buildBungieAuthorizationUrl", () => {
-  it("creates a Bungie OAuth URL with encoded client, redirect, and state", () => {
+  it("creates a Bungie OAuth URL with encoded client, redirect, state, and scopes", () => {
     const url = buildBungieAuthorizationUrl({
       clientId: "12345",
       redirectUri: "https://example.com/api/auth/callback",
@@ -18,7 +24,23 @@ describe("buildBungieAuthorizationUrl", () => {
       "https://example.com/api/auth/callback",
     );
     expect(url.searchParams.get("state")).toBe("state-token");
-    expect(url.searchParams.has("scope")).toBe(false);
+    expect(url.searchParams.get("scope")).toBe(DEFAULT_BUNGIE_SCOPES.join(" "));
+  });
+});
+
+describe("normalizeOAuthScopes", () => {
+  it("detects sessions that can move and equip Destiny items", () => {
+    expect(
+      normalizeOAuthScopes(
+        "ReadBasicUserProfile ReadDestinyInventoryAndVault MoveEquipDestinyItems",
+      ),
+    ).toEqual([
+      "ReadBasicUserProfile",
+      "ReadDestinyInventoryAndVault",
+      "MoveEquipDestinyItems",
+    ]);
+    expect(hasMoveEquipScope(["MoveEquipDestinyItems"])).toBe(true);
+    expect(hasMoveEquipScope(["ReadDestinyInventoryAndVault"])).toBe(false);
   });
 });
 
