@@ -3,12 +3,11 @@ import { describe, expect, it } from "vitest";
 import { buildBungieAuthorizationUrl, createOAuthState } from "./oauth";
 
 describe("buildBungieAuthorizationUrl", () => {
-  it("creates a Bungie OAuth URL with encoded client, redirect, state, and scopes", () => {
+  it("creates a Bungie OAuth URL with encoded client, redirect, and state", () => {
     const url = buildBungieAuthorizationUrl({
       clientId: "12345",
       redirectUri: "https://example.com/api/auth/callback",
       state: "state-token",
-      scopes: ["ReadBasicUserProfile", "ReadDestinyInventoryAndVault"],
     });
 
     expect(url.origin).toBe("https://www.bungie.net");
@@ -19,9 +18,7 @@ describe("buildBungieAuthorizationUrl", () => {
       "https://example.com/api/auth/callback",
     );
     expect(url.searchParams.get("state")).toBe("state-token");
-    expect(url.searchParams.get("scope")).toBe(
-      "ReadBasicUserProfile ReadDestinyInventoryAndVault",
-    );
+    expect(url.searchParams.has("scope")).toBe(false);
   });
 });
 

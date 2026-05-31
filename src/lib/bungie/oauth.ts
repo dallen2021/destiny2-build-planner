@@ -15,7 +15,6 @@ export type BungieOAuthScope = (typeof DEFAULT_BUNGIE_SCOPES)[number] | string;
 export type BuildBungieAuthorizationUrlOptions = {
   clientId: string;
   redirectUri: string;
-  scopes?: readonly BungieOAuthScope[];
   state: string;
 };
 
@@ -34,7 +33,6 @@ export function buildBungieAuthorizationUrl({
   clientId,
   redirectUri,
   state,
-  scopes = DEFAULT_BUNGIE_SCOPES,
 }: BuildBungieAuthorizationUrlOptions): URL {
   const url = new URL(BUNGIE_AUTHORIZATION_URL);
 
@@ -42,10 +40,6 @@ export function buildBungieAuthorizationUrl({
   url.searchParams.set("response_type", "code");
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
-
-  if (scopes.length > 0) {
-    url.searchParams.set("scope", scopes.join(" "));
-  }
 
   return url;
 }
