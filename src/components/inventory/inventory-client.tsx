@@ -17,8 +17,12 @@ import type {
 } from "@/lib/destiny/inventory";
 
 type InventoryPayload = NormalizedArmorInventory & {
+  definitionSource: "manifest" | "manifest+entity-fallback";
   fetchedAt: string;
   manifestDefinitionCount: number;
+  manifestLanguage: string;
+  manifestMissingDefinitionCount: number;
+  manifestVersion: string;
 };
 
 type InventoryErrorPayload = {
@@ -49,6 +53,12 @@ function formatStatLine(stats: Record<string, number>): string {
   }
 
   return entries.map(([name, value]) => `${name} ${value}`).join(" / ");
+}
+
+function formatDefinitionSource(source: InventoryPayload["definitionSource"]) {
+  return source === "manifest+entity-fallback"
+    ? "manifest + fallback"
+    : "manifest";
 }
 
 function CharacterStrip({ characters }: { characters: CharacterSummary[] }) {
@@ -235,7 +245,17 @@ export function InventoryClient() {
             <CheckCircle2 size={16} />
             {data.armor.length} armor items
           </span>
-          <span>{data.manifestDefinitionCount} definitions</span>
+          <span>
+            <Database size={16} />
+            Manifest {data.manifestVersion} / {data.manifestLanguage}
+          </span>
+          <span>
+            {data.manifestDefinitionCount} definitions via{" "}
+            {formatDefinitionSource(data.definitionSource)}
+          </span>
+          {data.manifestMissingDefinitionCount > 0 ? (
+            <span>{data.manifestMissingDefinitionCount} missing definitions</span>
+          ) : null}
           <span>{new Date(data.fetchedAt).toLocaleString()}</span>
         </div>
       ) : null}

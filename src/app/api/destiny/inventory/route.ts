@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   BungieApiError,
   getDestinyProfile,
-  getInventoryItemDefinitions,
 } from "@/lib/bungie/client";
 import { getOptionalBungieConfig } from "@/lib/bungie/config";
+import { getInventoryItemDefinitionsFromManifest } from "@/lib/bungie/manifest";
 import {
   collectArmorItemHashes,
   normalizeArmorInventory,
@@ -48,15 +48,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       membershipType: session.destinyMembership.membershipType,
     });
     const armorHashes = collectArmorItemHashes(profile);
-    const definitions = await getInventoryItemDefinitions<DestinyItemDefinition>({
-      apiKey: config.apiKey,
-      itemHashes: armorHashes,
-    });
+    const manifestDefinitions =
+      await getInventoryItemDefinitionsFromManifest<DestinyItemDefinition>({
+        apiKey: config.apiKey,
+        itemHashes: armorHashes,
+      });
 
     return NextResponse.json({
-      ...normalizeArmorInventory(profile, definitions),
+      ...normalizeArmorInventory(profile, manifestDefinitions.definitions),
+      definitionSource: manifestDefinitions.definitionSource,
       fetchedAt: new Date().toISOString(),
-      manifestDefinitionCount: Object.keys(definitions).length,
+      manifestDefinitionCount: Object.keys(manifestDefinitions.definitions).length,
+      manifestLanguage: manifestDefinitions.language,
+      manifestMissingDefinitionCount: manifestDefinitions.missingHashes.length,
+      manifestVersion: manifestDefinitions.version,
     });
   } catch (error) {
     const status = error instanceof BungieApiError ? 502 : 500;

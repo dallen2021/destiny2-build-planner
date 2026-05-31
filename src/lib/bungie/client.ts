@@ -61,8 +61,6 @@ export class BungieApiError extends Error {
   }
 }
 
-const inventoryItemDefinitionCache = new Map<string, unknown>();
-
 function createPlatformUrl(
   path: string,
   searchParams?: BungieFetchOptions["searchParams"],
@@ -205,29 +203,4 @@ export async function getInventoryItemDefinition<T = unknown>({
     apiKey,
     path: `/Destiny2/Manifest/DestinyInventoryItemDefinition/${itemHash}/`,
   });
-}
-
-export async function getInventoryItemDefinitions<T = unknown>({
-  apiKey,
-  itemHashes,
-}: {
-  apiKey: string;
-  itemHashes: number[];
-}): Promise<Record<string, T>> {
-  const uniqueHashes = [...new Set(itemHashes)];
-  const definitions = await Promise.all(
-    uniqueHashes.map(async (itemHash) => {
-      const cacheKey = String(itemHash);
-      const cachedDefinition = inventoryItemDefinitionCache.get(cacheKey);
-      if (cachedDefinition) {
-        return [cacheKey, cachedDefinition as T] as const;
-      }
-
-      const definition = await getInventoryItemDefinition<T>({ apiKey, itemHash });
-      inventoryItemDefinitionCache.set(cacheKey, definition);
-      return [String(itemHash), definition] as const;
-    }),
-  );
-
-  return Object.fromEntries(definitions);
 }
