@@ -21,6 +21,24 @@ const { updateManifest } = require("./services/manifestService");
 const app = express();
 app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3000;
+const sessionSecret =
+  process.env.SESSION_SECRET || "temporary-session-secret-change-me";
+const sessionStore = process.env.MONGODB_URI
+  ? MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI,
+      ttl: 24 * 60 * 60, // 24 hours
+    })
+  : undefined;
+
+if (!process.env.SESSION_SECRET) {
+  console.warn("SESSION_SECRET is not set; using a temporary fallback secret.");
+}
+
+if (!process.env.MONGODB_URI) {
+  console.warn(
+    "MONGODB_URI is not set; using the default in-memory session store."
+  );
+}
 
 // Security middleware
 app.use(
@@ -74,14 +92,10 @@ app.use(express.urlencoded({ extended: true }));
 // Session configuration
 app.use(
   session({
-    secret: process.env.SESSION_SECRET,
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl:
-        process.env.MONGODB_URI || "mongodb://localhost:27017/d2-builder",
-      ttl: 24 * 60 * 60, // 24 hours
-    }),
+    ...(sessionStore && { store: sessionStore }),
     cookie: {
       secure: process.env.NODE_ENV === "production",
       httpOnly: true,
@@ -147,29 +161,37 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-// Start server
-app.listen(PORT, async () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+async function startServer() {
+  app.listen(PORT, async () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 
-  // Update manifest on startup
-  try {
-    console.log("Checking for manifest updates...");
-    await updateManifest();
-  } catch (error) {
-    console.error("Failed to update manifest on startup:", error);
-  }
+    // Update manifest on startup for local/server deployments. Vercel imports
+    // the app as a function, so avoid long startup work there.
+    try {
+      console.log("Checking for manifest updates...");
+      await updateManifest();
+    } catch (error) {
+      console.error("Failed to update manifest on startup:", error);
+    }
 
-  // Schedule manifest updates every 6 hours
-  setInterval(
-    async () => {
-      try {
-        console.log("Checking for manifest updates...");
-        await updateManifest();
-      } catch (error) {
-        console.error("Failed to update manifest:", error);
-      }
-    },
-    6 * 60 * 60 * 1000
-  );
-});
+    // Schedule manifest updates every 6 hours
+    setInterval(
+      async () => {
+        try {
+          console.log("Checking for manifest updates...");
+          await updateManifest();
+        } catch (error) {
+          console.error("Failed to update manifest:", error);
+        }
+      },
+      6 * 60 * 60 * 1000
+    );
+  });
+}
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;
