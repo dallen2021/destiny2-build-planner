@@ -70,6 +70,7 @@ Target Vercel hosting.
 
 - Production deployment follows `main`.
 - Preview deployments should be available for `dev` and pull requests.
+- Use the Next.js preset. The legacy Express deploy surface has been removed.
 - Keep environment variables out of git.
 - Document required Vercel environment variables before features depend on
   them.
@@ -82,6 +83,20 @@ Target Vercel hosting.
 For Next.js on Vercel, prefer App Router, server-side API proxy routes for
 Bungie secrets, and lazy initialization of any database, cache, or SDK clients
 so builds do not require runtime secrets.
+
+## Current App Shape
+
+The active runtime is a Next.js 16 App Router app under `src/app`.
+
+- Auth routes live under `src/app/api/auth`.
+- Destiny data proxy routes live under `src/app/api/destiny`.
+- Bungie helpers live under `src/lib/bungie`.
+- Session helpers live under `src/lib/session`.
+- Inventory normalization lives under `src/lib/destiny`.
+
+Sessions are encrypted into HTTP-only cookies with `SESSION_SECRET`; do not
+expose Bungie access or refresh tokens to client JSON. If persistent server-side
+session storage is reintroduced later, it must be Vercel-compatible and tested.
 
 ## Engineering Workflow
 

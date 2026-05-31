@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from "next/server";
+
+import {
+  BungieApiError,
+  getDestinyProfile,
+  getInventoryItemDefinitions,
+} from "@/lib/bungie/client";
+import { getOptionalBungieConfig } from "@/lib/bungie/config";
+import {
+  collectArmorItemHashes,
+  normalizeArmorInventory,
+  type DestinyItemDefinition,
+  type DestinyProfileResponse,
+} from "@/lib/destiny/inventory";
+import { readSessionCookie } from "@/lib/session/cookies";
+import { unsealSession } from "@/lib/session/session";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const sessionToken = readSessionCookie(request);
+  const session = sessionToken ? await unsealSession(sessionToken) : null;
+
+  if (!session) {
+    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  }
+
+  if (!session.destinyMembership) {
+    return NextResponse.json(
+      { error: "No Destiny membership is attached to this session." },
+      { status: 409 },
+    );
+  }
+
+  const config = getOptionalBungieConfig();
+  if (!config) {
+    return NextResponse.json(
+      { error: "Bungie API is not configured." },
+      { status: 500 },
+    );
+  }
+
+  try {
+    const profile = await getDestinyProfile<DestinyProfileResponse>({
+      accessToken: session.accessToken,
+      apiKey: config.apiKey,
+      membershipId: session.destinyMembership.membershipId,
+      membershipType: session.destinyMembership.membershipType,
+    });
+    const armorHashes = collectArmorItemHashes(profile);
+    const definitions = await getInventoryItemDefinitions<DestinyItemDefinition>({
+      apiKey: config.apiKey,
+      itemHashes: armorHashes,
+    });
+
+    return NextResponse.json({
+      ...normalizeArmorInventory(profile, definitions),
+      fetchedAt: new Date().toISOString(),
+      manifestDefinitionCount: Object.keys(definitions).length,
+    });
+  } catch (error) {
+    const status = error instanceof BungieApiError ? 502 : 500;
+
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to load Destiny inventory.",
+      },
+      { status },
+    );
+  }
+}

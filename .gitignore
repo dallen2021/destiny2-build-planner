@@ -12,6 +12,7 @@ yarn-error.log*
 .env.production.local
 
 # Production build
+.next/
 dist/
 build/
 

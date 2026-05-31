@@ -1,43 +1,74 @@
 # Destiny 2 Build Planner
 
-Destiny 2 Build Planner is a full-stack companion for Guardians who want to theorycraft, organize, and execute builds without leaving the Bungie ecosystem. It pairs a secure OAuth-backed backend with a lightweight client so players can inspect inventory, fine tune armor stat tiers, and manage their loadouts in real time.
+Fresh Vercel-native rebuild of the original Destiny 2 Build Planner. The active
+app is now a Next.js App Router project with tested Bungie API helpers, encrypted
+HTTP-only session cookies, and a first read-only armor inventory workspace.
 
-## What the application offers
-- **Single sign-on with Bungie.net** – Users authenticate directly against Bungie's OAuth 2.0 flow, and the server stores a short-lived session that can securely call player-specific APIs on their behalf.
-- **Unified inventory visibility** – Character equipment, vault contents, and profile items are merged into a single response to eliminate pagination and context switching while browsing gear.
-- **Build crafting data** – Item definitions, stat rolls, socket plug data, and mod availability are hydrated from the local Destiny manifest so players can evaluate synergies before locking in a build.
-- **Actionable loadout management** – Transfer items between characters, equip weapons or armor, inspect saved loadouts, and surface vendor inventory (such as armor mods) from the same interface.
-- **Production-ready hardening** – Helmet, rate limiting, MongoDB-backed sessions, and a server-side API proxy keep personal accounts and Bungie credentials safe even in public deployments.
+## Current Stack
 
-## How it works
-1. **Authenticate** – After OAuth, the server keeps the Bungie access token inside an encrypted session stored in MongoDB, exposing only minimal state to the browser.
-2. **Fetch player data** – Inventory endpoints combine profile, character, and vault responses, stitching item component buckets together so every stat and socket comes through in a single payload.
-3. **Enrich with manifest metadata** – A background manifest service downloads and indexes the latest game definitions into SQLite, enabling instant lookups for item names, stat descriptions, and mod sockets without repeatedly hitting Bungie's servers.
-4. **Act on gear** – When a player moves or equips an item, the API proxy signs the request with their stored token, applies Bungie's rate limits, and returns the authoritative response for UI feedback.
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Vitest
+- ESLint flat config
+- Native `fetch` against Bungie's Platform API
+- Encrypted session cookie via `jose`
 
-## Key backend capabilities
-- **Routes**
-  - `/auth` – Handles OAuth handshakes, session creation, and membership resolution.
-  - `/api/inventory`, `/api/search`, `/api/character/:id` – Provide inventory browsing, filtered searches, and character-specific details.
-  - `/api/transfer` & `/api/equip` – Mirror Bungie's gear management actions while enforcing authentication and retry-safe error handling.
-  - `/api/loadouts` & `/api/vendors` – Surface saved loadouts and rotating vendor stock for mod and gear planning.
-  - `/manifest/*` – Serve cached manifest slices (items, stats, mods) to the client with millisecond response times.
-- **Security** – Session cookies are HTTP-only, CORS is locked to an allowed origin, and health/metrics endpoints give operators visibility without exposing sensitive data.
-- **Scalability** – Rate limits protect Bungie quotas, manifest caching drastically reduces outbound requests, and the service can run behind Nginx or in Docker with minimal configuration.
+The old Express/static runtime was removed from the deploy surface. Git history
+still contains it if we need to salvage domain behavior later.
 
-## Destiny manifest lifecycle
-- On startup, the manifest service checks Bungie's published version and downloads the latest database if necessary.
-- The SQLite payload is unzipped, indexed, and stored under `data/manifest/` with a `version.json` file documenting provenance.
-- Subsequent definition lookups are cached in-memory with automatic eviction to ensure high throughput for repeated queries.
+## Branches
 
-## Typical user journey
-1. Log in with Bungie.net and select the active Destiny membership.
-2. Review combined character and vault inventories, filtering by slot or searching by name.
-3. Inspect stat breakdowns and sockets for high-value armor rolls while previewing available mods.
-4. Transfer or equip items to lock in the desired loadout, optionally saving presets directly through Bungie's loadout API.
+- `main` is production.
+- `dev` is the Vercel preview/integration branch.
+- Larger rebuild milestones should land on `dev` first, then merge to `main`
+  after verification.
 
-## Why it matters
-Unlike simple inventory viewers, Destiny 2 Build Planner emphasizes actionable insights. Guardians can immediately see how stat tiers change when swapping armor, understand which mods are currently purchasable, and push updates back into the game without juggling multiple tools. The result is a smoother pre-raid or PvP preparation workflow that keeps focus on crafting the perfect build rather than fighting API limitations.
+## Local Setup
 
----
-Want to extend the experience? Explore the Express routes in `routes/`, the manifest helpers in `services/`, and the production-ready deployment assets in the repository to tailor the planner to your fireteam's needs.
+```powershell
+npm install
+Copy-Item .env.example .env.local
+npm run dev
+```
+
+Required Bungie settings:
+
+```text
+BUNGIE_API_KEY=
+BUNGIE_CLIENT_ID=
+BUNGIE_CLIENT_SECRET=
+OAUTH_REDIRECT_URI=http://localhost:3000/api/auth/callback
+SESSION_SECRET=use-a-long-random-value-at-least-32-characters
+APP_URL=http://localhost:3000
+```
+
+Register the same callback URL in the Bungie application portal.
+
+## Commands
+
+```powershell
+npm run test
+npm run lint
+npm run build
+npm run docs:bungie-api
+```
+
+## Implemented
+
+- Bungie OAuth login and callback routes
+- Encrypted session cookie that keeps Bungie tokens out of client-visible JSON
+- Auth status and logout routes
+- Bungie API wrapper with platform error handling
+- Destiny profile inventory fetch route
+- Armor bucket filtering and normalization tests
+- First inventory UI with slot filters, search, character strip, item icons, and
+  empty/error/loading states
+
+## Next Milestones
+
+- Persistent manifest ingestion/cache instead of per-item definition hydration
+- Token refresh before access-token expiry
+- Loadout optimizer data model and scoring tests for post-update armor rules
+- Equip/transfer/loadout mutations after auth and rate-limit handling are firm
+- Stable dev preview OAuth URL in Vercel for branch testing
