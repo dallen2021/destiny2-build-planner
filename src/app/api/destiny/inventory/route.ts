@@ -7,8 +7,8 @@ import {
 import { getOptionalBungieConfig } from "@/lib/bungie/config";
 import { getInventoryItemDefinitionsFromManifest } from "@/lib/bungie/manifest";
 import {
-  collectArmorItemHashes,
-  normalizeArmorInventory,
+  collectInventoryDefinitionHashes,
+  normalizeDestinyInventory,
   type DestinyItemDefinition,
   type DestinyProfileResponse,
 } from "@/lib/destiny/inventory";
@@ -47,21 +47,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       membershipId: session.destinyMembership.membershipId,
       membershipType: session.destinyMembership.membershipType,
     });
-    const armorHashes = collectArmorItemHashes(profile);
+    const definitionHashes = collectInventoryDefinitionHashes(profile);
     const manifestDefinitions =
       await getInventoryItemDefinitionsFromManifest<DestinyItemDefinition>({
         apiKey: config.apiKey,
-        itemHashes: armorHashes,
+        itemHashes: definitionHashes,
       });
 
     return NextResponse.json({
-      ...normalizeArmorInventory(profile, manifestDefinitions.definitions),
+      ...normalizeDestinyInventory(profile, manifestDefinitions.definitions),
       definitionSource: manifestDefinitions.definitionSource,
       fetchedAt: new Date().toISOString(),
       manifestDefinitionCount: Object.keys(manifestDefinitions.definitions).length,
       manifestLanguage: manifestDefinitions.language,
       manifestMissingDefinitionCount: manifestDefinitions.missingHashes.length,
       manifestVersion: manifestDefinitions.version,
+      membershipDisplayName: session.destinyMembership.displayName,
+      membershipId: session.destinyMembership.membershipId,
+      membershipType: session.destinyMembership.membershipType,
     });
   } catch (error) {
     const status = error instanceof BungieApiError ? 502 : 500;

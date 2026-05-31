@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
 
 import { AppHeader } from "@/components/ui/app-header";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
+import { Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "D2 Build Planner",
@@ -15,10 +20,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html className={cn("dark font-sans", geist.variable)} lang="en">
       <body>
-        <AppHeader />
-        <main>{children}</main>
+        <TooltipProvider>
+          <AppHeader />
+          <main>{children}</main>
+        </TooltipProvider>
       </body>
     </html>
   );

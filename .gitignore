@@ -72,5 +72,6 @@ coverage/
 tmp/
 temp/
 .cache/
+.superpowers/
 
 .vercel

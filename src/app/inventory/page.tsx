@@ -1,7 +1,7 @@
-import { InventoryClient } from "@/components/inventory/inventory-client";
+import { InventoryWorkspace } from "@/components/destiny/workspaces";
 
 export const dynamic = "force-dynamic";
 
 export default function InventoryPage() {
-  return <InventoryClient />;
+  return <InventoryWorkspace />;
 }

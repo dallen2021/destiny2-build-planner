@@ -1,6 +1,14 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { Database, LogIn, LogOut, ShieldCheck } from "lucide-react";
+import {
+  Archive,
+  Brain,
+  Eraser,
+  Home,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+} from "lucide-react";
 
 import { SESSION_COOKIE_NAME } from "@/lib/session/cookies";
 import { toPublicSession, unsealSession } from "@/lib/session/session";
@@ -27,14 +35,26 @@ export async function AppHeader() {
         </span>
         <span>
           <strong>D2 Build Planner</strong>
-          <span>Vercel rebuild</span>
+          <span>Gear command</span>
         </span>
       </Link>
 
       <nav className="top-nav" aria-label="Primary">
+        <Link href="/">
+          <Home aria-hidden="true" size={16} />
+          Command
+        </Link>
         <Link href="/inventory">
-          <Database size={16} />
+          <Archive aria-hidden="true" size={16} />
           Inventory
+        </Link>
+        <Link href="/optimizer">
+          <Brain aria-hidden="true" size={16} />
+          Optimizer
+        </Link>
+        <Link href="/vault-clean">
+          <Eraser aria-hidden="true" size={16} />
+          Vault Clean
         </Link>
       </nav>
 
@@ -43,14 +63,19 @@ export async function AppHeader() {
           <>
             <span className="identity-pill">{displayName || "Authenticated"}</span>
             <form action="/api/auth/logout" method="post">
-              <button className="icon-button" type="submit" title="Sign out">
-                <LogOut size={16} />
+              <button
+                aria-label="Sign out"
+                className="icon-button"
+                type="submit"
+                title="Sign out"
+              >
+                <LogOut aria-hidden="true" size={16} />
               </button>
             </form>
           </>
         ) : (
           <Link className="primary-action" href="/api/auth/login">
-            <LogIn size={16} />
+            <LogIn aria-hidden="true" size={16} />
             Sign in
           </Link>
         )}

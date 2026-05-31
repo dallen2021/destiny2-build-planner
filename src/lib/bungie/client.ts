@@ -8,7 +8,12 @@ export const DESTINY_PROFILE_COMPONENTS = [
   "ProfileInventories",
   "CharacterInventories",
   "CharacterEquipment",
+  "CharacterRenderData",
   "ItemInstances",
+  "ItemPerks",
+  "ItemReusablePlugs",
+  "ItemSockets",
+  "ItemPlugStates",
   "ItemStats",
 ] as const;
 
