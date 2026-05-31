@@ -10,7 +10,8 @@
     "build:client": "cd client && npm run build && cp -r build/* ../public/",
     "test": "jest",
     "lint": "eslint .",
-    "update-manifest": "node scripts/updateManifest.js"
+    "update-manifest": "node scripts/updateManifest.js",
+    "docs:bungie-api": "node scripts/generateBungieApiDocs.js"
   },
   "keywords": [
     "destiny2",
