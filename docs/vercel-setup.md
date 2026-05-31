@@ -19,6 +19,8 @@ dallen2021/destiny2-build-planner
 ```
 
 Use the **Next.js** framework preset, not Express.
+The repo also includes `vercel.json` with `framework: "nextjs"` so Git
+deployments do not fall back to the previous Express entrypoint behavior.
 
 Recommended settings:
 
