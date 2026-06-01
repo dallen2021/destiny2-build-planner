@@ -908,7 +908,7 @@ body:has(.d2-command-console) .app-header {
 
 .d2-command-console .d2-brand-mark {
   width: 48px;
-  color: var(--d2-command-gold);
+  height: auto;
   filter: drop-shadow(0 0 18px rgba(226, 185, 96, 0.22));
 }
 
@@ -1318,6 +1318,7 @@ body:has(.d2-command-console) .app-header {
 
   .d2-command-console .d2-brand-mark {
     width: 42px;
+    height: auto;
   }
 
   .d2-command-console .d2-brand-lockup strong {
