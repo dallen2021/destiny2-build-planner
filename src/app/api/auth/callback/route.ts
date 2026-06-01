@@ -4,7 +4,10 @@ import {
   getCurrentUserMemberships,
   pickDestinyMembership,
 } from "@/lib/bungie/client";
-import { getOptionalBungieConfig } from "@/lib/bungie/config";
+import {
+  getOAuthRedirectUri,
+  getOptionalBungieConfig,
+} from "@/lib/bungie/config";
 import {
   DEFAULT_BUNGIE_SCOPES,
   exchangeAuthorizationCode,
@@ -45,12 +48,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    const redirectUri = getOAuthRedirectUri(request.url, config.redirectUri);
     const token = await exchangeAuthorizationCode({
       apiKey: config.apiKey,
       clientId: config.clientId,
       clientSecret: config.clientSecret,
       code,
-      redirectUri: config.redirectUri,
+      redirectUri,
     });
     const memberships = await getCurrentUserMemberships({
       accessToken: token.access_token,
