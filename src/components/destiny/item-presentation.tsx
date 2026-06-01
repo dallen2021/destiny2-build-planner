@@ -8,7 +8,7 @@ import type {
   NormalizedStat,
 } from "@/lib/destiny/inventory";
 
-const ARMOR_STAT_NAMES = [
+export const ARMOR_STAT_NAMES = [
   "Weapons",
   "Health",
   "Class",

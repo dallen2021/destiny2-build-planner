@@ -1,4 +1,4 @@
-import { CommandCenter } from "@/components/destiny/workspaces";
+import { CommandCenter } from "@/components/destiny/command-center";
 
 export const dynamic = "force-dynamic";
 
