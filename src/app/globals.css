@@ -1270,8 +1270,42 @@ body:has(.d2-command-console) .app-header {
 }
 
 .d2-command-console .d2-bottom-panels {
-  grid-template-columns: repeat(6, minmax(145px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 12px;
+}
+
+.d2-command-console .d2-command-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.d2-command-console .d2-command-panel > strong,
+.d2-command-console .d2-command-panel > small {
+  display: block;
+  min-width: 0;
+}
+
+.d2-command-console .d2-command-panel .d2-stat-bar {
+  grid-template-columns: minmax(58px, 0.92fr) 32px minmax(56px, 1.28fr);
+  gap: 8px;
+}
+
+.d2-command-console .d2-command-panel .d2-stat-bar span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.d2-command-console .d2-command-panel .d2-stat-bar i {
+  min-width: 0;
+}
+
+.d2-command-console .d2-inspector-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.d2-command-console .d2-tier-summary {
+  margin-bottom: 10px;
 }
 
 .d2-command-console .d2-loadout-list,
@@ -1331,7 +1365,7 @@ body:has(.d2-command-console) .app-header {
   }
 
   .d2-command-console .d2-bottom-panels {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
   }
 }
 
