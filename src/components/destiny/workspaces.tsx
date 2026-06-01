@@ -199,6 +199,14 @@ function getEquippedItems(
     .sort((first, second) => first.slot.order - second.slot.order);
 }
 
+function isCommandInspectableItem(item: NormalizedDestinyItem): boolean {
+  return item.kind === "weapon" || item.kind === "armor";
+}
+
+function getCommandInspectItems(items: readonly NormalizedDestinyItem[]) {
+  return items.filter(isCommandInspectableItem);
+}
+
 function getSearchText(item: NormalizedDestinyItem, tags: readonly ItemTag[]) {
   return [
     item.name,
@@ -968,10 +976,8 @@ function CommandPanel({
 
 export function CommandCenter() {
   const { data, error, isLoading, reload } = useDestinyInventory();
-  const { tagMap, toggleTag } = useItemTags(useTagScope(data));
   const [selectedCharacterId, setSelectedCharacterId] = useSelectedCharacter(data);
-  const [selectedItem, setSelectedItem] = useState<NormalizedDestinyItem | null>(null);
-  const { runActions, status } = useItemActions({ reload });
+  const [inspectedItem, setInspectedItem] = useState<NormalizedDestinyItem | null>(null);
   const selectedCharacter = getSelectedCharacter(
     data?.characters ?? [],
     selectedCharacterId,
@@ -980,11 +986,15 @@ export function CommandCenter() {
     data?.items ?? [],
     selectedCharacter?.id ?? null,
   );
-  const selectedInspectItem = selectedItem ?? equippedItems[0] ?? null;
+  const commandInspectItems = getCommandInspectItems(equippedItems);
+  const selectedInspectItem =
+    inspectedItem &&
+    commandInspectItems.some((item) => item.id === inspectedItem.id)
+      ? inspectedItem
+      : (commandInspectItems[0] ?? null);
 
   return (
     <div className="d2-command-console">
-      <ActionNotice status={status} />
       <aside className="d2-console-rail">
         <div className="d2-console-brand">
           <span className="d2-gold-glyph" />
@@ -1046,7 +1056,7 @@ export function CommandCenter() {
               <GuardianStage
                 character={selectedCharacter}
                 equippedItems={equippedItems}
-                onOpen={setSelectedItem}
+                onOpen={setInspectedItem}
               />
               <aside className="d2-command-inspector">
                 {selectedInspectItem ? (
@@ -1100,19 +1110,6 @@ export function CommandCenter() {
                 </div>
               </CommandPanel>
             </div>
-            <ItemDetailSheet
-              data={data}
-              item={selectedItem}
-              onAction={runActions}
-              onOpenChange={(open) => {
-                if (!open) {
-                  setSelectedItem(null);
-                }
-              }}
-              tags={selectedItem ? (tagMap[selectedItem.id] ?? []) : []}
-              targetCharacterId={selectedCharacter?.id ?? null}
-              toggleTag={toggleTag}
-            />
           </>
         ) : null}
       </section>
