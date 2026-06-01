@@ -14,7 +14,7 @@
 
 - Create `src/lib/destiny/command.ts`: pure, testable selectors for Command page equipped gear, default inspector item, slot groupings, tier summary, set summaries, and vault pressure.
 - Create `src/lib/destiny/command.test.ts`: unit tests for command selectors using small normalized item fixtures.
-- Create `src/components/destiny/item-presentation.tsx`: shared `bungieImage`, `ItemIcon`, `StatBars`, `PlugList`, and `TagPillList` primitives used by Command and the existing workspaces.
+- Create `src/components/destiny/item-presentation.tsx`: shared `bungieImage`, `ItemIcon`, `StatBars`, and `PlugList` primitives used by Command and the existing workspaces.
 - Create `src/components/destiny/brand-logo.tsx`: project-native SVG implementation of logo direction C plus a compact mark variant.
 - Create `src/components/destiny/command-center.tsx`: Command-only React component tree.
 - Modify `src/components/destiny/workspaces.tsx`: remove the old `CommandCenter` export, import shared presentation primitives, and preserve Inventory/Vault Clean behavior.
