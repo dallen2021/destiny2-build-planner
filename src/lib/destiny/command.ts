@@ -20,6 +20,15 @@ export type CommandSetSummary = {
   requiredPieces: number;
 };
 
+export type CommandStageMetrics = {
+  armorCount: number;
+  averageArmorTier: number | null;
+  exoticCount: number;
+  power: number | null;
+  totalEquipped: number;
+  weaponCount: number;
+};
+
 export function getCommandEquippedItems(
   items: readonly NormalizedDestinyItem[],
   selectedCharacterId: string | null,
@@ -108,6 +117,33 @@ export function getArmorTierSummary(
     }, {}),
     readyPieces: armorPieces.filter((item) => (item.gearTier ?? 0) >= 4).length,
     totalPieces: armorPieces.length,
+  };
+}
+
+export function getCommandStageMetrics({
+  characterPower,
+  equippedItems,
+}: {
+  characterPower: number | null | undefined;
+  equippedItems: readonly NormalizedDestinyItem[];
+}): CommandStageMetrics {
+  const armorPieces = equippedItems.filter((item) => item.kind === "armor");
+  const tieredArmorPieces = armorPieces.filter((item) => item.gearTier != null);
+  const armorTierTotal = tieredArmorPieces.reduce(
+    (total, item) => total + (item.gearTier ?? 0),
+    0,
+  );
+
+  return {
+    armorCount: armorPieces.length,
+    averageArmorTier:
+      tieredArmorPieces.length === 0
+        ? null
+        : Math.round((armorTierTotal / tieredArmorPieces.length) * 10) / 10,
+    exoticCount: equippedItems.filter((item) => item.rarity === "Exotic").length,
+    power: characterPower ?? null,
+    totalEquipped: equippedItems.length,
+    weaponCount: equippedItems.filter((item) => item.kind === "weapon").length,
   };
 }
 

@@ -4,6 +4,7 @@ import {
   getArmorTierSummary,
   getCommandEquippedItems,
   getCommandGearSlots,
+  getCommandStageMetrics,
   getCommandSetSummaries,
   getVaultPressure,
   selectCommandInspectItem,
@@ -203,5 +204,88 @@ describe("command selectors", () => {
       { activePieces: 1, name: "Arc Core", requiredPieces: 4 },
       { activePieces: 2, name: "Rapid Charge", requiredPieces: 2 },
     ]);
+  });
+
+  it("summarizes command stage metrics for a full equipped loadout", () => {
+    const metrics = getCommandStageMetrics({
+      characterPower: 550,
+      equippedItems: [
+        makeItem({
+          id: "kinetic",
+          gearTier: 4,
+          kind: "weapon",
+          slot: { hash: 1, name: "Kinetic Weapons", order: 10 },
+          slotName: "Kinetic Weapons",
+          weaponTier: 4,
+        }),
+        makeItem({
+          id: "energy",
+          gearTier: 5,
+          kind: "weapon",
+          slot: { hash: 2, name: "Energy Weapons", order: 20 },
+          slotName: "Energy Weapons",
+          weaponTier: 5,
+        }),
+        makeItem({ id: "helmet", gearTier: 5, rarity: "Exotic" }),
+        makeItem({ id: "arms", gearTier: 4 }),
+        makeItem({ id: "chest", gearTier: 3 }),
+        makeItem({ id: "legs", gearTier: 2 }),
+        makeItem({ id: "class-item", gearTier: null }),
+      ],
+    });
+
+    expect(metrics).toEqual({
+      armorCount: 5,
+      averageArmorTier: 3.5,
+      exoticCount: 1,
+      power: 550,
+      totalEquipped: 7,
+      weaponCount: 2,
+    });
+  });
+
+  it("handles missing weapon slots, armor slots, and tier data", () => {
+    const metrics = getCommandStageMetrics({
+      characterPower: null,
+      equippedItems: [
+        makeItem({
+          id: "ghost",
+          kind: "ghost",
+          slot: { hash: 2, name: "Ghost", order: 40 },
+          slotName: "Ghost",
+        }),
+      ],
+    });
+
+    expect(metrics).toEqual({
+      armorCount: 0,
+      averageArmorTier: null,
+      exoticCount: 0,
+      power: null,
+      totalEquipped: 1,
+      weaponCount: 0,
+    });
+  });
+
+  it("keeps the selected command item inspectable after character switches", () => {
+    const oldHelmet = makeItem({ id: "old-helmet", characterId: "char1" });
+    const newWeapon = makeItem({
+      id: "new-weapon",
+      characterId: "char2",
+      kind: "weapon",
+      slot: { hash: 2, name: "Kinetic Weapons", order: 20 },
+      slotName: "Kinetic Weapons",
+    });
+    const newBanner = makeItem({
+      id: "new-banner",
+      characterId: "char2",
+      kind: "unknown",
+      slot: { hash: 8, name: "Clan Banners", order: 1 },
+      slotName: "Clan Banners",
+    });
+
+    expect(selectCommandInspectItem([newBanner, newWeapon], oldHelmet)?.id).toBe(
+      "new-weapon",
+    );
   });
 });

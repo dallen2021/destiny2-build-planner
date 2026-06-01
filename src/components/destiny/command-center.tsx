@@ -9,11 +9,14 @@ import {
   Check,
   CircleHelp,
   Crosshair,
+  Lock,
   RefreshCcw,
   Search,
   Settings,
   ShieldCheck,
+  Sparkles,
   Sword,
+  Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -24,6 +27,7 @@ import {
   getArmorTierSummary,
   getCommandEquippedItems,
   getCommandGearSlots,
+  getCommandStageMetrics,
   getCommandSetSummaries,
   selectCommandInspectItem,
 } from "@/lib/destiny/command";
@@ -285,34 +289,197 @@ function CommandCharacterCards({
   );
 }
 
-function GearRail({
-  items,
+function getStagePowerLabel(item: NormalizedDestinyItem) {
+  if (item.power != null) {
+    return String(item.power);
+  }
+
+  if (item.quantity > 1) {
+    return `x${item.quantity}`;
+  }
+
+  return "--";
+}
+
+function getStageTier(item: NormalizedDestinyItem) {
+  return item.kind === "weapon"
+    ? (item.weaponTier ?? item.gearTier)
+    : item.gearTier;
+}
+
+function getSelectedStageSide({
+  inspectedItem,
+  leftItems,
+  rightItems,
+}: {
+  inspectedItem: NormalizedDestinyItem | null;
+  leftItems: readonly NormalizedDestinyItem[];
+  rightItems: readonly NormalizedDestinyItem[];
+}): "left" | "right" | "none" {
+  if (!inspectedItem) {
+    return "none";
+  }
+
+  if (leftItems.some((item) => item.id === inspectedItem.id)) {
+    return "left";
+  }
+
+  if (rightItems.some((item) => item.id === inspectedItem.id)) {
+    return "right";
+  }
+
+  return "none";
+}
+
+function CommandStageItemNode({
+  item,
   onOpen,
-  selectedItem,
+  selected,
   side,
 }: {
-  items: readonly NormalizedDestinyItem[];
+  item: NormalizedDestinyItem;
   onOpen: (item: NormalizedDestinyItem) => void;
-  selectedItem: NormalizedDestinyItem | null;
+  selected: boolean;
   side: "left" | "right";
 }) {
+  const damageIcon = bungieImage(item.damageType.icon);
+  const tier = getStageTier(item);
+  const hasMasterwork = item.state.masterworked || Boolean(item.masterwork);
+
   return (
-    <div className={`d2-stage-gear-rail d2-stage-gear-rail-${side}`}>
-      {items.map((item) => (
-        <button
-          aria-pressed={selectedItem?.id === item.id}
-          key={item.id}
-          onClick={() => onOpen(item)}
-          type="button"
-        >
-          <ItemIcon item={item} />
-          <span>
-            <small>{item.slot.name}</small>
-            <strong>{item.name}</strong>
+    <button
+      aria-label={`${item.slot.name}: ${item.name}`}
+      aria-pressed={selected}
+      className="d2-stage-item-node"
+      data-kind={item.kind}
+      data-rarity={item.rarity ?? "unknown"}
+      data-side={side}
+      onClick={() => onOpen(item)}
+      type="button"
+    >
+      <span className="d2-stage-node-icon">
+        <ItemIcon item={item} size={58} />
+        {damageIcon ? (
+          <Image
+            alt=""
+            className="d2-stage-node-damage"
+            height={18}
+            src={damageIcon}
+            width={18}
+          />
+        ) : null}
+        <span className="d2-stage-node-flags">
+          {item.state.locked ? <Lock aria-label="Locked" /> : null}
+          {item.state.crafted ? <Sparkles aria-label="Crafted" /> : null}
+          {item.state.enhanced ? <Zap aria-label="Enhanced" /> : null}
+          {hasMasterwork ? <strong aria-label="Masterworked">MW</strong> : null}
+        </span>
+      </span>
+      <span className="d2-stage-node-copy">
+        <small>{item.slot.name}</small>
+        <strong>{item.name}</strong>
+        <span className="d2-stage-node-meta">
+          <b>{getStagePowerLabel(item)}</b>
+          {tier != null ? <em>T{tier}</em> : null}
+          {hasMasterwork ? <em>Masterwork</em> : null}
+        </span>
+        {tier != null ? (
+          <span
+            aria-label={`Tier ${tier}`}
+            className="d2-stage-tier-pips"
+          >
+            {Array.from({ length: Math.min(tier, 5) }).map((_, index) => (
+              <i key={index} />
+            ))}
           </span>
-        </button>
-      ))}
+        ) : null}
+      </span>
+    </button>
+  );
+}
+
+function CommandStageConnectors({
+  activeSide,
+}: {
+  activeSide: "left" | "right" | "none";
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className="d2-stage-connectors"
+      data-active-side={activeSide}
+    >
+      <span className="d2-stage-connector d2-stage-connector-left" />
+      <span className="d2-stage-connector d2-stage-connector-right" />
+      <span className="d2-stage-connector-core" />
     </div>
+  );
+}
+
+function CommandGuardianSilhouette({
+  guardianClass,
+  power,
+}: {
+  guardianClass: string;
+  power: number | null | undefined;
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className="d2-stage-guardian"
+      data-class={guardianClass}
+    >
+      <span className="d2-stage-aura" />
+      <span className="d2-stage-floor" />
+      <span className="d2-stage-cloak" />
+      <span className="d2-stage-head" />
+      <span className="d2-stage-shoulders" />
+      <span className="d2-stage-core" />
+      <span className="d2-stage-belt" />
+      <span className="d2-stage-legs" />
+      <span className="d2-stage-class-accent" />
+      <span className="d2-stage-caption">
+        <small>{guardianClass}</small>
+        <strong>{power ?? "----"}</strong>
+      </span>
+    </div>
+  );
+}
+
+function CommandStageFooter({
+  character,
+  equippedItems,
+}: {
+  character: CharacterSummary | null;
+  equippedItems: readonly NormalizedDestinyItem[];
+}) {
+  const metrics = getCommandStageMetrics({
+    characterPower: character?.light,
+    equippedItems,
+  });
+  const metricItems = [
+    { label: "Power", value: metrics.power ?? "----" },
+    { label: "Weapons", value: `${metrics.weaponCount}/3` },
+    { label: "Armor", value: `${metrics.armorCount}/5` },
+    {
+      label: "Avg Tier",
+      value:
+        metrics.averageArmorTier == null
+          ? "--"
+          : `T${metrics.averageArmorTier}`,
+    },
+    { label: "Exotic", value: metrics.exoticCount },
+  ];
+
+  return (
+    <dl className="d2-stage-footer" aria-label="Equipped loadout metrics">
+      {metricItems.map((metric) => (
+        <div key={metric.label}>
+          <dt>{metric.label}</dt>
+          <dd>{metric.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -333,34 +500,50 @@ function GuardianStage({
     ...(slots.ghost ? [slots.ghost] : []),
   ];
   const rightItems = slots.armor.slice(0, 5);
+  const selectedSide = getSelectedStageSide({
+    inspectedItem,
+    leftItems,
+    rightItems,
+  });
+  const guardianClass = character?.className ?? "Guardian";
 
   return (
-    <section className="d2-command-stage" aria-label="Guardian command stage">
+    <section
+      aria-label="Guardian command stage"
+      className="d2-command-stage"
+      data-class={guardianClass}
+      data-selected-side={selectedSide}
+    >
       <div className="d2-stage-ring" aria-hidden="true" />
       <div className="d2-stage-lines" aria-hidden="true" />
-      <GearRail
-        items={leftItems}
-        onOpen={onOpen}
-        selectedItem={inspectedItem}
-        side="left"
-      />
-      <div className="d2-stage-guardian" aria-hidden="true">
-        <span className="d2-stage-head" />
-        <span className="d2-stage-shoulders" />
-        <span className="d2-stage-core" />
-        <span className="d2-stage-cloak" />
-        <span className="d2-stage-legs" />
+      <CommandStageConnectors activeSide={selectedSide} />
+      <div className="d2-stage-loadout-nodes d2-stage-loadout-nodes-left">
+        {leftItems.map((item) => (
+          <CommandStageItemNode
+            item={item}
+            key={item.id}
+            onOpen={onOpen}
+            selected={inspectedItem?.id === item.id}
+            side="left"
+          />
+        ))}
       </div>
-      <GearRail
-        items={rightItems}
-        onOpen={onOpen}
-        selectedItem={inspectedItem}
-        side="right"
+      <CommandGuardianSilhouette
+        guardianClass={guardianClass}
+        power={character?.light}
       />
-      <div className="d2-stage-caption">
-        <span>{character?.className ?? "Guardian"}</span>
-        <strong>{character?.light ?? "----"}</strong>
+      <div className="d2-stage-loadout-nodes d2-stage-loadout-nodes-right">
+        {rightItems.map((item) => (
+          <CommandStageItemNode
+            item={item}
+            key={item.id}
+            onOpen={onOpen}
+            selected={inspectedItem?.id === item.id}
+            side="right"
+          />
+        ))}
       </div>
+      <CommandStageFooter character={character} equippedItems={equippedItems} />
     </section>
   );
 }
@@ -369,7 +552,11 @@ function CommandItemInspector({ item }: { item: NormalizedDestinyItem | null }) 
   const damageIcon = item ? bungieImage(item.damageType.icon) : null;
 
   return (
-    <aside className="d2-command-inspector">
+    <aside
+      className="d2-command-inspector"
+      data-kind={item?.kind ?? "none"}
+      data-rarity={item?.rarity ?? "unknown"}
+    >
       {item ? (
         <>
           <header className="d2-command-inspector-title">

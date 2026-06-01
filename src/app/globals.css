@@ -1107,11 +1107,13 @@ body:has(.d2-command-console) .app-header {
 }
 
 .d2-command-console .d2-command-stage {
-  min-height: 520px;
+  min-height: 620px;
+  padding: 0;
   border-color: rgba(111, 151, 164, 0.2);
   background:
-    radial-gradient(circle at center, rgba(226, 185, 96, 0.1), transparent 32%),
-    radial-gradient(circle at center, rgba(99, 215, 255, 0.09), transparent 48%),
+    radial-gradient(circle at 50% 56%, rgba(226, 185, 96, 0.14), transparent 32%),
+    radial-gradient(circle at 50% 34%, rgba(99, 215, 255, 0.11), transparent 46%),
+    linear-gradient(90deg, rgba(226, 185, 96, 0.08), transparent 18%, transparent 82%, rgba(226, 185, 96, 0.08)),
     linear-gradient(180deg, rgba(7, 21, 32, 0.8), rgba(2, 7, 11, 0.9));
 }
 
@@ -1125,83 +1127,422 @@ body:has(.d2-command-console) .app-header {
   pointer-events: none;
 }
 
-.d2-command-console .d2-stage-gear-rail {
+.d2-command-console .d2-stage-connectors {
   position: absolute;
-  top: 54px;
-  z-index: 2;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.d2-command-console .d2-stage-connector {
+  position: absolute;
+  top: 46%;
+  height: 1px;
+  opacity: 0.24;
+  background: linear-gradient(90deg, transparent, rgba(226, 185, 96, 0.72), transparent);
+  box-shadow: 0 0 0 rgba(226, 185, 96, 0);
+}
+
+.d2-command-console .d2-stage-connector-left {
+  left: min(315px, 38%);
+  right: 50%;
+  transform: rotate(13deg);
+  transform-origin: right center;
+}
+
+.d2-command-console .d2-stage-connector-right {
+  left: 50%;
+  right: min(315px, 38%);
+  transform: rotate(-13deg);
+  transform-origin: left center;
+}
+
+.d2-command-console .d2-stage-connector-core {
+  position: absolute;
+  left: 50%;
+  top: 21%;
+  width: min(340px, 34vw);
+  height: min(340px, 34vw);
+  border: 1px solid rgba(226, 185, 96, 0.13);
+  border-radius: 50%;
+  opacity: 0.52;
+  transform: translateX(-50%);
+}
+
+.d2-command-console .d2-stage-connectors[data-active-side="left"] .d2-stage-connector-left,
+.d2-command-console .d2-stage-connectors[data-active-side="right"] .d2-stage-connector-right {
+  opacity: 1;
+  box-shadow: 0 0 22px rgba(226, 185, 96, 0.48);
+}
+
+.d2-command-console .d2-stage-loadout-nodes {
+  position: absolute;
+  top: 40px;
+  z-index: 4;
   display: grid;
-  gap: 11px;
-  width: min(250px, 31%);
+  gap: 10px;
+  width: clamp(220px, 30%, 300px);
 }
 
-.d2-command-console .d2-stage-gear-rail-left {
-  left: 24px;
+.d2-command-console .d2-stage-loadout-nodes-left {
+  left: 20px;
 }
 
-.d2-command-console .d2-stage-gear-rail-right {
-  right: 24px;
+.d2-command-console .d2-stage-loadout-nodes-right {
+  right: 20px;
 }
 
-.d2-command-console .d2-stage-gear-rail button {
+.d2-command-console .d2-stage-item-node {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: 58px minmax(0, 1fr);
   align-items: center;
-  gap: 11px;
-  min-height: 72px;
+  gap: 12px;
+  min-height: 76px;
   border: 1px solid rgba(226, 185, 96, 0.2);
   border-radius: 6px;
-  background: rgba(3, 10, 15, 0.78);
+  background:
+    linear-gradient(90deg, rgba(226, 185, 96, 0.08), transparent 38%),
+    rgba(3, 10, 15, 0.84);
   color: #f5ecd7;
-  padding: 8px;
+  padding: 8px 10px 8px 8px;
   text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
-.d2-command-console .d2-stage-gear-rail button[aria-pressed="true"] {
+.d2-command-console .d2-stage-item-node[data-rarity="Exotic"] {
+  border-color: rgba(226, 185, 96, 0.36);
+  background:
+    linear-gradient(90deg, rgba(226, 185, 96, 0.16), transparent 46%),
+    rgba(14, 11, 6, 0.82);
+}
+
+.d2-command-console .d2-stage-item-node[aria-pressed="true"] {
   border-color: rgba(245, 229, 183, 0.9);
   box-shadow: 0 0 0 1px rgba(226, 185, 96, 0.2), 0 0 24px rgba(226, 185, 96, 0.16);
+  transform: translateY(-1px);
+  animation: d2-node-pulse 2.8s ease-in-out infinite;
 }
 
-.d2-command-console .d2-stage-gear-rail small,
-.d2-command-console .d2-stage-gear-rail strong {
+.d2-command-console .d2-stage-node-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+}
+
+.d2-command-console .d2-stage-node-damage {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(2, 7, 11, 0.72);
+  padding: 2px;
+}
+
+.d2-command-console .d2-stage-node-flags {
+  position: absolute;
+  right: -7px;
+  bottom: -6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.d2-command-console .d2-stage-node-flags svg,
+.d2-command-console .d2-stage-node-flags strong {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(2, 7, 11, 0.84);
+  color: rgba(245, 236, 215, 0.94);
+  font-size: 0.45rem;
+  font-weight: 800;
+}
+
+.d2-command-console .d2-stage-node-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.d2-command-console .d2-stage-node-copy small,
+.d2-command-console .d2-stage-node-copy strong {
   display: block;
+  min-width: 0;
 }
 
-.d2-command-console .d2-stage-gear-rail small {
+.d2-command-console .d2-stage-node-copy small {
   color: rgba(226, 185, 96, 0.7);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
-.d2-command-console .d2-stage-gear-rail strong {
+.d2-command-console .d2-stage-node-copy strong {
   overflow: hidden;
   color: rgba(245, 236, 215, 0.94);
-  font-size: 0.83rem;
+  font-size: 0.84rem;
+  line-height: 1.16;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.d2-command-console .d2-stage-node-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: rgba(243, 234, 216, 0.66);
+  font-size: 0.69rem;
+}
+
+.d2-command-console .d2-stage-node-meta b {
+  color: var(--d2-command-gold-soft);
+  font-weight: 800;
+}
+
+.d2-command-console .d2-stage-node-meta em {
+  overflow: hidden;
+  border: 1px solid rgba(226, 185, 96, 0.22);
+  border-radius: 4px;
+  color: rgba(245, 236, 215, 0.82);
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 4px;
+}
+
+.d2-command-console .d2-stage-tier-pips {
+  display: flex;
+  gap: 3px;
+  min-height: 4px;
+}
+
+.d2-command-console .d2-stage-tier-pips i {
+  width: 14px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--d2-command-gold), #f6e7ba);
+}
+
+.d2-command-console .d2-stage-guardian {
+  position: absolute;
+  left: 50%;
+  bottom: 104px;
+  z-index: 3;
+  width: 210px;
+  height: 360px;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 18px 42px rgba(0, 0, 0, 0.5));
+  animation: d2-guardian-breathe 5.8s ease-in-out infinite;
+}
+
+.d2-command-console .d2-stage-aura,
+.d2-command-console .d2-stage-floor {
+  position: absolute;
+  left: 50%;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.d2-command-console .d2-stage-aura {
+  top: 8px;
+  width: 190px;
+  height: 318px;
+  background: radial-gradient(ellipse at 50% 46%, rgba(99, 215, 255, 0.18), transparent 62%);
+  opacity: 0.74;
+}
+
+.d2-command-console .d2-stage-floor {
+  bottom: 28px;
+  width: 210px;
+  height: 42px;
+  border: 1px solid rgba(226, 185, 96, 0.22);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(226, 185, 96, 0.18), transparent 62%);
+}
+
+.d2-command-console .d2-stage-head,
+.d2-command-console .d2-stage-core,
+.d2-command-console .d2-stage-cloak,
 .d2-command-console .d2-stage-shoulders,
+.d2-command-console .d2-stage-belt,
 .d2-command-console .d2-stage-legs {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, #d9d6ca, #4d5960);
+  box-shadow: 0 0 36px rgba(104, 217, 255, 0.18);
+}
+
+.d2-command-console .d2-stage-head {
+  top: 16px;
+  width: 50px;
+  height: 56px;
+  border-radius: 46% 46% 36% 36%;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.72), transparent 50%),
+    linear-gradient(135deg, #d8dedc, #58646a);
 }
 
 .d2-command-console .d2-stage-shoulders {
-  top: 42px;
-  width: 118px;
-  height: 42px;
-  clip-path: polygon(10% 100%, 24% 0, 76% 0, 90% 100%);
+  top: 76px;
+  width: 148px;
+  height: 48px;
+  clip-path: polygon(4% 100%, 21% 0, 79% 0, 96% 100%);
+}
+
+.d2-command-console .d2-stage-core {
+  top: 106px;
+  width: 102px;
+  height: 158px;
+  clip-path: polygon(20% 0, 80% 0, 92% 100%, 8% 100%);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.34), transparent 45%),
+    linear-gradient(135deg, #d6d4ca, #3d4a51);
+}
+
+.d2-command-console .d2-stage-belt {
+  top: 250px;
+  width: 106px;
+  height: 24px;
+  clip-path: polygon(4% 0, 96% 0, 86% 100%, 14% 100%);
+  opacity: 0.84;
 }
 
 .d2-command-console .d2-stage-legs {
-  top: 178px;
-  width: 76px;
-  height: 96px;
-  clip-path: polygon(12% 0, 88% 0, 78% 100%, 20% 100%);
-  opacity: 0.72;
+  top: 266px;
+  width: 88px;
+  height: 68px;
+  clip-path: polygon(10% 0, 90% 0, 78% 100%, 20% 100%);
+  opacity: 0.76;
+}
+
+.d2-command-console .d2-stage-cloak {
+  top: 80px;
+  width: 170px;
+  height: 242px;
+  background: linear-gradient(180deg, rgba(201, 204, 198, 0.42), rgba(29, 38, 44, 0.2));
+  clip-path: polygon(43% 0, 66% 7%, 88% 100%, 14% 100%, 34% 7%);
+}
+
+.d2-command-console .d2-stage-class-accent {
+  position: absolute;
+  left: 50%;
+  top: 122px;
+  width: 18px;
+  height: 120px;
+  border-radius: 999px;
+  background: rgba(99, 215, 255, 0.68);
+  box-shadow: 0 0 28px rgba(99, 215, 255, 0.32);
+  transform: translateX(-50%);
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Titan"] .d2-stage-shoulders {
+  width: 174px;
+  height: 54px;
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Titan"] .d2-stage-core {
+  width: 116px;
+  clip-path: polygon(14% 0, 86% 0, 92% 100%, 8% 100%);
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Titan"] .d2-stage-cloak {
+  width: 116px;
+  opacity: 0.2;
+  clip-path: polygon(30% 0, 70% 0, 78% 100%, 22% 100%);
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Titan"] .d2-stage-class-accent {
+  background: rgba(184, 121, 255, 0.7);
+  box-shadow: 0 0 28px rgba(184, 121, 255, 0.34);
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Warlock"] .d2-stage-cloak {
+  width: 152px;
+  height: 262px;
+  clip-path: polygon(39% 0, 61% 0, 82% 100%, 18% 100%);
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Warlock"] .d2-stage-core {
+  height: 176px;
+  clip-path: polygon(26% 0, 74% 0, 94% 100%, 6% 100%);
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Warlock"] .d2-stage-class-accent {
+  background: rgba(205, 137, 255, 0.72);
+  box-shadow: 0 0 28px rgba(205, 137, 255, 0.34);
+}
+
+.d2-command-console .d2-stage-caption {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  display: grid;
+  justify-items: center;
+  transform: translateX(-50%);
+  text-transform: uppercase;
+}
+
+.d2-command-console .d2-stage-caption small {
+  color: rgba(245, 236, 215, 0.82);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.d2-command-console .d2-stage-caption strong {
+  color: var(--d2-command-gold-soft);
+  font-size: 2.45rem;
+  line-height: 0.98;
+}
+
+.d2-command-console .d2-stage-footer {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.d2-command-console .d2-stage-footer div {
+  min-width: 0;
+  border: 1px solid rgba(226, 185, 96, 0.16);
+  border-radius: 6px;
+  background: rgba(3, 10, 15, 0.78);
+  padding: 8px 10px;
+}
+
+.d2-command-console .d2-stage-footer dt {
+  overflow: hidden;
+  color: rgba(226, 185, 96, 0.7);
+  font-size: 0.6rem;
+  letter-spacing: 0.15em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.d2-command-console .d2-stage-footer dd {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--d2-command-gold-soft);
+  font-size: 1rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .d2-command-console .d2-command-inspector {
@@ -1210,6 +1551,13 @@ body:has(.d2-command-console) .app-header {
   gap: 16px;
   border-color: rgba(226, 185, 96, 0.44);
   background: linear-gradient(180deg, rgba(8, 18, 25, 0.94), rgba(2, 7, 12, 0.94));
+}
+
+.d2-command-console .d2-command-inspector[data-rarity="Exotic"] {
+  border-color: rgba(226, 185, 96, 0.72);
+  box-shadow:
+    inset 0 0 0 1px rgba(226, 185, 96, 0.08),
+    0 0 34px rgba(226, 185, 96, 0.08);
 }
 
 .d2-command-console .d2-command-inspector-title {
@@ -1336,6 +1684,28 @@ body:has(.d2-command-console) .app-header {
   color: var(--d2-command-gold-soft);
 }
 
+@keyframes d2-node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(226, 185, 96, 0.18), 0 0 18px rgba(226, 185, 96, 0.12);
+  }
+
+  50% {
+    box-shadow: 0 0 0 1px rgba(226, 185, 96, 0.34), 0 0 30px rgba(226, 185, 96, 0.26);
+  }
+}
+
+@keyframes d2-guardian-breathe {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  50% {
+    transform: translateX(-50%) translateY(-4px);
+  }
+}
+
 @media (max-width: 1360px) {
   .d2-command-console {
     grid-template-columns: 232px minmax(0, 1fr);
@@ -1362,6 +1732,10 @@ body:has(.d2-command-console) .app-header {
 
   .d2-command-console .d2-stage-layout {
     grid-template-columns: 1fr;
+  }
+
+  .d2-command-console .d2-command-stage {
+    min-height: 600px;
   }
 
   .d2-command-console .d2-bottom-panels {
@@ -1396,28 +1770,71 @@ body:has(.d2-command-console) .app-header {
   }
 
   .d2-command-console .d2-command-stage {
-    min-height: auto;
+    display: grid;
+    grid-template-areas:
+      "guardian"
+      "left"
+      "right"
+      "footer";
+    gap: 14px;
+    min-height: 0;
     padding: 18px;
   }
 
-  .d2-command-console .d2-stage-gear-rail {
+  .d2-command-console .d2-stage-ring,
+  .d2-command-console .d2-stage-lines,
+  .d2-command-console .d2-stage-connectors {
+    display: none;
+  }
+
+  .d2-command-console .d2-stage-loadout-nodes {
     position: relative;
     top: auto;
     left: auto;
     right: auto;
     width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .d2-command-console .d2-stage-loadout-nodes-left {
+    grid-area: left;
+  }
+
+  .d2-command-console .d2-stage-loadout-nodes-right {
+    grid-area: right;
   }
 
   .d2-command-console .d2-stage-guardian {
+    grid-area: guardian;
     position: relative;
     left: auto;
     bottom: auto;
-    margin: 26px auto 88px;
-    transform: scale(0.86);
+    width: min(188px, 48vw);
+    height: 286px;
+    margin: 0 auto 4px;
+    transform: none;
+    animation: none;
+  }
+
+  .d2-command-console .d2-stage-aura {
+    height: 245px;
+  }
+
+  .d2-command-console .d2-stage-floor {
+    bottom: 22px;
   }
 
   .d2-command-console .d2-stage-caption {
-    bottom: 18px;
+    bottom: -4px;
+  }
+
+  .d2-command-console .d2-stage-footer {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    grid-area: footer;
   }
 }
 
@@ -1444,6 +1861,55 @@ body:has(.d2-command-console) .app-header {
 
   .d2-command-console .d2-command-inspector-actions {
     grid-template-columns: 1fr;
+  }
+
+  .d2-command-console .d2-command-stage {
+    padding: 12px;
+  }
+
+  .d2-command-console .d2-stage-loadout-nodes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .d2-command-console .d2-stage-item-node {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 66px;
+    padding: 7px;
+  }
+
+  .d2-command-console .d2-stage-node-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .d2-command-console .d2-stage-node-copy small {
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
+  }
+
+  .d2-command-console .d2-stage-node-copy strong {
+    font-size: 0.78rem;
+  }
+
+  .d2-command-console .d2-stage-node-meta em:last-child {
+    display: none;
+  }
+
+  .d2-command-console .d2-stage-footer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .d2-command-console .d2-stage-footer div:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d2-command-console .d2-stage-item-node,
+  .d2-command-console .d2-stage-guardian {
+    animation: none;
+    transition: none;
   }
 }
 
