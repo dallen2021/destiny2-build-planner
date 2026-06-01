@@ -57,8 +57,6 @@ import {
   type DestinyInventoryApiPayload,
   type ItemLocation,
   type NormalizedDestinyItem,
-  type NormalizedPerk,
-  type NormalizedStat,
 } from "@/lib/destiny/inventory";
 import {
   planItemDropTransaction,
@@ -74,21 +72,18 @@ import {
 
 import { useDestinyInventory } from "./use-destiny-inventory";
 import { useItemTags } from "./use-item-tags";
+import {
+  bungieImage,
+  ItemIcon,
+  PlugList,
+  StatBars,
+} from "./item-presentation";
 
 const CLASS_TYPE_BY_NAME: Record<string, DestinyClassType> = {
   Hunter: 1,
   Titan: 0,
   Warlock: 2,
 };
-
-const ARMOR_STAT_NAMES = [
-  "Weapons",
-  "Health",
-  "Class",
-  "Grenade",
-  "Super",
-  "Melee",
-] as const;
 
 const TAG_LABELS: Record<ItemTag, string> = {
   build: "Build",
@@ -122,14 +117,6 @@ type ItemDropTarget = {
   characterId: string;
   location: Extract<ItemLocation, "carried" | "equipped" | "vault">;
 };
-
-function bungieImage(path: string | null): string | null {
-  if (!path) {
-    return null;
-  }
-
-  return path.startsWith("http") ? path : `https://www.bungie.net${path}`;
-}
 
 function formatDefinitionSource(
   source: DestinyInventoryApiPayload["definitionSource"],
@@ -396,24 +383,6 @@ function CharacterSelector({
   );
 }
 
-function ItemIcon({ item, size = 56 }: { item: NormalizedDestinyItem; size?: number }) {
-  const iconUrl = bungieImage(item.icon);
-
-  if (!iconUrl) {
-    return <span className="d2-item-icon-fallback" aria-hidden="true" />;
-  }
-
-  return (
-    <Image
-      alt=""
-      className="d2-item-icon"
-      height={size}
-      src={iconUrl}
-      width={size}
-    />
-  );
-}
-
 function TileOverlayImage({
   alt,
   className,
@@ -572,68 +541,6 @@ function GearTileGrid({
           tags={tagMap[item.id] ?? []}
         />
       ))}
-    </div>
-  );
-}
-
-function StatBars({
-  itemKind,
-  stats,
-}: {
-  itemKind: NormalizedDestinyItem["kind"];
-  stats: readonly NormalizedStat[];
-}) {
-  if (stats.length === 0) {
-    return <p className="d2-muted-note">No stat data returned for this item.</p>;
-  }
-
-  return (
-    <div className="d2-stat-bars">
-      {stats.map((stat) => {
-        const maxValue =
-          itemKind === "armor" && ARMOR_STAT_NAMES.includes(stat.name as never)
-            ? 200
-            : 100;
-        const percent = Math.min(100, Math.round((stat.value / maxValue) * 100));
-
-        return (
-          <div className="d2-stat-bar" key={`${stat.hash}:${stat.name}`}>
-            <span>{stat.name}</span>
-            <strong>{stat.value}</strong>
-            <i>
-              <b style={{ width: `${percent}%` }} />
-            </i>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function PlugList({ perks }: { perks: readonly NormalizedPerk[] }) {
-  if (perks.length === 0) {
-    return <p className="d2-muted-note">No visible perks or traits returned.</p>;
-  }
-
-  return (
-    <div className="d2-perk-grid">
-      {perks.map((perk) => {
-        const icon = bungieImage(perk.icon);
-
-        return (
-          <div className="d2-perk-row" key={`${perk.index}:${perk.plugHash}`}>
-            {icon ? (
-              <Image alt="" height={32} src={icon} width={32} />
-            ) : (
-              <span />
-            )}
-            <div>
-              <strong>{perk.name}</strong>
-              {perk.description ? <small>{perk.description}</small> : null}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
