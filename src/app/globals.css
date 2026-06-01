@@ -1245,6 +1245,12 @@ body:has(.d2-command-console) .app-header {
   padding: 2px;
 }
 
+.d2-command-console .d2-stage-node-icon .d2-item-icon,
+.d2-command-console .d2-stage-node-icon .d2-item-icon-fallback {
+  width: 100% !important;
+  height: 100% !important;
+}
+
 .d2-command-console .d2-stage-node-flags {
   position: absolute;
   right: -7px;
@@ -1865,6 +1871,47 @@ body:has(.d2-command-console) .app-header {
 
   .d2-command-console .d2-command-stage {
     padding: 12px;
+  }
+
+  .d2-command-console .d2-stage-guardian {
+    display: grid;
+    width: 100%;
+    height: auto;
+    min-height: 64px;
+    place-items: center;
+    border: 1px solid rgba(226, 185, 96, 0.16);
+    border-radius: 6px;
+    background:
+      linear-gradient(90deg, rgba(226, 185, 96, 0.1), transparent),
+      rgba(3, 10, 15, 0.72);
+    filter: none;
+    margin: 0;
+    padding: 10px 12px;
+  }
+
+  .d2-command-console .d2-stage-aura,
+  .d2-command-console .d2-stage-floor,
+  .d2-command-console .d2-stage-head,
+  .d2-command-console .d2-stage-shoulders,
+  .d2-command-console .d2-stage-core,
+  .d2-command-console .d2-stage-belt,
+  .d2-command-console .d2-stage-legs,
+  .d2-command-console .d2-stage-cloak,
+  .d2-command-console .d2-stage-class-accent {
+    display: none;
+  }
+
+  .d2-command-console .d2-stage-caption {
+    position: static;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    transform: none;
+  }
+
+  .d2-command-console .d2-stage-caption strong {
+    font-size: 1.75rem;
   }
 
   .d2-command-console .d2-stage-loadout-nodes {
