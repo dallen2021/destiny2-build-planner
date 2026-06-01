@@ -42,7 +42,6 @@ export function buildBungieAuthorizationUrl({
   url.searchParams.set("response_type", "code");
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
-  url.searchParams.set("scope", DEFAULT_BUNGIE_SCOPES.join(" "));
 
   return url;
 }

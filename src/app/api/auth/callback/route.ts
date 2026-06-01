@@ -28,6 +28,18 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const requestUrl = new URL(request.url);
+  const oauthError = requestUrl.searchParams.get("error");
+  const oauthErrorDescription = requestUrl.searchParams.get(
+    "error_description",
+  );
+
+  if (oauthError) {
+    return NextResponse.json(
+      { error: oauthErrorDescription ?? oauthError },
+      { status: 400 },
+    );
+  }
+
   const code = requestUrl.searchParams.get("code");
   const state = requestUrl.searchParams.get("state");
   const expectedState = readOAuthStateCookie(request);

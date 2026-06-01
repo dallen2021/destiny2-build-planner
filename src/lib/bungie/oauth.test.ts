@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DEFAULT_BUNGIE_SCOPES,
   buildBungieAuthorizationUrl,
   createOAuthState,
   hasMoveEquipScope,
@@ -9,7 +8,7 @@ import {
 } from "./oauth";
 
 describe("buildBungieAuthorizationUrl", () => {
-  it("creates a Bungie OAuth URL with encoded client, redirect, state, and scopes", () => {
+  it("creates a Bungie OAuth URL with encoded client, redirect, and state", () => {
     const url = buildBungieAuthorizationUrl({
       clientId: "12345",
       redirectUri: "https://example.com/api/auth/callback",
@@ -24,7 +23,7 @@ describe("buildBungieAuthorizationUrl", () => {
       "https://example.com/api/auth/callback",
     );
     expect(url.searchParams.get("state")).toBe("state-token");
-    expect(url.searchParams.get("scope")).toBe(DEFAULT_BUNGIE_SCOPES.join(" "));
+    expect(url.searchParams.has("scope")).toBe(false);
   });
 });
 
