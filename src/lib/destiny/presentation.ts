@@ -7,7 +7,7 @@ import type {
 export function getItemPresentationIconPath(
   item: Pick<NormalizedDestinyItem, "icon" | "ornament">,
 ) {
-  return item.ornament?.icon ?? item.icon;
+  return item.icon;
 }
 
 export function isItemMasterworked(

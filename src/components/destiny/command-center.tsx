@@ -378,7 +378,7 @@ function CommandStageItemNode({
           />
         ) : null}
         {hasMasterwork ? (
-          <span className="d2-stage-masterwork-glow" aria-hidden="true" />
+          <span className="d2-stage-masterwork-frame" aria-hidden="true" />
         ) : null}
         {damageIcon ? (
           <Image

@@ -6,7 +6,7 @@ import {
 } from "./presentation";
 
 describe("destiny presentation helpers", () => {
-  it("prefers the equipped ornament icon when one is available", () => {
+  it("keeps ornament plug icons out of the primary item artwork", () => {
     expect(
       getItemPresentationIconPath({
         icon: "/base-icon.png",
@@ -21,7 +21,7 @@ describe("destiny presentation helpers", () => {
           plugHash: 123,
         },
       }),
-    ).toBe("/ornament-icon.png");
+    ).toBe("/base-icon.png");
   });
 
   it("falls back to the base item icon when there is no ornament icon", () => {
