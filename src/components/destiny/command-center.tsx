@@ -367,16 +367,6 @@ function CommandStageItemNode({
           <b>{getStagePowerLabel(item)}</b>
           {tier != null ? <em>T{tier}</em> : null}
         </span>
-        {tier != null ? (
-          <span
-            aria-label={`Tier ${tier}`}
-            className="d2-stage-tier-pips"
-          >
-            {Array.from({ length: Math.min(tier, 5) }).map((_, index) => (
-              <i key={index} />
-            ))}
-          </span>
-        ) : null}
       </span>
     </button>
   );

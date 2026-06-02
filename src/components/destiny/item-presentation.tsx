@@ -215,51 +215,6 @@ export function PlugList({ perks }: { perks: readonly NormalizedPerk[] }) {
   );
 }
 
-const PLUG_SECTION_TITLES: Record<
-  keyof ItemPlugSections,
-  {
-    armor: string;
-    default: string;
-    weapon: string;
-  }
-> = {
-  appearance: {
-    armor: "Appearance",
-    default: "Appearance",
-    weapon: "Appearance",
-  },
-  intrinsic: {
-    armor: "Intrinsic",
-    default: "Intrinsic",
-    weapon: "Intrinsic Trait",
-  },
-  mods: {
-    armor: "Armor Mods",
-    default: "Mods",
-    weapon: "Weapon Mods",
-  },
-  other: {
-    armor: "Other Sockets",
-    default: "Other Sockets",
-    weapon: "Other Sockets",
-  },
-  perks: {
-    armor: "Armor Perks",
-    default: "Perks",
-    weapon: "Weapon Perks",
-  },
-  setBonuses: {
-    armor: "Set Bonuses",
-    default: "Set Bonuses",
-    weapon: "Set Bonuses",
-  },
-  upgrades: {
-    armor: "Armor Tier & Upgrades",
-    default: "Upgrades",
-    weapon: "Masterwork & Upgrades",
-  },
-};
-
 const PLUG_SECTION_ORDER: Record<
   NormalizedDestinyItem["kind"] | "default",
   (keyof ItemPlugSections)[]
@@ -278,21 +233,28 @@ const PLUG_SECTION_ORDER: Record<
   weapon: ["intrinsic", "perks", "mods", "upgrades", "appearance", "other"],
 };
 
-function getSectionTitle(
-  itemKind: NormalizedDestinyItem["kind"],
-  section: keyof ItemPlugSections,
-) {
-  const copy = PLUG_SECTION_TITLES[section];
+function getSocketBoardTitle(itemKind: NormalizedDestinyItem["kind"]) {
+  if (itemKind === "weapon") {
+    return "Weapon Perks";
+  }
 
   if (itemKind === "armor") {
-    return copy.armor;
+    return "Armor Mods";
   }
 
+  return "Sockets";
+}
+
+function getSocketDetailTitle(itemKind: NormalizedDestinyItem["kind"]) {
   if (itemKind === "weapon") {
-    return copy.weapon;
+    return "Selected Perks, Mods, And Traits";
   }
 
-  return copy.default;
+  if (itemKind === "armor") {
+    return "Selected Mods, Tier, And Appearance";
+  }
+
+  return "Selected Socket Details";
 }
 
 function getSocketOptions(socket: NormalizedSocket): NormalizedPlug[] {
@@ -391,10 +353,9 @@ export function ItemPlugDetails({ item }: { item: NormalizedDestinyItem }) {
   const visibleSections = sectionOrder
     .map((section) => ({
       items: sections[section],
-      section,
-      title: getSectionTitle(item.kind, section),
     }))
     .filter(({ items }) => items.length > 0);
+  const boardSockets = visibleSections.flatMap(({ items }) => items);
 
   if (visibleSections.length === 0) {
     return (
@@ -405,18 +366,19 @@ export function ItemPlugDetails({ item }: { item: NormalizedDestinyItem }) {
   }
 
   return (
-    <div className="d2-item-plug-details">
-      {visibleSections.map(({ items, section, title }) => (
-        <section className="d2-plug-section" data-section={section} key={section}>
-          <h4>{title}</h4>
-          <PlugSocketMatrix sockets={items} />
-          <div className="d2-socket-card-list">
-            {items.map((socket) => (
-              <PlugSocketCard key={`${socket.index}:${socket.plugHash}`} socket={socket} />
-            ))}
-          </div>
-        </section>
-      ))}
+    <div className="d2-item-plug-details" data-kind={item.kind}>
+      <section className="d2-plug-section d2-plug-section-board">
+        <h4>{getSocketBoardTitle(item.kind)}</h4>
+        <PlugSocketMatrix sockets={boardSockets} />
+      </section>
+      <section className="d2-plug-section d2-plug-section-selected">
+        <h4>{getSocketDetailTitle(item.kind)}</h4>
+        <div className="d2-socket-card-list">
+          {boardSockets.map((socket) => (
+            <PlugSocketCard key={`${socket.index}:${socket.plugHash}`} socket={socket} />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

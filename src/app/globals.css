@@ -3226,6 +3226,19 @@ main {
   background: transparent;
 }
 
+.d2-dim-tile[data-rarity],
+.d2-dim-tile[data-rarity="Exotic"],
+.d2-dim-tile[data-rarity="Legendary"],
+.d2-dim-tile[data-masterworked="true"] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.d2-dim-tile[data-masterworked="true"]::after {
+  content: none;
+}
+
 .d2-destiny-tile {
   --d2-tile-size: 56px;
   position: relative;
@@ -3280,22 +3293,29 @@ main {
 
 .d2-destiny-tile-watermark {
   position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 8;
-  width: 20px;
-  height: 20px;
+  top: 1px;
+  left: 1px;
+  z-index: 10;
+  width: 18px;
+  height: 18px;
   border-right: 1px solid rgba(255, 255, 255, 0.38);
   border-bottom: 1px solid rgba(255, 255, 255, 0.38);
   background: #2eb5be;
   object-fit: cover;
-  padding: 1px;
+  padding: 0;
   pointer-events: none;
 }
 
 .d2-destiny-tile[data-size="inspect"] .d2-destiny-tile-watermark {
+  top: 2px;
+  left: 2px;
   width: 28px;
   height: 28px;
+}
+
+.d2-destiny-tile[data-size="stage"] .d2-destiny-tile-watermark {
+  width: 19px;
+  height: 19px;
 }
 
 .d2-destiny-tile-damage {
@@ -3313,8 +3333,8 @@ main {
 
 .d2-destiny-tier-pips {
   position: absolute;
-  top: 22px;
-  left: 4px;
+  top: 24px;
+  left: 5px;
   z-index: 9;
   display: grid;
   gap: 2px;
@@ -3330,12 +3350,18 @@ main {
 }
 
 .d2-destiny-tile[data-size="stage"] .d2-destiny-tier-pips {
-  top: 21px;
+  top: 25px;
+  left: 5px;
 }
 
 .d2-destiny-tile[data-size="stage"] .d2-destiny-tier-pips i {
   width: 6px;
   height: 6px;
+}
+
+.d2-destiny-tile[data-size="inspect"] .d2-destiny-tier-pips {
+  top: 36px;
+  left: 7px;
 }
 
 .d2-destiny-tile-flags {
@@ -3401,7 +3427,6 @@ main {
   border: 2px solid rgba(239, 205, 94, 0.98);
   box-shadow:
     inset 0 0 0 1px rgba(255, 248, 202, 0.56),
-    inset 0 -5px 0 rgba(220, 177, 56, 0.72),
     0 0 0 1px rgba(255, 239, 157, 0.36),
     0 0 14px rgba(239, 205, 94, 0.36);
   pointer-events: none;
@@ -3433,6 +3458,13 @@ main {
 .d2-command-console .d2-stage-node-icon {
   overflow: visible;
   border-radius: 0;
+}
+
+.d2-command-console .d2-stage-item-node[data-masterworked="true"] {
+  border-color: rgba(246, 225, 160, 0.52);
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 229, 183, 0.08),
+    0 0 18px rgba(226, 185, 96, 0.1);
 }
 
 .d2-command-console .d2-stage-node-icon .d2-destiny-tile .d2-item-icon,
@@ -3588,7 +3620,12 @@ main {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 2px 0 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035), transparent 60%),
+    rgba(255, 255, 255, 0.025);
+  padding: 12px 8px 10px;
   scrollbar-width: thin;
 }
 
@@ -3596,9 +3633,9 @@ main {
   display: grid;
   align-content: start;
   gap: 6px;
-  min-width: 38px;
-  border-left: 1px solid rgba(255, 255, 255, 0.13);
-  padding-left: 7px;
+  min-width: 42px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  padding-left: 8px;
 }
 
 .d2-socket-column:first-child {
@@ -3655,6 +3692,15 @@ main {
   gap: 10px;
 }
 
+.d2-plug-section-board {
+  border-bottom: 1px solid rgba(226, 185, 96, 0.14);
+  padding-bottom: 12px;
+}
+
+.d2-plug-section-selected {
+  gap: 8px;
+}
+
 .d2-plug-section h4 {
   color: rgba(226, 185, 96, 0.86);
   font-size: 0.74rem;
@@ -3662,6 +3708,17 @@ main {
 
 .d2-socket-card-list {
   gap: 6px;
+}
+
+.d2-plug-section-selected .d2-socket-card-list {
+  max-height: 34rem;
+  overflow-y: auto;
+  padding-right: 2px;
+  scrollbar-width: thin;
+}
+
+.d2-command-inspector .d2-plug-section-selected .d2-socket-card-list {
+  max-height: 28rem;
 }
 
 .d2-socket-card {
