@@ -92,6 +92,12 @@ function makeDefinitions(): DestinyDefinitionBundle {
         displayProperties: { icon: "/ornament.png", name: "Shiny Ornament" },
         plug: { plugCategoryIdentifier: "v400.plugs.armor_skins" },
       },
+      9004: {
+        displayProperties: {
+          icon: "/ornamented-weapon.png",
+          name: "Ornamented Weapon Style",
+        },
+      },
     },
     stats: {
       1240592695: {
@@ -156,6 +162,7 @@ describe("normalizeDestinyInventory", () => {
                 bucketHash: 1498876634,
                 itemHash: 2001,
                 itemInstanceId: "weapon-instance",
+                overrideStyleItemHash: 9004,
                 state: 44,
                 transferStatus: 0,
               },
@@ -286,6 +293,7 @@ describe("normalizeDestinyInventory", () => {
         icon: "/arc.png",
         name: "Arc",
       },
+      icon: "/ornamented-weapon.png",
       kind: "weapon",
       location: "carried",
       state: {

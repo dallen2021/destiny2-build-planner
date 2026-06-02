@@ -990,6 +990,9 @@ function normalizeItem({
     return null;
   }
 
+  const styleOverrideDefinition = item.overrideStyleItemHash
+    ? getInventoryDefinition(definitions, item.overrideStyleItemHash)
+    : null;
   const bucketHash = getBucketHash(item, definition);
   const bucket = normalizeBucket(bucketHash, definitions);
   const kind = getItemKind({ bucket, bucketHash, definition });
@@ -1022,7 +1025,10 @@ function normalizeItem({
       definition.flavorText ??
       null,
     gearTier,
-    icon: definition.displayProperties?.icon ?? null,
+    icon:
+      styleOverrideDefinition?.displayProperties?.icon ??
+      definition.displayProperties?.icon ??
+      null,
     iconLayers: normalizeIconLayers(definition),
     id: itemInstanceId ?? `${item.itemHash}:${characterId ?? "profile"}`,
     isEquipped: location === "equipped",
