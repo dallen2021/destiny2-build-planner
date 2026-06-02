@@ -260,6 +260,7 @@ export type NormalizedPlug = {
 
 export type NormalizedSocket = NormalizedPlug & {
   reusablePlugHashes: number[];
+  reusablePlugs: NormalizedPlug[];
 };
 
 export type NormalizedPerk = NormalizedPlug;
@@ -820,11 +821,16 @@ function normalizeSockets({
       return [];
     }
 
+    const reusablePlugHashes = (reusablePlugGroups[String(index)] ?? [])
+      .map((plug) => plug.plugItemHash)
+      .filter((plugHash): plugHash is number => plugHash != null);
+
     return {
       ...normalizePlug(definitions, socket.plugHash, index, socket),
-      reusablePlugHashes: (reusablePlugGroups[String(index)] ?? [])
-        .map((plug) => plug.plugItemHash)
-        .filter((plugHash): plugHash is number => plugHash != null),
+      reusablePlugHashes,
+      reusablePlugs: reusablePlugHashes.map((plugHash) =>
+        normalizePlug(definitions, plugHash, index),
+      ),
     };
   });
 }

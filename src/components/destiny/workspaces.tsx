@@ -77,7 +77,7 @@ import {
   ARMOR_STAT_NAMES,
   bungieImage,
   ItemIcon,
-  PlugList,
+  ItemPlugDetails,
   StatBars,
 } from "./item-presentation";
 
@@ -728,17 +728,7 @@ function ItemDetailSheet({
               </section>
 
               <section className="d2-sheet-section">
-                <h3>Perks and traits</h3>
-                <PlugList perks={item.perks} />
-              </section>
-
-              <section className="d2-sheet-section d2-inspector-meta">
-                <h3>Item state</h3>
-                <span>{item.masterwork ? item.masterwork.name : "No masterwork plug"}</span>
-                <span>{item.ornament ? item.ornament.name : "No ornament plug"}</span>
-                <span>{item.state.crafted ? "Crafted" : "Not crafted"}</span>
-                <span>{item.state.enhanced ? "Enhanced" : "Not enhanced"}</span>
-                <span>{item.state.adept ? "Adept" : "Standard"}</span>
+                <ItemPlugDetails item={item} />
               </section>
             </ScrollArea>
           </>

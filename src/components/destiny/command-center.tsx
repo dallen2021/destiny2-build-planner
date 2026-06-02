@@ -43,7 +43,7 @@ import { D2BrandLockup } from "./brand-logo";
 import {
   bungieImage,
   ItemIcon,
-  PlugList,
+  ItemPlugDetails,
   StatBars,
 } from "./item-presentation";
 import { useDestinyInventory } from "./use-destiny-inventory";
@@ -605,27 +605,7 @@ function CommandItemInspector({ item }: { item: NormalizedDestinyItem | null }) 
             <h3>Stats</h3>
             <StatBars itemKind={item.kind} stats={item.stats} />
           </section>
-          <section className="d2-command-inspector-section">
-            <h3>Perks</h3>
-            <PlugList perks={item.perks.slice(0, 5)} />
-          </section>
-          <section className="d2-command-inspector-section">
-            <h3>Item State</h3>
-            <div className="d2-inspector-meta">
-              <span>{item.masterwork ? item.masterwork.name : "No masterwork"}</span>
-              <span>{item.ornament ? item.ornament.name : "No ornament"}</span>
-              <span>{item.state.locked ? "Locked" : "Unlocked"}</span>
-              <span>{item.state.crafted ? "Crafted" : "Not crafted"}</span>
-            </div>
-          </section>
-          <div className="d2-command-inspector-actions">
-            <Button disabled type="button" variant="outline">
-              Lock
-            </Button>
-            <Button disabled type="button">
-              Equip
-            </Button>
-          </div>
+          <ItemPlugDetails item={item} />
         </>
       ) : (
         <p className="d2-muted-note">No equipped weapon or armor returned yet.</p>

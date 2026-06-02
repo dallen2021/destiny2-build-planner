@@ -98,6 +98,14 @@ function makeDefinitions(): DestinyDefinitionBundle {
           name: "Ornamented Weapon Style",
         },
       },
+      9005: {
+        displayProperties: {
+          description: "A second selectable perk.",
+          icon: "/alt-perk.png",
+          name: "Backup Perk",
+        },
+        plug: { plugCategoryIdentifier: "weapon_perks" },
+      },
     },
     stats: {
       1240592695: {
@@ -189,6 +197,15 @@ describe("normalizeDestinyInventory", () => {
               damageTypeHash: 3373582085,
               gearTier: 4,
               primaryStat: { value: 550 },
+            },
+          },
+        },
+        reusablePlugs: {
+          data: {
+            "weapon-instance": {
+              plugs: {
+                0: [{ plugItemHash: 9001 }, { plugItemHash: 9005 }],
+              },
             },
           },
         },
@@ -313,6 +330,14 @@ describe("normalizeDestinyInventory", () => {
         name: "Peak Perk",
       }),
     ]);
+    expect(weapon.sockets[0]).toMatchObject({
+      name: "Peak Perk",
+      reusablePlugHashes: [9001, 9005],
+      reusablePlugs: [
+        { icon: "/perk.png", name: "Peak Perk", plugHash: 9001 },
+        { icon: "/alt-perk.png", name: "Backup Perk", plugHash: 9005 },
+      ],
+    });
     expect(weapon.masterwork).toMatchObject({ name: "Range Masterwork" });
     expect(getItemStatValue(weapon, "Range")).toBe(72);
 
