@@ -63,6 +63,7 @@ import {
   type ItemActionRequest,
 } from "@/lib/destiny/item-actions";
 import { rankArmorForGoal } from "@/lib/destiny/optimizer";
+import { isItemMasterworked } from "@/lib/destiny/presentation";
 import { ITEM_TAGS, type ItemTag } from "@/lib/destiny/tags";
 import {
   evaluateVaultItems,
@@ -408,6 +409,7 @@ function ItemTile({
     });
   const primaryTag = getPrimaryTag(tags);
   const damageIcon = bungieImage(item.damageType.icon);
+  const hasMasterwork = isItemMasterworked(item);
   const style = transform
     ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
@@ -422,6 +424,7 @@ function ItemTile({
       className="d2-dim-tile"
       data-dragging={isDragging}
       data-kind={item.kind}
+      data-masterworked={hasMasterwork}
       data-rarity={item.rarity ?? "unknown"}
       onClick={() => onOpen(item)}
       ref={setNodeRef}

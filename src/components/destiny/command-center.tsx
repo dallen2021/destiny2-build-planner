@@ -36,6 +36,7 @@ import type {
   DestinyInventoryApiPayload,
   NormalizedDestinyItem,
 } from "@/lib/destiny/inventory";
+import { isItemMasterworked } from "@/lib/destiny/presentation";
 import { ITEM_TAGS, type ItemTag } from "@/lib/destiny/tags";
 
 import { D2BrandLockup } from "./brand-logo";
@@ -345,15 +346,21 @@ function CommandStageItemNode({
   side: "left" | "right";
 }) {
   const damageIcon = bungieImage(item.damageType.icon);
+  const watermarkIcon = bungieImage(
+    item.iconLayers.featuredWatermark ??
+      item.iconLayers.ornamentWatermark ??
+      item.iconLayers.watermark,
+  );
   const tier = getStageTier(item);
-  const hasMasterwork = item.state.masterworked || Boolean(item.masterwork);
+  const hasMasterwork = isItemMasterworked(item);
 
   return (
     <button
-      aria-label={`${item.slot.name}: ${item.name}`}
+      aria-label={`${item.slot.name}: ${item.name}${hasMasterwork ? ", masterworked" : ""}`}
       aria-pressed={selected}
       className="d2-stage-item-node"
       data-kind={item.kind}
+      data-masterworked={hasMasterwork}
       data-rarity={item.rarity ?? "unknown"}
       data-side={side}
       onClick={() => onOpen(item)}
@@ -361,6 +368,18 @@ function CommandStageItemNode({
     >
       <span className="d2-stage-node-icon">
         <ItemIcon item={item} size={58} />
+        {watermarkIcon ? (
+          <Image
+            alt=""
+            className="d2-stage-node-watermark"
+            height={58}
+            src={watermarkIcon}
+            width={58}
+          />
+        ) : null}
+        {hasMasterwork ? (
+          <span className="d2-stage-masterwork-glow" aria-hidden="true" />
+        ) : null}
         {damageIcon ? (
           <Image
             alt=""
@@ -374,7 +393,6 @@ function CommandStageItemNode({
           {item.state.locked ? <Lock aria-label="Locked" /> : null}
           {item.state.crafted ? <Sparkles aria-label="Crafted" /> : null}
           {item.state.enhanced ? <Zap aria-label="Enhanced" /> : null}
-          {hasMasterwork ? <strong aria-label="Masterworked">MW</strong> : null}
         </span>
       </span>
       <span className="d2-stage-node-copy">
@@ -383,7 +401,6 @@ function CommandStageItemNode({
         <span className="d2-stage-node-meta">
           <b>{getStagePowerLabel(item)}</b>
           {tier != null ? <em>T{tier}</em> : null}
-          {hasMasterwork ? <em>Masterwork</em> : null}
         </span>
         {tier != null ? (
           <span

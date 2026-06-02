@@ -7,6 +7,7 @@ import type {
   NormalizedPerk,
   NormalizedStat,
 } from "@/lib/destiny/inventory";
+import { getItemPresentationIconPath } from "@/lib/destiny/presentation";
 
 export const ARMOR_STAT_NAMES = [
   "Weapons",
@@ -32,7 +33,7 @@ export function ItemIcon({
   item: NormalizedDestinyItem;
   size?: number;
 }) {
-  const iconUrl = bungieImage(item.icon);
+  const iconUrl = bungieImage(getItemPresentationIconPath(item));
   const iconStyle = { height: size, width: size };
 
   if (!iconUrl) {

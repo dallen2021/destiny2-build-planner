@@ -524,6 +524,27 @@ body:has(.d2-command-console) .app-header {
   background: #503069;
 }
 
+.d2-dim-tile[data-masterworked="true"] {
+  border-color: #f5e6af;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 250, 219, 0.86),
+    inset 0 0 18px rgba(245, 205, 93, 0.32),
+    0 0 12px rgba(245, 205, 93, 0.28);
+}
+
+.d2-dim-tile[data-masterworked="true"]::after {
+  position: absolute;
+  inset: -1px;
+  z-index: 8;
+  border: 1px solid rgba(255, 246, 198, 0.8);
+  background:
+    linear-gradient(110deg, transparent 0 34%, rgba(255, 255, 255, 0.28) 45%, transparent 56%),
+    linear-gradient(180deg, rgba(245, 205, 93, 0.18), transparent 32%);
+  content: "";
+  opacity: 0.72;
+  pointer-events: none;
+}
+
 .d2-dim-tile[data-dragging="true"] {
   z-index: 50;
   opacity: 0.86;
@@ -546,6 +567,7 @@ body:has(.d2-command-console) .app-header {
 .d2-tile-watermark {
   position: absolute;
   inset: 0;
+  z-index: 2;
   width: 100%;
   height: 58px;
   object-fit: cover;
@@ -554,6 +576,7 @@ body:has(.d2-command-console) .app-header {
 
 .d2-tile-damage {
   position: absolute;
+  z-index: 4;
   top: 2px;
   left: 2px;
   width: 17px;
@@ -564,6 +587,7 @@ body:has(.d2-command-console) .app-header {
 
 .d2-tile-flags {
   position: absolute;
+  z-index: 5;
   top: 2px;
   right: 2px;
   display: grid;
@@ -579,6 +603,7 @@ body:has(.d2-command-console) .app-header {
 
 .d2-tier-pips {
   position: absolute;
+  z-index: 4;
   left: 4px;
   bottom: 12px;
   display: grid;
@@ -594,6 +619,7 @@ body:has(.d2-command-console) .app-header {
 
 .d2-tile-tag {
   position: absolute;
+  z-index: 6;
   right: 2px;
   bottom: 12px;
   display: grid;
@@ -622,6 +648,7 @@ body:has(.d2-command-console) .app-header {
 
 .d2-tile-power {
   position: absolute;
+  z-index: 5;
   right: 2px;
   bottom: 0;
   left: 0;
@@ -1103,10 +1130,12 @@ body:has(.d2-command-console) .app-header {
 .d2-command-console .d2-stage-layout {
   grid-template-columns: minmax(620px, 1fr) 360px;
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .d2-command-console .d2-command-stage {
+  align-self: start;
+  height: clamp(620px, calc(100svh - 260px), 760px);
   min-height: 620px;
   padding: 0;
   border-color: rgba(111, 151, 164, 0.2);
@@ -1219,6 +1248,13 @@ body:has(.d2-command-console) .app-header {
     rgba(14, 11, 6, 0.82);
 }
 
+.d2-command-console .d2-stage-item-node[data-masterworked="true"] {
+  border-color: rgba(246, 225, 160, 0.56);
+  box-shadow:
+    inset 0 0 0 1px rgba(245, 229, 183, 0.08),
+    0 0 18px rgba(226, 185, 96, 0.1);
+}
+
 .d2-command-console .d2-stage-item-node[aria-pressed="true"] {
   border-color: rgba(245, 229, 183, 0.9);
   box-shadow: 0 0 0 1px rgba(226, 185, 96, 0.2), 0 0 24px rgba(226, 185, 96, 0.16);
@@ -1232,10 +1268,14 @@ body:has(.d2-command-console) .app-header {
   place-items: center;
   width: 58px;
   height: 58px;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 7px;
 }
 
 .d2-command-console .d2-stage-node-damage {
   position: absolute;
+  z-index: 5;
   top: -5px;
   left: -5px;
   width: 18px;
@@ -1247,12 +1287,43 @@ body:has(.d2-command-console) .app-header {
 
 .d2-command-console .d2-stage-node-icon .d2-item-icon,
 .d2-command-console .d2-stage-node-icon .d2-item-icon-fallback {
+  position: relative;
+  z-index: 1;
   width: 100% !important;
   height: 100% !important;
+  border-radius: 7px;
+}
+
+.d2-command-console .d2-stage-node-watermark {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.88;
+  pointer-events: none;
+}
+
+.d2-command-console .d2-stage-masterwork-glow {
+  position: absolute;
+  inset: -1px;
+  z-index: 3;
+  border: 1px solid rgba(255, 243, 186, 0.9);
+  background:
+    linear-gradient(112deg, transparent 0 28%, rgba(255, 255, 255, 0.36) 44%, transparent 58%),
+    radial-gradient(circle at 50% 96%, rgba(245, 205, 93, 0.36), transparent 52%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 250, 219, 0.42),
+    inset 0 0 18px rgba(245, 205, 93, 0.36),
+    0 0 14px rgba(245, 205, 93, 0.26);
+  opacity: 0.82;
+  pointer-events: none;
 }
 
 .d2-command-console .d2-stage-node-flags {
   position: absolute;
+  z-index: 6;
   right: -7px;
   bottom: -6px;
   display: flex;
@@ -1555,6 +1626,9 @@ body:has(.d2-command-console) .app-header {
   display: grid;
   align-content: start;
   gap: 16px;
+  align-self: start;
+  max-height: clamp(620px, calc(100svh - 260px), 760px);
+  overflow: auto;
   border-color: rgba(226, 185, 96, 0.44);
   background: linear-gradient(180deg, rgba(8, 18, 25, 0.94), rgba(2, 7, 12, 0.94));
 }
@@ -1741,7 +1815,13 @@ body:has(.d2-command-console) .app-header {
   }
 
   .d2-command-console .d2-command-stage {
+    height: 600px;
     min-height: 600px;
+  }
+
+  .d2-command-console .d2-command-inspector {
+    max-height: none;
+    overflow: visible;
   }
 
   .d2-command-console .d2-bottom-panels {
@@ -1783,6 +1863,7 @@ body:has(.d2-command-console) .app-header {
       "right"
       "footer";
     gap: 14px;
+    height: auto;
     min-height: 0;
     padding: 18px;
   }
