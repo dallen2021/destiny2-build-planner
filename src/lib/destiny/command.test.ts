@@ -165,7 +165,7 @@ describe("command selectors", () => {
       makeItem({ id: "helmet", gearTier: 5 }),
       makeItem({ id: "arms", gearTier: 4 }),
       makeItem({ id: "chest", gearTier: 2 }),
-      makeItem({ id: "class", gearTier: null }),
+      makeItem({ id: "class", gearTier: 0 }),
       makeItem({ id: "weapon", gearTier: 5, kind: "weapon" }),
     ]);
 
@@ -230,7 +230,7 @@ describe("command selectors", () => {
         makeItem({ id: "arms", gearTier: 4 }),
         makeItem({ id: "chest", gearTier: 3 }),
         makeItem({ id: "legs", gearTier: 2 }),
-        makeItem({ id: "class-item", gearTier: null }),
+        makeItem({ id: "class-item", gearTier: 0 }),
       ],
     });
 

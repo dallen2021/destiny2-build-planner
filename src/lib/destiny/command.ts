@@ -99,7 +99,9 @@ export function getArmorTierSummary(
   equippedItems: readonly NormalizedDestinyItem[],
 ): ArmorTierSummary {
   const armorPieces = equippedItems.filter((item) => item.kind === "armor");
-  const tieredPieces = armorPieces.filter((item) => item.gearTier != null);
+  const tieredPieces = armorPieces.filter(
+    (item) => item.gearTier != null && item.gearTier > 0,
+  );
   const tierTotal = tieredPieces.reduce(
     (total, item) => total + (item.gearTier ?? 0),
     0,
@@ -128,7 +130,9 @@ export function getCommandStageMetrics({
   equippedItems: readonly NormalizedDestinyItem[];
 }): CommandStageMetrics {
   const armorPieces = equippedItems.filter((item) => item.kind === "armor");
-  const tieredArmorPieces = armorPieces.filter((item) => item.gearTier != null);
+  const tieredArmorPieces = armorPieces.filter(
+    (item) => item.gearTier != null && item.gearTier > 0,
+  );
   const armorTierTotal = tieredArmorPieces.reduce(
     (total, item) => total + (item.gearTier ?? 0),
     0,

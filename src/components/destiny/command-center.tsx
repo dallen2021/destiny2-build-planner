@@ -302,9 +302,11 @@ function getStagePowerLabel(item: NormalizedDestinyItem) {
 }
 
 function getStageTier(item: NormalizedDestinyItem) {
-  return item.kind === "weapon"
+  const tier = item.kind === "weapon"
     ? (item.weaponTier ?? item.gearTier)
     : item.gearTier;
+
+  return tier != null && tier > 0 ? tier : null;
 }
 
 function getSelectedStageSide({
