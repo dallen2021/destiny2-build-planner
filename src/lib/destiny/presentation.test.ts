@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   getItemPresentationIconPath,
   getItemPlugSections,
+  getItemTileTier,
+  getItemTileWatermarkPath,
   isItemMasterworked,
 } from "./presentation";
 import type { NormalizedSocket } from "./inventory";
@@ -72,6 +74,31 @@ describe("destiny presentation helpers", () => {
         state: { masterworked: false },
       }),
     ).toBe(true);
+  });
+
+  it("uses Destiny tier data for item tile pips", () => {
+    expect(getItemTileTier({ gearTier: 3, kind: "armor", weaponTier: null })).toBe(3);
+    expect(getItemTileTier({ gearTier: 2, kind: "weapon", weaponTier: 5 })).toBe(5);
+    expect(getItemTileTier({ gearTier: null, kind: "weapon", weaponTier: null })).toBe(0);
+  });
+
+  it("chooses a compact icon watermark instead of a full-tile overlay", () => {
+    expect(
+      getItemTileWatermarkPath({
+        featuredWatermark: "/featured.png",
+        ornamentWatermark: "/ornament.png",
+        shelvedWatermark: "/shelved.png",
+        watermark: "/season.png",
+      }),
+    ).toBe("/featured.png");
+    expect(
+      getItemTileWatermarkPath({
+        featuredWatermark: null,
+        ornamentWatermark: null,
+        shelvedWatermark: "/shelved.png",
+        watermark: "/season.png",
+      }),
+    ).toBe("/season.png");
   });
 
   it("classifies selected weapon sockets into Destiny inspect sections", () => {

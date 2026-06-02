@@ -3216,3 +3216,505 @@ main {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Shared Destiny inspect/item chrome. Keep this late so it wins over legacy app CSS. */
+.d2-dim-tile {
+  width: 58px;
+  height: 70px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.d2-destiny-tile {
+  --d2-tile-size: 56px;
+  position: relative;
+  display: block;
+  width: var(--d2-tile-size);
+  height: calc(var(--d2-tile-size) + 14px);
+  color: #fff8dc;
+  isolation: isolate;
+}
+
+.d2-destiny-tile[data-size="stage"],
+.d2-destiny-tile[data-size="inspect"] {
+  height: var(--d2-tile-size);
+}
+
+.d2-destiny-tile-art,
+.d2-destiny-tile .d2-item-icon,
+.d2-destiny-tile .d2-item-icon-fallback {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: var(--d2-tile-size) !important;
+  height: var(--d2-tile-size) !important;
+  border: 0;
+  border-radius: 0;
+}
+
+.d2-destiny-tile-art {
+  z-index: 1;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), transparent 42%),
+    #3d4250;
+}
+
+.d2-destiny-tile[data-rarity="Legendary"] .d2-destiny-tile-art {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), transparent 42%),
+    #5d3b74;
+}
+
+.d2-destiny-tile[data-rarity="Exotic"] .d2-destiny-tile-art {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 42%),
+    #c89d20;
+}
+
+.d2-destiny-tile .d2-item-icon,
+.d2-destiny-tile .d2-item-icon-fallback {
+  z-index: 2;
+  object-fit: cover;
+}
+
+.d2-destiny-tile-watermark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 8;
+  width: 20px;
+  height: 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.38);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.38);
+  background: #2eb5be;
+  object-fit: cover;
+  padding: 1px;
+  pointer-events: none;
+}
+
+.d2-destiny-tile[data-size="inspect"] .d2-destiny-tile-watermark {
+  width: 28px;
+  height: 28px;
+}
+
+.d2-destiny-tile-damage {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  z-index: 9;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.54);
+  padding: 1px;
+  pointer-events: none;
+}
+
+.d2-destiny-tier-pips {
+  position: absolute;
+  top: 22px;
+  left: 4px;
+  z-index: 9;
+  display: grid;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.d2-destiny-tier-pips i {
+  width: 7px;
+  height: 7px;
+  background: #e4c95c;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.72));
+}
+
+.d2-destiny-tile[data-size="stage"] .d2-destiny-tier-pips {
+  top: 21px;
+}
+
+.d2-destiny-tile[data-size="stage"] .d2-destiny-tier-pips i {
+  width: 6px;
+  height: 6px;
+}
+
+.d2-destiny-tile-flags {
+  position: absolute;
+  right: -5px;
+  bottom: 11px;
+  z-index: 11;
+  display: grid;
+  gap: 1px;
+}
+
+.d2-destiny-tile[data-size="stage"] .d2-destiny-tile-flags,
+.d2-destiny-tile[data-size="inspect"] .d2-destiny-tile-flags {
+  bottom: -5px;
+}
+
+.d2-destiny-tile-flags svg {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.78);
+  color: #f5eed8;
+  padding: 2px;
+}
+
+.d2-destiny-tile-tag {
+  position: absolute;
+  right: 2px;
+  bottom: 16px;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #e7bf4a;
+  color: #170f05;
+  font-size: 0.56rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0 3px;
+}
+
+.d2-destiny-tile-power {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 7;
+  height: 14px;
+  background: rgba(23, 32, 42, 0.92);
+  color: #f7f1df;
+  font-size: 0.72rem;
+  line-height: 14px;
+  text-align: right;
+  padding-right: 2px;
+}
+
+.d2-destiny-masterwork {
+  position: absolute;
+  inset: -2px;
+  z-index: 12;
+  border: 2px solid rgba(239, 205, 94, 0.98);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 248, 202, 0.56),
+    inset 0 -5px 0 rgba(220, 177, 56, 0.72),
+    0 0 0 1px rgba(255, 239, 157, 0.36),
+    0 0 14px rgba(239, 205, 94, 0.36);
+  pointer-events: none;
+}
+
+.d2-destiny-masterwork::before,
+.d2-destiny-masterwork::after {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-color: #fff0a8;
+  content: "";
+}
+
+.d2-destiny-masterwork::before {
+  top: -2px;
+  left: -2px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+.d2-destiny-masterwork::after {
+  right: -2px;
+  bottom: -2px;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+}
+
+.d2-command-console .d2-stage-node-icon {
+  overflow: visible;
+  border-radius: 0;
+}
+
+.d2-command-console .d2-stage-node-icon .d2-destiny-tile .d2-item-icon,
+.d2-command-console .d2-stage-node-icon .d2-destiny-tile .d2-item-icon-fallback {
+  border-radius: 0;
+}
+
+.d2-item-sheet {
+  width: min(980px, 96vw);
+  max-width: 96vw;
+  border-left-color: rgba(226, 185, 96, 0.5);
+  background:
+    radial-gradient(circle at 72% 0, rgba(146, 102, 190, 0.16), transparent 34%),
+    linear-gradient(120deg, rgba(82, 72, 98, 0.28), rgba(4, 9, 14, 0.94) 42%),
+    #070a0f;
+}
+
+.d2-item-sheet-scroll {
+  height: calc(100vh - 116px);
+  padding-right: 18px;
+}
+
+.d2-item-inspect-screen {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  color: #f5ecd7;
+}
+
+.d2-command-console .d2-command-inspector {
+  padding: 14px;
+}
+
+.d2-item-inspect-head {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+  border-bottom: 1px solid rgba(226, 185, 96, 0.18);
+  padding-bottom: 14px;
+}
+
+.d2-item-inspect-head h2 {
+  margin: 2px 0 3px;
+  color: #fff4d5;
+  font-size: clamp(1.25rem, 2.4vw, 2.7rem);
+  font-weight: 780;
+  line-height: 0.98;
+  text-transform: uppercase;
+}
+
+.d2-command-inspector .d2-item-inspect-head h2 {
+  font-size: 1.2rem;
+  line-height: 1.08;
+}
+
+.d2-item-inspect-head span,
+.d2-item-inspect-power span,
+.d2-item-inspect-stats h3,
+.d2-item-inspect-extra h3 {
+  color: rgba(226, 185, 96, 0.82);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.d2-item-inspect-head p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: rgba(245, 236, 215, 0.68);
+  font-size: 0.86rem;
+}
+
+.d2-item-inspect-head em {
+  display: block;
+  margin-top: 12px;
+  color: rgba(245, 236, 215, 0.62);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.d2-command-inspector .d2-item-inspect-head em {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.d2-item-inspect-power {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+  gap: 12px;
+  border: 1px solid rgba(226, 185, 96, 0.22);
+  background:
+    linear-gradient(90deg, rgba(226, 185, 96, 0.11), transparent 48%),
+    rgba(0, 0, 0, 0.2);
+  padding: 10px 12px;
+}
+
+.d2-item-inspect-power strong {
+  color: #fff1bf;
+  font-size: 2.4rem;
+  line-height: 0.92;
+}
+
+.d2-item-inspect-power small {
+  align-self: center;
+  border: 1px solid rgba(226, 185, 96, 0.34);
+  color: rgba(245, 236, 215, 0.78);
+  padding: 4px 7px;
+}
+
+.d2-item-inspect-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(230px, 0.88fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.d2-command-inspector .d2-item-inspect-layout {
+  grid-template-columns: 1fr;
+}
+
+.d2-item-inspect-sockets,
+.d2-item-inspect-stats,
+.d2-item-inspect-extra {
+  min-width: 0;
+  border: 1px solid rgba(226, 185, 96, 0.14);
+  background: rgba(0, 0, 0, 0.18);
+  padding: 12px;
+}
+
+.d2-item-inspect-stats {
+  position: sticky;
+  top: 8px;
+}
+
+.d2-command-inspector .d2-item-inspect-stats {
+  position: static;
+}
+
+.d2-item-inspect-stats h3,
+.d2-item-inspect-extra h3 {
+  margin: 0 0 12px;
+}
+
+.d2-socket-matrix {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 8px;
+  scrollbar-width: thin;
+}
+
+.d2-socket-column {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 38px;
+  border-left: 1px solid rgba(255, 255, 255, 0.13);
+  padding-left: 7px;
+}
+
+.d2-socket-column:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.d2-socket-column span {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 42% 28%, rgba(255, 255, 255, 0.24), transparent 42%),
+    rgba(255, 255, 255, 0.08);
+  opacity: 0.48;
+}
+
+.d2-socket-column span[data-selected="true"] {
+  border-color: #f1d36f;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(241, 211, 111, 0.26), transparent 64%),
+    rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(241, 211, 111, 0.42),
+    0 0 12px rgba(241, 211, 111, 0.26);
+  opacity: 1;
+}
+
+.d2-socket-column span[data-selected="true"]::before {
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-right: 5px solid transparent;
+  border-bottom: 7px solid #f1d36f;
+  border-left: 5px solid transparent;
+  content: "";
+  transform: translateX(-50%);
+}
+
+.d2-socket-column img {
+  width: 31px;
+  height: 31px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.d2-plug-section {
+  gap: 10px;
+}
+
+.d2-plug-section h4 {
+  color: rgba(226, 185, 96, 0.86);
+  font-size: 0.74rem;
+}
+
+.d2-socket-card-list {
+  gap: 6px;
+}
+
+.d2-socket-card {
+  grid-template-columns: 34px minmax(0, 1fr);
+  border-color: rgba(255, 255, 255, 0.08);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 7px;
+}
+
+.d2-socket-card > img,
+.d2-socket-card > span {
+  width: 32px;
+  height: 32px;
+}
+
+.d2-socket-card small {
+  -webkit-line-clamp: 3;
+}
+
+.d2-command-inspector .d2-socket-card small {
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 900px) {
+  .d2-item-inspect-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .d2-item-inspect-stats {
+    position: static;
+  }
+}
+
+@media (max-width: 520px) {
+  .d2-item-sheet {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  .d2-item-inspect-head {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .d2-item-inspect-head .d2-destiny-tile {
+    --d2-tile-size: 72px !important;
+  }
+
+  .d2-item-inspect-power {
+    grid-template-columns: 1fr auto;
+  }
+
+  .d2-item-inspect-power small {
+    grid-column: 1 / -1;
+  }
+}

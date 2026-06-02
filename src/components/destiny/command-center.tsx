@@ -9,14 +9,11 @@ import {
   Check,
   CircleHelp,
   Crosshair,
-  Lock,
   RefreshCcw,
   Search,
   Settings,
   ShieldCheck,
-  Sparkles,
   Sword,
-  Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -42,8 +39,8 @@ import { ITEM_TAGS, type ItemTag } from "@/lib/destiny/tags";
 import { D2BrandLockup } from "./brand-logo";
 import {
   bungieImage,
-  ItemIcon,
-  ItemPlugDetails,
+  DestinyItemTile,
+  ItemInspectPanel,
   StatBars,
 } from "./item-presentation";
 import { useDestinyInventory } from "./use-destiny-inventory";
@@ -345,12 +342,6 @@ function CommandStageItemNode({
   selected: boolean;
   side: "left" | "right";
 }) {
-  const damageIcon = bungieImage(item.damageType.icon);
-  const watermarkIcon = bungieImage(
-    item.iconLayers.featuredWatermark ??
-      item.iconLayers.ornamentWatermark ??
-      item.iconLayers.watermark,
-  );
   const tier = getStageTier(item);
   const hasMasterwork = isItemMasterworked(item);
 
@@ -367,33 +358,7 @@ function CommandStageItemNode({
       type="button"
     >
       <span className="d2-stage-node-icon">
-        <ItemIcon item={item} size={58} />
-        {watermarkIcon ? (
-          <Image
-            alt=""
-            className="d2-stage-node-watermark"
-            height={58}
-            src={watermarkIcon}
-            width={58}
-          />
-        ) : null}
-        {hasMasterwork ? (
-          <span className="d2-stage-masterwork-frame" aria-hidden="true" />
-        ) : null}
-        {damageIcon ? (
-          <Image
-            alt=""
-            className="d2-stage-node-damage"
-            height={18}
-            src={damageIcon}
-            width={18}
-          />
-        ) : null}
-        <span className="d2-stage-node-flags">
-          {item.state.locked ? <Lock aria-label="Locked" /> : null}
-          {item.state.crafted ? <Sparkles aria-label="Crafted" /> : null}
-          {item.state.enhanced ? <Zap aria-label="Enhanced" /> : null}
-        </span>
+        <DestinyItemTile item={item} showPower={false} size="stage" />
       </span>
       <span className="d2-stage-node-copy">
         <small>{item.slot.name}</small>
@@ -568,8 +533,6 @@ function GuardianStage({
 }
 
 function CommandItemInspector({ item }: { item: NormalizedDestinyItem | null }) {
-  const damageIcon = item ? bungieImage(item.damageType.icon) : null;
-
   return (
     <aside
       className="d2-command-inspector"
@@ -577,36 +540,7 @@ function CommandItemInspector({ item }: { item: NormalizedDestinyItem | null }) 
       data-rarity={item?.rarity ?? "unknown"}
     >
       {item ? (
-        <>
-          <header className="d2-command-inspector-title">
-            <span>{item.kind}</span>
-            <h2>{item.name}</h2>
-            <small>
-              {item.rarity ?? "Unknown rarity"} {item.slot.name}
-            </small>
-          </header>
-          <div className="d2-command-inspector-hero" data-kind={item.kind}>
-            <ItemIcon item={item} size={84} />
-            <div>
-              <span>{item.slot.name}</span>
-              <strong>{item.power ?? item.quantity}</strong>
-              <small>
-                {item.rarity ?? "Unknown rarity"} / {item.location}
-              </small>
-              {damageIcon ? (
-                <span className="d2-damage-line">
-                  <Image alt="" height={18} src={damageIcon} width={18} />
-                  {item.damageType.name}
-                </span>
-              ) : null}
-            </div>
-          </div>
-          <section className="d2-command-inspector-section">
-            <h3>Stats</h3>
-            <StatBars itemKind={item.kind} stats={item.stats} />
-          </section>
-          <ItemPlugDetails item={item} />
-        </>
+        <ItemInspectPanel item={item} />
       ) : (
         <p className="d2-muted-note">No equipped weapon or armor returned yet.</p>
       )}

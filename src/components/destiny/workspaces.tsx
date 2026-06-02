@@ -28,11 +28,9 @@ import {
   RefreshCcw,
   Search,
   ShieldCheck,
-  Sparkles,
   Sword,
   Target,
   Trash2,
-  Zap,
 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -76,9 +74,8 @@ import { useItemTags } from "./use-item-tags";
 import {
   ARMOR_STAT_NAMES,
   bungieImage,
-  ItemIcon,
-  ItemPlugDetails,
-  StatBars,
+  DestinyItemTile,
+  ItemInspectPanel,
 } from "./item-presentation";
 
 const CLASS_TYPE_BY_NAME: Record<string, DestinyClassType> = {
@@ -365,31 +362,6 @@ function CharacterSelector({
   );
 }
 
-function TileOverlayImage({
-  alt,
-  className,
-  path,
-}: {
-  alt: string;
-  className: string;
-  path: string | null;
-}) {
-  const src = bungieImage(path);
-  if (!src) {
-    return null;
-  }
-
-  return (
-    <Image
-      alt={alt}
-      className={className}
-      height={56}
-      src={src}
-      width={56}
-    />
-  );
-}
-
 function ItemTile({
   disabledDrag = false,
   item,
@@ -406,9 +378,8 @@ function ItemTile({
       data: { item },
       disabled: disabledDrag,
       id: item.id,
-    });
+  });
   const primaryTag = getPrimaryTag(tags);
-  const damageIcon = bungieImage(item.damageType.icon);
   const hasMasterwork = isItemMasterworked(item);
   const style = transform
     ? {
@@ -431,37 +402,12 @@ function ItemTile({
       style={style}
       type="button"
     >
-      <ItemIcon item={item} />
-      <TileOverlayImage
-        alt=""
-        className="d2-tile-watermark"
-        path={item.iconLayers.featuredWatermark ?? item.iconLayers.watermark}
+      <DestinyItemTile
+        item={item}
+        powerLabel={getItemPowerLabel(item)}
+        size="compact"
+        tagLabel={primaryTag ? TAG_SHORT_LABELS[primaryTag] : null}
       />
-      {damageIcon ? (
-        <Image
-          alt=""
-          className="d2-tile-damage"
-          height={18}
-          src={damageIcon}
-          width={18}
-        />
-      ) : null}
-      <span className="d2-tile-flags">
-        {item.state.locked ? <Lock aria-label="Locked" /> : null}
-        {item.state.crafted ? <Sparkles aria-label="Crafted" /> : null}
-        {item.state.enhanced ? <Zap aria-label="Enhanced" /> : null}
-      </span>
-      <span className="d2-tier-pips" aria-label={item.gearTier ? `Tier ${item.gearTier}` : undefined}>
-        {Array.from({ length: Math.min(item.gearTier ?? 0, 5) }).map((_, index) => (
-          <i key={index} />
-        ))}
-      </span>
-      {primaryTag ? (
-        <span className="d2-tile-tag" data-tag={primaryTag}>
-          {TAG_SHORT_LABELS[primaryTag]}
-        </span>
-      ) : null}
-      <span className="d2-tile-power">{getItemPowerLabel(item)}</span>
     </button>
   );
 }
@@ -663,8 +609,6 @@ function ItemDetailSheet({
   tags: readonly ItemTag[];
   toggleTag: (itemId: string, tag: ItemTag) => void;
 }) {
-  const damageIcon = item ? bungieImage(item.damageType.icon) : null;
-
   return (
     <Sheet open={Boolean(item)} onOpenChange={onOpenChange}>
       <SheetContent className="d2-item-sheet">
@@ -678,58 +622,34 @@ function ItemDetailSheet({
               </SheetDescription>
             </SheetHeader>
             <ScrollArea className="d2-item-sheet-scroll">
-              <div className="d2-inspector-hero" data-kind={item.kind}>
-                <ItemIcon item={item} size={96} />
-                <div>
-                  <span>{item.slot.name}</span>
-                  <strong>{item.power ?? item.quantity}</strong>
-                  <small>
-                    {item.rarity ?? "Unknown rarity"} / {item.location}
-                  </small>
-                  {damageIcon ? (
-                    <span className="d2-damage-line">
-                      <Image alt="" height={18} src={damageIcon} width={18} />
-                      {item.damageType.name}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              {data ? (
-                <ItemActionButtons
-                  data={data}
-                  item={item}
-                  onAction={onAction}
-                  targetCharacterId={targetCharacterId}
-                />
-              ) : null}
-
-              <Separator />
-
-              <section className="d2-sheet-section">
-                <h3>Tags</h3>
-                <TagBar itemId={item.id} tags={tags} toggleTag={toggleTag} />
-              </section>
-
-              {recommendation ? (
-                <section className="d2-sheet-section">
-                  <h3>{RECOMMENDATION_COPY[recommendation.action]}</h3>
-                  <ul>
-                    {recommendation.reasons.map((reason) => (
-                      <li key={reason}>{reason}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              <section className="d2-sheet-section">
-                <h3>Stats</h3>
-                <StatBars itemKind={item.kind} stats={item.stats} />
-              </section>
-
-              <section className="d2-sheet-section">
-                <ItemPlugDetails item={item} />
-              </section>
+              <ItemInspectPanel
+                actions={
+                  data ? (
+                    <ItemActionButtons
+                      data={data}
+                      item={item}
+                      onAction={onAction}
+                      targetCharacterId={targetCharacterId}
+                    />
+                  ) : null
+                }
+                item={item}
+                recommendation={
+                  recommendation ? (
+                    <>
+                      <h3>{RECOMMENDATION_COPY[recommendation.action]}</h3>
+                      <ul>
+                        {recommendation.reasons.map((reason) => (
+                          <li key={reason}>{reason}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null
+                }
+                tags={
+                  <TagBar itemId={item.id} tags={tags} toggleTag={toggleTag} />
+                }
+              />
             </ScrollArea>
           </>
         ) : null}

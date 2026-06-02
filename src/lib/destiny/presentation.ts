@@ -1,4 +1,5 @@
 import type {
+  NormalizedIconLayers,
   NormalizedDestinyItem,
   NormalizedItemState,
   NormalizedPlug,
@@ -19,6 +20,31 @@ export function getItemPresentationIconPath(
   item: Pick<NormalizedDestinyItem, "icon" | "ornament">,
 ) {
   return item.icon;
+}
+
+export function getItemTileTier(
+  item: Pick<NormalizedDestinyItem, "gearTier" | "kind" | "weaponTier">,
+) {
+  const tier =
+    item.kind === "weapon"
+      ? (item.weaponTier ?? item.gearTier)
+      : item.gearTier;
+
+  return tier != null && tier > 0 ? Math.min(tier, 5) : 0;
+}
+
+export function getItemTileWatermarkPath(
+  iconLayers: Pick<
+    NormalizedIconLayers,
+    "featuredWatermark" | "ornamentWatermark" | "shelvedWatermark" | "watermark"
+  >,
+) {
+  return (
+    iconLayers.featuredWatermark ??
+    iconLayers.ornamentWatermark ??
+    iconLayers.watermark ??
+    iconLayers.shelvedWatermark
+  );
 }
 
 export function isItemMasterworked(

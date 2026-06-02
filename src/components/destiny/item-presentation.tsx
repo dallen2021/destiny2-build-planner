@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { Lock, Sparkles, Zap } from "lucide-react";
+import type { CSSProperties, ReactNode } from "react";
 
 import type {
   NormalizedDestinyItem,
@@ -12,6 +14,9 @@ import type {
 import {
   getItemPlugSections,
   getItemPresentationIconPath,
+  getItemTileTier,
+  getItemTileWatermarkPath,
+  isItemMasterworked,
   type ItemPlugSections,
 } from "@/lib/destiny/presentation";
 
@@ -61,6 +66,90 @@ export function ItemIcon({
       style={iconStyle}
       width={size}
     />
+  );
+}
+
+const TILE_SIZE_PX = {
+  compact: 56,
+  inspect: 86,
+  stage: 58,
+} as const;
+
+export function DestinyItemTile({
+  item,
+  powerLabel = null,
+  showPower = true,
+  showStateFlags = true,
+  size = "compact",
+  tagLabel = null,
+}: {
+  item: NormalizedDestinyItem;
+  powerLabel?: string | null;
+  showPower?: boolean;
+  showStateFlags?: boolean;
+  size?: keyof typeof TILE_SIZE_PX;
+  tagLabel?: string | null;
+}) {
+  const damageIcon = bungieImage(item.damageType.icon);
+  const hasMasterwork = isItemMasterworked(item);
+  const tileSize = TILE_SIZE_PX[size];
+  const tier = getItemTileTier(item);
+  const watermark = bungieImage(getItemTileWatermarkPath(item.iconLayers));
+  const style = {
+    "--d2-tile-size": `${tileSize}px`,
+  } as CSSProperties;
+
+  return (
+    <span
+      aria-hidden="true"
+      className="d2-destiny-tile"
+      data-kind={item.kind}
+      data-masterworked={hasMasterwork}
+      data-rarity={item.rarity ?? "unknown"}
+      data-size={size}
+      style={style}
+    >
+      <span className="d2-destiny-tile-art">
+        <ItemIcon item={item} size={tileSize} />
+      </span>
+      {watermark ? (
+        <Image
+          alt=""
+          className="d2-destiny-tile-watermark"
+          height={22}
+          src={watermark}
+          width={22}
+        />
+      ) : null}
+      {damageIcon ? (
+        <Image
+          alt=""
+          className="d2-destiny-tile-damage"
+          height={18}
+          src={damageIcon}
+          width={18}
+        />
+      ) : null}
+      {tier > 0 ? (
+        <span className="d2-destiny-tier-pips" aria-label={`Tier ${tier}`}>
+          {Array.from({ length: tier }).map((_, index) => (
+            <i key={index} />
+          ))}
+        </span>
+      ) : null}
+      {showStateFlags ? (
+        <span className="d2-destiny-tile-flags">
+          {item.state.locked ? <Lock aria-label="Locked" /> : null}
+          {item.state.crafted ? <Sparkles aria-label="Crafted" /> : null}
+          {item.state.enhanced ? <Zap aria-label="Enhanced" /> : null}
+        </span>
+      ) : null}
+      {tagLabel ? <span className="d2-destiny-tile-tag">{tagLabel}</span> : null}
+      {showPower && powerLabel ? (
+        <span className="d2-destiny-tile-power">{powerLabel}</span>
+      ) : null}
+      {hasMasterwork ? <span className="d2-destiny-masterwork" /> : null}
+    </span>
   );
 }
 
@@ -251,6 +340,32 @@ function PlugOptionStrip({ socket }: { socket: NormalizedSocket }) {
   );
 }
 
+function PlugSocketMatrix({ sockets }: { sockets: readonly NormalizedSocket[] }) {
+  return (
+    <div className="d2-socket-matrix" aria-label="Socket options">
+      {sockets.map((socket) => (
+        <div className="d2-socket-column" key={`${socket.index}:${socket.plugHash}`}>
+          {getSocketOptions(socket).slice(0, 6).map((option) => {
+            const icon = bungieImage(option.icon);
+            const selected = option.plugHash === socket.plugHash;
+
+            return (
+              <span
+                aria-label={`${option.name}${selected ? ", selected" : ""}`}
+                data-selected={selected}
+                key={option.plugHash}
+                title={option.name}
+              >
+                {icon ? <Image alt="" height={34} src={icon} width={34} /> : null}
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PlugSocketCard({ socket }: { socket: NormalizedSocket }) {
   const icon = bungieImage(socket.icon);
 
@@ -294,6 +409,7 @@ export function ItemPlugDetails({ item }: { item: NormalizedDestinyItem }) {
       {visibleSections.map(({ items, section, title }) => (
         <section className="d2-plug-section" data-section={section} key={section}>
           <h4>{title}</h4>
+          <PlugSocketMatrix sockets={items} />
           <div className="d2-socket-card-list">
             {items.map((socket) => (
               <PlugSocketCard key={`${socket.index}:${socket.plugHash}`} socket={socket} />
@@ -302,5 +418,77 @@ export function ItemPlugDetails({ item }: { item: NormalizedDestinyItem }) {
         </section>
       ))}
     </div>
+  );
+}
+
+export function ItemInspectPanel({
+  actions = null,
+  item,
+  recommendation = null,
+  tags = null,
+}: {
+  actions?: ReactNode;
+  item: NormalizedDestinyItem;
+  recommendation?: ReactNode;
+  tags?: ReactNode;
+}) {
+  const damageIcon = bungieImage(item.damageType.icon);
+  const tier = getItemTileTier(item);
+
+  return (
+    <article
+      className="d2-item-inspect-screen"
+      data-kind={item.kind}
+      data-rarity={item.rarity ?? "unknown"}
+    >
+      <header className="d2-item-inspect-head">
+        <DestinyItemTile item={item} showPower={false} size="inspect" />
+        <div>
+          <span>{item.slot.name}</span>
+          <h2>{item.name}</h2>
+          <p>
+            {item.rarity ?? "Unknown rarity"} / {item.location}
+            {damageIcon ? (
+              <span className="d2-damage-line">
+                <Image alt="" height={18} src={damageIcon} width={18} />
+                {item.damageType.name}
+              </span>
+            ) : null}
+          </p>
+          {item.description ? <em>{item.description}</em> : null}
+        </div>
+      </header>
+
+      <div className="d2-item-inspect-power">
+        <span>{item.kind === "armor" ? "Armor Power" : "Power"}</span>
+        <strong>{item.power ?? item.quantity}</strong>
+        {tier > 0 ? <small>Tier {tier}</small> : null}
+      </div>
+
+      {actions}
+
+      <div className="d2-item-inspect-layout">
+        <section className="d2-item-inspect-sockets">
+          <ItemPlugDetails item={item} />
+        </section>
+        <aside className="d2-item-inspect-stats">
+          <h3>Stats</h3>
+          <StatBars itemKind={item.kind} stats={item.stats} />
+        </aside>
+      </div>
+
+      {tags ? (
+        <section className="d2-item-inspect-extra">
+          <h3>Tags</h3>
+          {tags}
+        </section>
+      ) : null}
+
+      {recommendation ? (
+        <section className="d2-item-inspect-extra">
+          {recommendation}
+        </section>
+      ) : null}
+    </article>
   );
 }
