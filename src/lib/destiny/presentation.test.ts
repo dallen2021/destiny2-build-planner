@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   getItemPresentationIconPath,
   getItemPlugSections,
+  getItemSocketBoardSockets,
   getItemTileTier,
   getItemTileWatermarkPath,
   isItemMasterworked,
@@ -90,7 +91,7 @@ describe("destiny presentation helpers", () => {
         shelvedWatermark: "/shelved.png",
         watermark: "/season.png",
       }),
-    ).toBe("/featured.png");
+    ).toBe("/season.png");
     expect(
       getItemTileWatermarkPath({
         featuredWatermark: null,
@@ -99,6 +100,25 @@ describe("destiny presentation helpers", () => {
         watermark: "/season.png",
       }),
     ).toBe("/season.png");
+  });
+
+  it("falls back to featured or ornament watermarks only when no season watermark exists", () => {
+    expect(
+      getItemTileWatermarkPath({
+        featuredWatermark: "/featured.png",
+        ornamentWatermark: "/ornament.png",
+        shelvedWatermark: "/shelved.png",
+        watermark: null,
+      }),
+    ).toBe("/shelved.png");
+    expect(
+      getItemTileWatermarkPath({
+        featuredWatermark: "/featured.png",
+        ornamentWatermark: "/ornament.png",
+        shelvedWatermark: null,
+        watermark: null,
+      }),
+    ).toBe("/featured.png");
   });
 
   it("classifies selected weapon sockets into Destiny inspect sections", () => {
@@ -159,6 +179,66 @@ describe("destiny presentation helpers", () => {
     ]);
     expect(sections.appearance.map((socket) => socket.name)).toEqual([
       "Blue Ornament",
+    ]);
+  });
+
+  it("orders weapon socket boards as barrel, magazine, traits, then origin trait", () => {
+    const boardSockets = getItemSocketBoardSockets({
+      kind: "weapon",
+      sockets: [
+        makeSocket({
+          category: "v400.plugs.weapons.origin_traits",
+          index: 4,
+          name: "Nadir Focus",
+          plugHash: 5,
+        }),
+        makeSocket({
+          category: "v400.plugs.weapons.traits",
+          index: 3,
+          name: "Kinetic Tremors",
+          plugHash: 4,
+        }),
+        makeSocket({
+          category: "v400.plugs.weapons.magazines",
+          index: 1,
+          name: "Ricochet Rounds",
+          plugHash: 2,
+        }),
+        makeSocket({
+          category: "v400.plugs.weapons.traits",
+          index: 2,
+          name: "Keep Away",
+          plugHash: 3,
+        }),
+        makeSocket({
+          category: "v400.plugs.weapons.barrels",
+          index: 0,
+          name: "Arrowhead Brake",
+          plugHash: 1,
+        }),
+        makeSocket({
+          category: "v400.plugs.weapons.mods",
+          index: 5,
+          name: "Counterbalance Stock",
+          plugHash: 6,
+        }),
+        makeSocket({
+          category: "intrinsics",
+          index: 6,
+          name: "Adaptive Frame",
+          plugHash: 7,
+        }),
+      ],
+    });
+
+    expect(boardSockets.map((socket) => socket.name)).toEqual([
+      "Arrowhead Brake",
+      "Ricochet Rounds",
+      "Keep Away",
+      "Kinetic Tremors",
+      "Nadir Focus",
+      "Counterbalance Stock",
+      "Adaptive Frame",
     ]);
   });
 

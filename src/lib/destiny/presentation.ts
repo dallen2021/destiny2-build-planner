@@ -40,10 +40,10 @@ export function getItemTileWatermarkPath(
   >,
 ) {
   return (
-    iconLayers.featuredWatermark ??
-    iconLayers.ornamentWatermark ??
     iconLayers.watermark ??
-    iconLayers.shelvedWatermark
+    iconLayers.shelvedWatermark ??
+    iconLayers.featuredWatermark ??
+    iconLayers.ornamentWatermark
   );
 }
 
@@ -119,7 +119,7 @@ export function getItemPlugSections(
 
     if (
       item.kind === "weapon" &&
-      plugMatches(socket, /barrel|magazine|stock|grip|sight|scope|trait|perk/)
+      plugMatches(socket, /barrel|battery|blade|guard|haft|magazine|origin|stock|grip|sight|scope|trait|perk/)
     ) {
       sections.perks.push(socket);
       continue;
@@ -134,4 +134,67 @@ export function getItemPlugSections(
   }
 
   return sections;
+}
+
+function socketSortText(socket: Pick<NormalizedSocket, "category" | "name">) {
+  return `${socket.category ?? ""} ${socket.name}`.toLowerCase();
+}
+
+function getWeaponSocketOrder(socket: NormalizedSocket) {
+  const text = socketSortText(socket);
+
+  if (/origin|foundry/.test(text)) {
+    return 4;
+  }
+
+  if (/barrel|blade|haft|sight|scope/.test(text)) {
+    return 0;
+  }
+
+  if (/battery|guard|magazine/.test(text)) {
+    return 1;
+  }
+
+  if (/trait|perk/.test(text)) {
+    return 2;
+  }
+
+  return 3;
+}
+
+function compareWeaponSockets(
+  left: NormalizedSocket,
+  right: NormalizedSocket,
+) {
+  const orderDelta = getWeaponSocketOrder(left) - getWeaponSocketOrder(right);
+
+  if (orderDelta !== 0) {
+    return orderDelta;
+  }
+
+  return left.index - right.index;
+}
+
+export function getItemSocketBoardSockets(
+  item: Pick<NormalizedDestinyItem, "kind" | "sockets">,
+) {
+  const sections = getItemPlugSections(item);
+
+  if (item.kind === "weapon") {
+    return [
+      ...sections.perks.slice().sort(compareWeaponSockets),
+      ...sections.mods,
+      ...sections.intrinsic,
+      ...sections.upgrades,
+      ...sections.appearance,
+      ...sections.other,
+    ];
+  }
+
+  const sectionOrder: (keyof ItemPlugSections)[] =
+    item.kind === "armor"
+      ? ["mods", "setBonuses", "upgrades", "appearance", "other"]
+      : ["intrinsic", "perks", "mods", "setBonuses", "upgrades", "appearance", "other"];
+
+  return sectionOrder.flatMap((section) => sections[section]);
 }

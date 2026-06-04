@@ -12,12 +12,11 @@ import type {
   NormalizedStat,
 } from "@/lib/destiny/inventory";
 import {
-  getItemPlugSections,
+  getItemSocketBoardSockets,
   getItemPresentationIconPath,
   getItemTileTier,
   getItemTileWatermarkPath,
   isItemMasterworked,
-  type ItemPlugSections,
 } from "@/lib/destiny/presentation";
 
 export const ARMOR_STAT_NAMES = [
@@ -215,24 +214,6 @@ export function PlugList({ perks }: { perks: readonly NormalizedPerk[] }) {
   );
 }
 
-const PLUG_SECTION_ORDER: Record<
-  NormalizedDestinyItem["kind"] | "default",
-  (keyof ItemPlugSections)[]
-> = {
-  armor: ["mods", "setBonuses", "upgrades", "appearance", "other"],
-  consumable: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  currency: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  default: ["intrinsic", "perks", "mods", "setBonuses", "upgrades", "appearance", "other"],
-  engram: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  ghost: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  mod: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  quest: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  ship: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  unknown: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  vehicle: ["intrinsic", "mods", "upgrades", "appearance", "other"],
-  weapon: ["intrinsic", "perks", "mods", "upgrades", "appearance", "other"],
-};
-
 function getSocketBoardTitle(itemKind: NormalizedDestinyItem["kind"]) {
   if (itemKind === "weapon") {
     return "Weapon Perks";
@@ -348,16 +329,9 @@ function PlugSocketCard({ socket }: { socket: NormalizedSocket }) {
 }
 
 export function ItemPlugDetails({ item }: { item: NormalizedDestinyItem }) {
-  const sections = getItemPlugSections(item);
-  const sectionOrder = PLUG_SECTION_ORDER[item.kind] ?? PLUG_SECTION_ORDER.default;
-  const visibleSections = sectionOrder
-    .map((section) => ({
-      items: sections[section],
-    }))
-    .filter(({ items }) => items.length > 0);
-  const boardSockets = visibleSections.flatMap(({ items }) => items);
+  const boardSockets = getItemSocketBoardSockets(item);
 
-  if (visibleSections.length === 0) {
+  if (boardSockets.length === 0) {
     return (
       <p className="d2-muted-note">
         No visible socket, mod, or trait data returned for this item.
