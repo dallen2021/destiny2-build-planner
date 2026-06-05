@@ -1,6 +1,6 @@
 # Current Destiny Sources
 
-Generated: 2026-06-04
+Generated: 2026-06-05
 
 Use these official Bungie sources before hard-coding Monument of Triumph gameplay behavior, armor rules, weapon tiers, activity assumptions, optimizer thresholds, or vault-clean recommendations.
 
@@ -27,3 +27,6 @@ Use these official Bungie sources before hard-coding Monument of Triumph gamepla
 ## Implementation Rule
 
 If any code depends on live game rules from these posts, add a focused test and keep volatile thresholds in a dedicated rules module instead of spreading them through UI components.
+
+See `docs/monument-rules-audit.md` for the active Monument of Triumph rules
+audit and implementation queue.

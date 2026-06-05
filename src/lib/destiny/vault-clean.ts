@@ -1,4 +1,10 @@
 import type { NormalizedDestinyItem } from "./inventory";
+import {
+  ARMOR_STAT_TOTAL_RULES,
+  getArmorTierScore,
+  isArmorTierSaveCandidate,
+  isLowArmorTierCleanupSignal,
+} from "./live-rules";
 import type { ItemTag, ItemTagMap } from "./tags";
 
 export type VaultRecommendationAction = "save" | "review" | "delete-candidate";
@@ -18,7 +24,7 @@ function hasAnyTag(tags: readonly ItemTag[], checkedTags: readonly ItemTag[]) {
 }
 
 export function scoreVaultItem(item: NormalizedDestinyItem): number {
-  const gearTierScore = (item.gearTier ?? 0) * 80;
+  const gearTierScore = getArmorTierScore(item.gearTier);
   const statScore = item.kind === "armor" ? item.statTotal : 0;
   const powerScore = item.power == null ? 0 : Math.min(item.power / 10, 70);
   const perkScore = item.perks.length * 5;
@@ -104,7 +110,7 @@ export function evaluateVaultItem({
     };
   }
 
-  if (item.gearTier != null && item.gearTier >= 5) {
+  if (isArmorTierSaveCandidate(item.gearTier)) {
     return {
       action: "save",
       confidence: "high",
@@ -119,7 +125,7 @@ export function evaluateVaultItem({
   }
 
   if (item.kind === "armor") {
-    if (item.statTotal >= 75) {
+    if (item.statTotal >= ARMOR_STAT_TOTAL_RULES.highArmorStatTotal) {
       return {
         action: "save",
         confidence: "high",
@@ -129,7 +135,10 @@ export function evaluateVaultItem({
       };
     }
 
-    if (item.statTotal > 0 && item.statTotal < 60) {
+    if (
+      item.statTotal > 0 &&
+      item.statTotal < ARMOR_STAT_TOTAL_RULES.lowArmorStatTotal
+    ) {
       reasons.push("Low stat total.");
     }
   }
@@ -139,7 +148,7 @@ export function evaluateVaultItem({
     reasons.push("Lower-scoring duplicate of the same item.");
   }
 
-  if (item.gearTier != null && item.gearTier <= 2) {
+  if (isLowArmorTierCleanupSignal(item.gearTier)) {
     reasons.push("Lower gear tier than current chase gear.");
   }
 

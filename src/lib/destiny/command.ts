@@ -1,4 +1,5 @@
 import type { NormalizedDestinyItem } from "./inventory";
+import { isArmorTierReady } from "./live-rules";
 
 export type CommandGearSlots = {
   armor: NormalizedDestinyItem[];
@@ -117,7 +118,8 @@ export function getArmorTierSummary(
       tiers[tier] = (tiers[tier] ?? 0) + 1;
       return tiers;
     }, {}),
-    readyPieces: armorPieces.filter((item) => (item.gearTier ?? 0) >= 4).length,
+    readyPieces: armorPieces.filter((item) => isArmorTierReady(item.gearTier))
+      .length,
     totalPieces: armorPieces.length,
   };
 }
