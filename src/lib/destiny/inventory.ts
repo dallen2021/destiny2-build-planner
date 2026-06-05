@@ -315,6 +315,35 @@ export type NormalizedDestinyItem = {
   state: NormalizedItemState;
   tier: string | null;
   weaponTier: number | null;
+  inspector?: ItemInspectorExtras | null;
+};
+
+/**
+ * Optional, richer inspector display data. Currently supplied by the preview
+ * fixture; server-side population from the manifest + instance components is a
+ * follow-up. The Command inspector renders each section only when present.
+ */
+export type ItemInspectorExtras = {
+  ammoType?: string | null;
+  energy?: { capacity: number; used: number } | null;
+  archetype?: {
+    name: string;
+    description: string | null;
+    primaryStat: string | null;
+    secondaryStat: string | null;
+  } | null;
+  setBonus?: {
+    name: string;
+    equippedCount: number;
+    requiredForFull: number;
+    perks: { name: string; description: string; requiredCount: number; active: boolean }[];
+  } | null;
+  shader?: { name: string; icon: string | null } | null;
+  ornament?: { name: string; icon: string | null } | null;
+  source?: string | null;
+  acquired?: string | null;
+  reason?: string | null;
+  instanceNumber?: number | null;
 };
 
 export type NormalizedArmorItem = NormalizedDestinyItem & { kind: "armor" };

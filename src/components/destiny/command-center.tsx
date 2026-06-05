@@ -37,10 +37,10 @@ import { isItemMasterworked } from "@/lib/destiny/presentation";
 import { ITEM_TAGS, type ItemTag } from "@/lib/destiny/tags";
 
 import { D2BrandLockup } from "./brand-logo";
+import { CommandInspector } from "./command-inspector";
 import {
   bungieImage,
   DestinyItemTile,
-  ItemInspectPanel,
   StatBars,
 } from "./item-presentation";
 import { useDestinyInventory } from "./use-destiny-inventory";
@@ -523,19 +523,7 @@ function GuardianStage({
 }
 
 function CommandItemInspector({ item }: { item: NormalizedDestinyItem | null }) {
-  return (
-    <aside
-      className="d2-command-inspector"
-      data-kind={item?.kind ?? "none"}
-      data-rarity={item?.rarity ?? "unknown"}
-    >
-      {item ? (
-        <ItemInspectPanel item={item} />
-      ) : (
-        <p className="d2-muted-note">No equipped weapon or armor returned yet.</p>
-      )}
-    </aside>
-  );
+  return <CommandInspector item={item} />;
 }
 
 function CommandPanel({
@@ -626,8 +614,17 @@ function CommandUtilityPanels({
   );
 }
 
-export function CommandCenter() {
-  const { data, error, isLoading, reload } = useDestinyInventory();
+export function CommandCenter({
+  previewData,
+}: {
+  /** Dev/preview only: render the console against a fixture, bypassing the live fetch. */
+  previewData?: DestinyInventoryApiPayload;
+} = {}) {
+  const live = useDestinyInventory({ enabled: previewData == null });
+  const data = previewData ?? live.data;
+  const error = previewData ? null : live.error;
+  const isLoading = previewData ? false : live.isLoading;
+  const reload = live.reload;
   const [selectedCharacterId, setSelectedCharacterId] = useSelectedCharacter(data);
   const [inspectedItem, setInspectedItem] = useState<NormalizedDestinyItem | null>(
     null,

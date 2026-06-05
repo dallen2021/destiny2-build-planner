@@ -1234,7 +1234,7 @@ body:has(.d2-command-console) .app-header {
 }
 
 .d2-command-console .d2-stage-layout {
-  grid-template-columns: minmax(620px, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) clamp(460px, 31%, 512px);
   gap: 16px;
   align-items: start;
 }
@@ -1744,6 +1744,170 @@ body:has(.d2-command-console) .app-header {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ============================================================
+   COMMAND STAGE — hero elevation (radar floor + atmosphere)
+   ============================================================ */
+.d2-command-console .d2-command-stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border-color: rgba(226, 185, 96, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(245, 229, 183, 0.1),
+    inset 0 0 140px rgba(1, 6, 11, 0.92),
+    0 34px 90px -46px rgba(0, 0, 0, 0.92);
+  background:
+    radial-gradient(120% 78% at 50% 120%, rgba(99, 215, 255, 0.18), transparent 54%),
+    radial-gradient(82% 64% at 50% 14%, rgba(184, 121, 255, 0.12), transparent 60%),
+    radial-gradient(64% 46% at 50% 62%, rgba(226, 185, 96, 0.12), transparent 62%),
+    linear-gradient(180deg, #08171f 0%, #040d14 56%, #01060a 100%);
+}
+
+/* faint horizontal scan-lines, masked to fade at the edges */
+.d2-command-console .d2-command-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(125, 205, 235, 0.05) 0 1px,
+    transparent 1px 4px
+  );
+  -webkit-mask-image: radial-gradient(125% 88% at 50% 42%, #000 28%, transparent 76%);
+  mask-image: radial-gradient(125% 88% at 50% 42%, #000 28%, transparent 76%);
+}
+
+.d2-command-console .d2-stage-lines {
+  opacity: 0.12;
+}
+
+/* floor radar disc — a circle flattened into a 2.5D ground projection */
+.d2-command-console .d2-stage-ring {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  z-index: 1;
+  width: min(620px, 88%);
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, 0) scaleY(0.34);
+  transform-origin: center;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    repeating-radial-gradient(
+      circle at 50% 50%,
+      transparent 0 46px,
+      rgba(226, 185, 96, 0.16) 46px 47px
+    ),
+    radial-gradient(circle at 50% 50%, rgba(99, 215, 255, 0.12), transparent 64%);
+  box-shadow: 0 0 80px rgba(99, 215, 255, 0.1);
+}
+
+/* radial spokes */
+.d2-command-console .d2-stage-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(226, 185, 96, 0.12) 0 0.6deg,
+    transparent 0.6deg 30deg
+  );
+  -webkit-mask-image: radial-gradient(circle, transparent 36%, #000 38%, #000 99%, transparent);
+  mask-image: radial-gradient(circle, transparent 36%, #000 38%, #000 99%, transparent);
+}
+
+/* slow radar sweep */
+.d2-command-console .d2-stage-ring::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(99, 215, 255, 0.3), rgba(99, 215, 255, 0) 44%);
+  animation: d2-radar-sweep 7.5s linear infinite;
+}
+
+@keyframes d2-radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* brighter ground pool directly beneath the guardian */
+.d2-command-console .d2-stage-floor {
+  bottom: 52px;
+  width: 280px;
+  height: 60px;
+  border: 0;
+  background: radial-gradient(
+    ellipse at 50% 50%,
+    rgba(245, 229, 183, 0.34),
+    rgba(226, 185, 96, 0.12) 40%,
+    transparent 72%
+  );
+}
+
+.d2-command-console .d2-stage-floor::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220px;
+  height: 2px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, rgba(245, 229, 183, 0.6), transparent);
+}
+
+/* premium armored material + class rim light */
+.d2-command-console .d2-stage-head,
+.d2-command-console .d2-stage-core,
+.d2-command-console .d2-stage-cloak,
+.d2-command-console .d2-stage-shoulders,
+.d2-command-console .d2-stage-belt,
+.d2-command-console .d2-stage-legs {
+  background: linear-gradient(152deg, #f1f4f2 0%, #b7c0c5 26%, #4b575e 70%, #283137 100%);
+  box-shadow:
+    0 0 34px rgba(104, 217, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -10px 22px rgba(0, 0, 0, 0.34);
+}
+
+.d2-command-console .d2-stage-class-accent {
+  width: 14px;
+  background: linear-gradient(180deg, rgba(180, 240, 255, 0.95), rgba(99, 215, 255, 0.5));
+  box-shadow:
+    0 0 34px rgba(99, 215, 255, 0.5),
+    0 0 8px rgba(255, 255, 255, 0.7);
+}
+
+.d2-command-console .d2-stage-guardian {
+  filter:
+    drop-shadow(0 20px 44px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 30px rgba(99, 215, 255, 0.16));
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Titan"] {
+  filter:
+    drop-shadow(0 20px 44px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 30px rgba(184, 121, 255, 0.18));
+}
+
+.d2-command-console .d2-stage-guardian[data-class="Warlock"] {
+  filter:
+    drop-shadow(0 20px 44px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 30px rgba(255, 170, 90, 0.16));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .d2-command-console .d2-stage-ring::after {
+    animation: none;
+  }
 }
 
 .d2-command-console .d2-command-inspector {
@@ -3780,4 +3944,583 @@ main {
   .d2-item-inspect-power small {
     grid-column: 1 / -1;
   }
+}
+
+/* ============================================================
+   COMMAND INSPECTOR (weapon + armor) — mockup-faithful layout
+   ============================================================ */
+.d2-command-console .d2-ci {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  align-self: start;
+  max-height: clamp(620px, calc(100svh - 260px), 760px);
+  overflow: auto;
+  border: 1px solid rgba(226, 185, 96, 0.42);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(9, 19, 27, 0.96), rgba(2, 7, 12, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(245, 229, 183, 0.08),
+    0 30px 70px -44px rgba(0, 0, 0, 0.9);
+  padding: 16px 18px;
+  color: #f3ead8;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+.d2-command-console .d2-ci[data-rarity="Exotic"] {
+  border-color: rgba(245, 213, 107, 0.6);
+}
+.d2-command-console .d2-ci[data-empty="true"] {
+  place-content: center;
+  min-height: 220px;
+}
+
+/* Header */
+.d2-command-console .d2-ci-head {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  grid-template-areas: "thumb id side" "subline subline subline";
+  gap: 12px 14px;
+  align-items: start;
+  border-bottom: 1px solid rgba(226, 185, 96, 0.16);
+  padding-bottom: 14px;
+}
+.d2-command-console .d2-ci-thumb {
+  grid-area: thumb;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border: 1px solid rgba(226, 185, 96, 0.4);
+  border-radius: 9px;
+  background: linear-gradient(150deg, rgba(226, 185, 96, 0.22), rgba(3, 10, 15, 0.92));
+}
+.d2-command-console .d2-ci-thumb[data-rarity="Exotic"] {
+  background: linear-gradient(150deg, rgba(245, 213, 107, 0.34), rgba(14, 11, 6, 0.92));
+}
+.d2-command-console .d2-ci-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.d2-command-console .d2-ci-id {
+  grid-area: id;
+  min-width: 0;
+}
+.d2-command-console .d2-ci-id small {
+  display: block;
+  color: var(--d2-command-gold);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.d2-command-console .d2-ci-id h2 {
+  margin: 3px 0 4px;
+  color: #fff;
+  font-size: 1.18rem;
+  line-height: 1.04;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.d2-command-console .d2-ci-id p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(243, 234, 216, 0.62);
+  font-size: 0.74rem;
+}
+.d2-command-console .d2-ci-id p svg {
+  width: 13px;
+  height: 13px;
+}
+.d2-command-console .d2-ci-headside {
+  grid-area: side;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+.d2-command-console .d2-ci-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(226, 185, 96, 0.3);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: rgba(243, 234, 216, 0.9);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.d2-command-console .d2-ci-badge-element {
+  border-color: color-mix(in srgb, var(--dmg, #63d7ff) 55%, transparent);
+  color: var(--dmg, #63d7ff);
+}
+.d2-command-console .d2-ci-badge-energy {
+  border-color: rgba(99, 215, 255, 0.5);
+  color: var(--d2-command-blue);
+}
+.d2-command-console .d2-ci-badge-energy b {
+  color: #fff;
+}
+.d2-command-console .d2-ci-power {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.d2-command-console .d2-ci-power b {
+  color: var(--d2-command-gold-soft);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.d2-command-console .d2-ci-power em {
+  color: rgba(243, 234, 216, 0.6);
+  font-size: 0.6rem;
+  font-style: normal;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.d2-command-console .d2-ci-subline {
+  grid-area: subline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.d2-command-console .d2-ci-subline span {
+  border: 1px solid rgba(226, 185, 96, 0.16);
+  border-radius: 5px;
+  padding: 2px 8px;
+  color: rgba(243, 234, 216, 0.78);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.d2-command-console .d2-ci-subline-muted {
+  color: rgba(243, 234, 216, 0.5) !important;
+}
+
+/* Tabs + body */
+.d2-command-console .d2-ci-tabs {
+  display: flex;
+  gap: 20px;
+  border-bottom: 1px solid rgba(226, 185, 96, 0.14);
+}
+.d2-command-console .d2-ci-tabs button {
+  position: relative;
+  border: 0;
+  background: none;
+  padding: 8px 2px;
+  color: rgba(243, 234, 216, 0.5);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.d2-command-console .d2-ci-tabs button[aria-selected="true"] {
+  color: var(--d2-command-gold-soft);
+}
+.d2-command-console .d2-ci-tabs button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--d2-command-gold);
+}
+.d2-command-console .d2-ci-body {
+  display: grid;
+  gap: 14px;
+}
+.d2-command-console .d2-ci-notes {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  color: rgba(243, 234, 216, 0.6);
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.d2-command-console .d2-ci-notes svg {
+  width: 13px;
+  height: 13px;
+}
+.d2-command-console .d2-ci-section {
+  display: grid;
+  gap: 8px;
+}
+.d2-command-console .d2-ci-subhead {
+  color: var(--d2-command-gold);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+/* Weapon perks */
+.d2-command-console .d2-ci-perk-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.d2-command-console .d2-ci-perk-col {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+.d2-command-console .d2-ci-perk-head {
+  color: rgba(243, 234, 216, 0.5);
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.d2-command-console .d2-ci-perk-stack {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+.d2-command-console .d2-ci-plug {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(226, 185, 96, 0.22);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, rgba(99, 215, 255, 0.1), rgba(3, 10, 15, 0.92));
+}
+.d2-command-console .d2-ci-plug img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.d2-command-console .d2-ci-plug[data-selected="true"] {
+  border-color: var(--d2-command-blue);
+  background: radial-gradient(circle at 50% 30%, rgba(99, 215, 255, 0.28), rgba(3, 10, 15, 0.92));
+  box-shadow: 0 0 0 1px rgba(99, 215, 255, 0.5), 0 0 14px rgba(99, 215, 255, 0.3);
+}
+.d2-command-console .d2-ci-perk-col[data-intrinsic="true"] .d2-ci-plug[data-selected="true"] {
+  border-color: var(--d2-command-gold);
+  box-shadow: 0 0 0 1px rgba(226, 185, 96, 0.5), 0 0 14px rgba(226, 185, 96, 0.28);
+}
+.d2-command-console .d2-ci-perk-intrinsic {
+  text-align: center;
+}
+.d2-command-console .d2-ci-perk-intrinsic strong {
+  display: block;
+  color: #fff;
+  font-size: 0.68rem;
+}
+.d2-command-console .d2-ci-perk-intrinsic small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(243, 234, 216, 0.55);
+  font-size: 0.58rem;
+  line-height: 1.25;
+}
+
+/* Mods / enhancement / cosmetics strip */
+.d2-command-console .d2-ci-modbar {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr;
+  gap: 14px;
+}
+.d2-command-console .d2-ci-modgroup {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.d2-command-console .d2-ci-slot-row {
+  display: flex;
+  gap: 6px;
+}
+.d2-command-console .d2-ci-modslot {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(226, 185, 96, 0.22);
+  border-radius: 6px;
+  background: rgba(3, 10, 15, 0.82);
+}
+
+/* Stat rows (shared) */
+.d2-command-console .d2-ci-stat-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 5px 22px;
+}
+.d2-command-console .d2-ci-stat {
+  display: grid;
+  grid-template-columns: 92px 1fr 26px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+.d2-command-console .d2-ci-stat > span {
+  overflow: hidden;
+  color: rgba(243, 234, 216, 0.66);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.d2-command-console .d2-ci-stat > strong {
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.d2-command-console .d2-ci-stat > i {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.d2-command-console .d2-ci-stat > i b {
+  display: block;
+  height: 100%;
+  border-right: 2px solid var(--d2-command-gold);
+  background: linear-gradient(90deg, rgba(99, 215, 255, 0.85), #9fe9ff);
+}
+.d2-command-console .d2-ci-stat-num {
+  grid-template-columns: 1fr auto;
+}
+
+/* Armor layout */
+.d2-command-console .d2-ci-armor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+.d2-command-console .d2-ci-armor-left,
+.d2-command-console .d2-ci-armor-right {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+.d2-command-console .d2-ci-energy {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+.d2-command-console .d2-ci-energy > strong {
+  color: #fff;
+  font-size: 1.4rem;
+}
+.d2-command-console .d2-ci-pips {
+  display: flex;
+  gap: 3px;
+}
+.d2-command-console .d2-ci-pips span {
+  width: 14px;
+  height: 9px;
+  border: 1px solid rgba(99, 215, 255, 0.4);
+  border-radius: 2px;
+  background: rgba(99, 215, 255, 0.06);
+}
+.d2-command-console .d2-ci-pips span[data-on="true"] {
+  border-color: var(--d2-command-blue);
+  background: linear-gradient(180deg, #8fe6ff, var(--d2-command-blue));
+  box-shadow: 0 0 6px rgba(99, 215, 255, 0.4);
+}
+.d2-command-console .d2-ci-energy small {
+  color: rgba(243, 234, 216, 0.55);
+  font-size: 0.66rem;
+}
+.d2-command-console .d2-ci-archetype {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(226, 185, 96, 0.16);
+  border-radius: 8px;
+  background: rgba(3, 10, 15, 0.6);
+  padding: 10px;
+}
+.d2-command-console .d2-ci-arch-icon {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(226, 185, 96, 0.4);
+  border-radius: 8px;
+  background: radial-gradient(circle, rgba(226, 185, 96, 0.3), rgba(3, 10, 15, 0.9));
+}
+.d2-command-console .d2-ci-archetype strong {
+  display: block;
+  color: #fff;
+  font-size: 0.82rem;
+}
+.d2-command-console .d2-ci-archetype small {
+  display: block;
+  margin-top: 2px;
+  color: rgba(243, 234, 216, 0.55);
+  font-size: 0.64rem;
+  line-height: 1.3;
+}
+.d2-command-console .d2-ci-focus {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.d2-command-console .d2-ci-focus div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(226, 185, 96, 0.1);
+  padding-bottom: 4px;
+}
+.d2-command-console .d2-ci-focus dt {
+  color: rgba(243, 234, 216, 0.62);
+  font-size: 0.7rem;
+}
+.d2-command-console .d2-ci-focus dd {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  color: var(--d2-command-gold-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.d2-command-console .d2-ci-focus dd svg {
+  width: 12px;
+  height: 12px;
+  color: var(--d2-command-blue);
+}
+.d2-command-console .d2-ci-armor-stats {
+  display: grid;
+  gap: 6px;
+}
+.d2-command-console .d2-ci-armor-stats .d2-ci-stat {
+  grid-template-columns: 64px 1fr 34px;
+}
+.d2-command-console .d2-ci-stat-total {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid rgba(226, 185, 96, 0.2);
+  margin-top: 2px;
+  padding-top: 6px;
+}
+.d2-command-console .d2-ci-stat-total span {
+  color: rgba(243, 234, 216, 0.7);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.d2-command-console .d2-ci-stat-total strong {
+  color: var(--d2-command-gold-soft);
+  font-size: 0.9rem;
+}
+
+/* Set bonus */
+.d2-command-console .d2-ci-set-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.d2-command-console .d2-ci-set-mark {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, var(--d2-command-purple), var(--d2-command-blue));
+  transform: rotate(45deg);
+}
+.d2-command-console .d2-ci-set-head strong {
+  color: #fff;
+  font-size: 0.78rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.d2-command-console .d2-ci-set-head em {
+  margin-left: auto;
+  color: var(--d2-command-gold);
+  font-size: 0.68rem;
+  font-style: normal;
+}
+.d2-command-console .d2-ci-set-perks {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.d2-command-console .d2-ci-set-perks li {
+  border: 1px solid rgba(226, 185, 96, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 10, 15, 0.55);
+  padding: 8px 10px;
+}
+.d2-command-console .d2-ci-set-perks li[data-active="true"] {
+  border-color: rgba(120, 210, 140, 0.3);
+}
+.d2-command-console .d2-ci-set-tier {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--d2-command-gold-soft);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.d2-command-console .d2-ci-set-tier svg {
+  width: 13px;
+  height: 13px;
+  color: #74d28c;
+}
+.d2-command-console .d2-ci-set-perks small {
+  display: block;
+  margin-top: 4px;
+  color: rgba(243, 234, 216, 0.66);
+  font-size: 0.67rem;
+  line-height: 1.35;
+}
+
+/* Source / reason */
+.d2-command-console .d2-ci-meta-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.d2-command-console .d2-ci-meta-row > div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(226, 185, 96, 0.14);
+  border-radius: 8px;
+  background: rgba(3, 10, 15, 0.5);
+  padding: 10px;
+}
+.d2-command-console .d2-ci-meta-row strong {
+  color: #fff;
+  font-size: 0.76rem;
+}
+.d2-command-console .d2-ci-meta-row small {
+  color: rgba(243, 234, 216, 0.5);
+  font-size: 0.64rem;
+}
+
+@media (max-width: 1180px) {
+  .d2-command-console .d2-ci-armor-grid,
+  .d2-command-console .d2-ci-stat-grid,
+  .d2-command-console .d2-ci-meta-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Overflow safety: grid/flex items must be allowed to shrink so wide content
+   wraps inside its column instead of blowing the track out and overlapping the
+   neighbouring column. */
+.d2-command-console .d2-ci-section,
+.d2-command-console .d2-ci-armor-left > *,
+.d2-command-console .d2-ci-armor-right > *,
+.d2-command-console .d2-ci-stat-grid > div,
+.d2-command-console .d2-ci-archetype,
+.d2-command-console .d2-ci-archetype > div,
+.d2-command-console .d2-ci-focus,
+.d2-command-console .d2-ci-focus div {
+  min-width: 0;
+}
+.d2-command-console .d2-ci-archetype small,
+.d2-command-console .d2-ci-perk-intrinsic small {
+  overflow-wrap: anywhere;
 }

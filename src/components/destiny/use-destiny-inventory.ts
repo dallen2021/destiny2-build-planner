@@ -8,10 +8,10 @@ type InventoryErrorPayload = {
   error?: string;
 };
 
-export function useDestinyInventory() {
+export function useDestinyInventory({ enabled = true }: { enabled?: boolean } = {}) {
   const [data, setData] = useState<DestinyInventoryApiPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled);
 
   const loadInventory = useCallback(async () => {
     setIsLoading(true);
@@ -44,12 +44,16 @@ export function useDestinyInventory() {
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const timeoutId = window.setTimeout(() => {
       void loadInventory();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [loadInventory]);
+  }, [enabled, loadInventory]);
 
   return {
     data,

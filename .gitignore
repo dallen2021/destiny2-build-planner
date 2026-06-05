@@ -75,3 +75,12 @@ temp/
 .superpowers/
 
 .vercel
+
+# Local agent/dev artifacts (not part of the app)
+.playwright-mcp/
+tsconfig.tsbuildinfo
+/d2_build_planner_destiny_reference.md
+# root-level screenshot scratch (real image assets live under public/)
+/*.jpeg
+/*.jpg
+/*.png
