@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-type Mesh = { positions: number[]; normals: number[]; indices: number[] };
-
 export function GearCanvas({ itemHash }: { itemHash: string }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState("Loading geometry…");
@@ -50,39 +48,38 @@ export function GearCanvas({ itemHash }: { itemHash: string }) {
     void (async () => {
       try {
         const response = await fetch(`/api/render/gear/${itemHash}`);
-        const data = (await response.json()) as {
-          error?: string;
-          meshes?: Mesh[];
-          stats?: { triangleCount: number };
-        };
-        if (data.error) {
-          setStatus(`Error: ${data.error}`);
+        const contentType = response.headers.get("content-type") ?? "";
+        if (!response.ok || !contentType.includes("octet-stream")) {
+          const failure = (await response.json().catch(() => null)) as { error?: string } | null;
+          setStatus(`Error: ${failure?.error ?? `HTTP ${response.status}`}`);
           return;
         }
+        const buffer = await response.arrayBuffer();
+        const view = new DataView(buffer);
+        const vertexCount = view.getUint32(0, true);
+        const indexCount = view.getUint32(4, true);
+        const positions = new Float32Array(buffer, 8, vertexCount * 3);
+        const indices = new Uint32Array(buffer, 8 + vertexCount * 3 * 4, indexCount);
+
         const material = new THREE.MeshStandardMaterial({
           color: 0xc2cad2,
           metalness: 0.6,
           roughness: 0.5,
           side: THREE.DoubleSide,
         });
-        for (const mesh of data.meshes ?? []) {
-          const geometry = new THREE.BufferGeometry();
-          geometry.setAttribute(
-            "position",
-            new THREE.Float32BufferAttribute(mesh.positions, 3),
-          );
-          geometry.setIndex(mesh.indices);
-          geometry.computeVertexNormals();
-          group.add(new THREE.Mesh(geometry, material));
-        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        geometry.computeVertexNormals();
+        group.add(new THREE.Mesh(geometry, material));
 
         const box = new THREE.Box3().setFromObject(group);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         group.position.sub(center);
         const radius = Math.max(size.x, size.y, size.z, 0.001) * 0.5;
-        const distance = (radius / Math.tan((camera.fov * Math.PI) / 360)) * 1.7;
-        camera.position.set(distance * 0.65, distance * 0.35, distance);
+        const distance = (radius / Math.tan((camera.fov * Math.PI) / 360)) * 2.4;
+        camera.position.set(distance * 0.6, distance * 0.3, distance);
         camera.lookAt(0, 0, 0);
 
         controls = new OrbitControls(camera, renderer.domElement);
@@ -92,7 +89,10 @@ export function GearCanvas({ itemHash }: { itemHash: string }) {
         controls.target.set(0, 0, 0);
         controls.update();
 
-        setStatus(`${(data.stats?.triangleCount ?? 0).toLocaleString()} triangles`);
+        const stats = JSON.parse(response.headers.get("x-mesh-stats") ?? "{}") as {
+          triangleCount?: number;
+        };
+        setStatus(`${(stats.triangleCount ?? indexCount / 3).toLocaleString()} triangles`);
       } catch (error) {
         setStatus(`Failed: ${error instanceof Error ? error.message : String(error)}`);
       }

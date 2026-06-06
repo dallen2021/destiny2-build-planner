@@ -57,14 +57,49 @@ export async function GET(
       }
     }
 
+    // Merge into one indexed mesh and ship it as a compact binary payload —
+    // returning hundreds of thousands of numbers as JSON crashes the dev worker.
+    let vertexTotal = 0;
+    let indexTotal = 0;
+    for (const mesh of meshes) {
+      vertexTotal += mesh.positions.length / 3;
+      indexTotal += mesh.indices.length;
+    }
+    const positions = new Float32Array(vertexTotal * 3);
+    const indices = new Uint32Array(indexTotal);
+    let positionCursor = 0;
+    let indexCursor = 0;
+    let vertexBase = 0;
+    for (const mesh of meshes) {
+      positions.set(mesh.positions, positionCursor * 3);
+      for (let i = 0; i < mesh.indices.length; i += 1) {
+        indices[indexCursor + i] = mesh.indices[i] + vertexBase;
+      }
+      const meshVertices = mesh.positions.length / 3;
+      positionCursor += meshVertices;
+      vertexBase += meshVertices;
+      indexCursor += mesh.indices.length;
+    }
+
+    const payload = new Uint8Array(8 + positions.byteLength + indices.byteLength);
+    new DataView(payload.buffer).setUint32(0, vertexTotal, true);
+    new DataView(payload.buffer).setUint32(4, indexTotal, true);
+    payload.set(new Uint8Array(positions.buffer), 8);
+    payload.set(new Uint8Array(indices.buffer), 8 + positions.byteLength);
+
     const stats = {
       itemHash,
       geometryFiles: geometryFiles.length,
       meshCount: meshes.length,
-      vertexCount: meshes.reduce((sum, mesh) => sum + mesh.positions.length / 3, 0),
-      triangleCount: meshes.reduce((sum, mesh) => sum + mesh.indices.length / 3, 0),
+      vertexCount: vertexTotal,
+      triangleCount: indexTotal / 3,
     };
-    return NextResponse.json({ stats, meshes });
+    return new NextResponse(payload, {
+      headers: {
+        "content-type": "application/octet-stream",
+        "x-mesh-stats": JSON.stringify(stats),
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "render failed" },
