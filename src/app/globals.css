@@ -293,15 +293,99 @@ body:has(.d2-command-console) .app-header {
 }
 
 /* Real 3D Guardian render — centered, click-through, behind the loadout nodes. */
+/* Fill the stage so the Guardian is centered and scales with the row height
+   (which stretches to match the inspector), keeping the composition balanced. */
 .d2-stage-guardian-3d {
   position: absolute;
   left: 50%;
-  top: 24px;
-  bottom: 44px;
-  width: min(54%, 360px);
+  top: 14px;
+  bottom: 14px;
+  width: min(70%, 480px);
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 1;
+}
+
+/* --- Command stage backdrop treatments (switchable via data-stage) --- */
+.d2-command-console .d2-stage-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Soft aura centered behind the (centered) Guardian — no feet-alignment needed. */
+.d2-command-console .d2-stage-floor-glow {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  width: 360px;
+  height: 360px;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Studio — calm near-solid gradient, no tactical grid, soft floor pool. */
+.d2-command-console .d2-command-stage[data-stage="studio"] {
+  background:
+    radial-gradient(112% 78% at 50% 14%, rgba(48, 70, 90, 0.55), transparent 60%),
+    linear-gradient(180deg, #0e1a25 0%, #070d14 64%, #04080c 100%);
+}
+.d2-command-console .d2-command-stage[data-stage="studio"] .d2-stage-ring,
+.d2-command-console .d2-command-stage[data-stage="studio"] .d2-stage-lines {
+  opacity: 0;
+}
+.d2-command-console .d2-command-stage[data-stage="studio"] .d2-stage-backdrop {
+  background: radial-gradient(120% 130% at 50% 36%, transparent 52%, rgba(0, 0, 0, 0.55) 100%);
+}
+.d2-command-console .d2-command-stage[data-stage="studio"] .d2-stage-floor-glow {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(160, 198, 226, 0.26),
+    rgba(120, 150, 180, 0.05) 55%,
+    transparent 75%
+  );
+}
+
+/* Vanguard — Destiny gold/teal cinematic, faint refined ring, gold floor halo. */
+.d2-command-console .d2-command-stage[data-stage="vanguard"] {
+  background:
+    radial-gradient(70% 54% at 50% 30%, rgba(229, 187, 91, 0.12), transparent 56%),
+    radial-gradient(120% 92% at 50% 16%, rgba(33, 86, 104, 0.55), transparent 62%),
+    linear-gradient(180deg, #08161f 0%, #050e15 66%, #03070b 100%);
+}
+.d2-command-console .d2-command-stage[data-stage="vanguard"] .d2-stage-lines {
+  opacity: 0;
+}
+.d2-command-console .d2-command-stage[data-stage="vanguard"] .d2-stage-ring {
+  opacity: 0.4;
+  border-color: rgba(229, 187, 91, 0.22);
+}
+.d2-command-console .d2-command-stage[data-stage="vanguard"] .d2-stage-backdrop {
+  background: radial-gradient(120% 120% at 50% 42%, transparent 50%, rgba(2, 6, 10, 0.6) 100%);
+}
+.d2-command-console .d2-command-stage[data-stage="vanguard"] .d2-stage-floor-glow {
+  width: 360px;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(229, 187, 91, 0.3),
+    rgba(120, 160, 180, 0.06) 48%,
+    transparent 72%
+  );
+}
+
+/* Holo — refined version of the tactical radar grid, plus a floor pool. */
+.d2-command-console .d2-command-stage[data-stage="holo"] {
+  background:
+    radial-gradient(circle at center, rgba(80, 150, 170, 0.12), transparent 40%),
+    linear-gradient(180deg, rgba(9, 25, 36, 0.85), rgba(4, 9, 14, 0.92));
+}
+.d2-command-console .d2-command-stage[data-stage="holo"] .d2-stage-floor-glow {
+  width: 300px;
+  height: 98px;
+  background: radial-gradient(ellipse at center, rgba(96, 184, 204, 0.22), transparent 70%);
 }
 
 .d2-stage-head,

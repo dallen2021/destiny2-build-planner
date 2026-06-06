@@ -61,7 +61,13 @@ export function CommandGuardian({
 
   return (
     <div className="d2-stage-guardian-3d" aria-hidden="true">
-      <GearCanvas key={active?.characterId ?? "guardian"} itemHashes={armor} showStatus={false} interactive={false} />
+      <GearCanvas
+        key={active?.characterId ?? "guardian"}
+        itemHashes={armor}
+        showStatus={false}
+        interactive={false}
+        fill={1.55}
+      />
     </div>
   );
 }

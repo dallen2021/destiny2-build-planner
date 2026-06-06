@@ -8,10 +8,13 @@ export function GearCanvas({
   itemHashes,
   showStatus = true,
   interactive = true,
+  fill = 2.1,
 }: {
   itemHashes: string[];
   showStatus?: boolean;
   interactive?: boolean;
+  /** Camera distance multiplier; lower = the Guardian fills more of the frame. */
+  fill?: number;
 }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState("Loading geometry…");
@@ -22,7 +25,11 @@ export function GearCanvas({
 
     let frame = 0;
     let controls: OrbitControls | null = null;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      preserveDrawingBuffer: true,
+    });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     if (!interactive) renderer.domElement.style.pointerEvents = "none";
     mount.appendChild(renderer.domElement);
@@ -44,9 +51,9 @@ export function GearCanvas({
     const key = new THREE.DirectionalLight(0xffffff, 2.4);
     key.position.set(2.5, 4, 3);
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 1.1);
-    fill.position.set(-1, 1, 3);
-    scene.add(fill);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    fillLight.position.set(-1, 1, 3);
+    scene.add(fillLight);
     const rim = new THREE.DirectionalLight(0x9fc0ff, 1.4);
     rim.position.set(-3, 1.5, -3);
     scene.add(rim);
@@ -111,8 +118,8 @@ export function GearCanvas({
         const center = box.getCenter(new THREE.Vector3());
         group.position.sub(center);
         const radius = Math.max(size.x, size.y, size.z, 0.001) * 0.5;
-        const distance = (radius / Math.tan((camera.fov * Math.PI) / 360)) * 2.1;
-        camera.position.set(distance * 0.35, distance * 0.12, distance);
+        const distance = (radius / Math.tan((camera.fov * Math.PI) / 360)) * fill;
+        camera.position.set(distance * 0.32, distance * 0.1, distance);
         camera.lookAt(0, 0, 0);
 
         controls = new OrbitControls(camera, renderer.domElement);
@@ -150,7 +157,7 @@ export function GearCanvas({
         mount.removeChild(renderer.domElement);
       }
     };
-  }, [itemHashes, interactive]);
+  }, [itemHashes, interactive, fill]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>

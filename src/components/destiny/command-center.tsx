@@ -464,11 +464,13 @@ function GuardianStage({
   equippedItems,
   inspectedItem,
   onOpen,
+  stageVariant,
 }: {
   character: CharacterSummary | null;
   equippedItems: readonly NormalizedDestinyItem[];
   inspectedItem: NormalizedDestinyItem | null;
   onOpen: (item: NormalizedDestinyItem) => void;
+  stageVariant: string;
 }) {
   const slots = getCommandGearSlots(equippedItems);
   const leftItems = [
@@ -489,7 +491,10 @@ function GuardianStage({
       className="d2-command-stage"
       data-class={guardianClass}
       data-selected-side={selectedSide}
+      data-stage={stageVariant}
     >
+      <div className="d2-stage-backdrop" aria-hidden="true" />
+      <div className="d2-stage-floor-glow" aria-hidden="true" />
       <div className="d2-stage-ring" aria-hidden="true" />
       <div className="d2-stage-lines" aria-hidden="true" />
       <CommandStageConnectors activeSide={selectedSide} />
@@ -621,12 +626,21 @@ function CommandUtilityPanels({
   );
 }
 
+const STAGE_VARIANTS = ["studio", "vanguard", "holo"];
+const DEFAULT_STAGE_VARIANT = "vanguard";
+
 export function CommandCenter({
   previewData,
+  stageVariant,
 }: {
   /** Dev/preview only: render the console against a fixture, bypassing the live fetch. */
   previewData?: DestinyInventoryApiPayload;
+  /** Command-stage backdrop treatment; overridable via the home page's ?stage= param. */
+  stageVariant?: string;
 } = {}) {
+  const stage = STAGE_VARIANTS.includes(stageVariant ?? "")
+    ? (stageVariant as string)
+    : DEFAULT_STAGE_VARIANT;
   const live = useDestinyInventory({ enabled: previewData == null });
   const data = previewData ?? live.data;
   const error = previewData ? null : live.error;
@@ -693,6 +707,7 @@ export function CommandCenter({
                 equippedItems={equippedItems}
                 inspectedItem={selectedInspectItem}
                 onOpen={setInspectedItem}
+                stageVariant={stage}
               />
               <CommandItemInspector item={selectedInspectItem} />
             </div>
