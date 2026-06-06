@@ -16,6 +16,8 @@ export const DESTINY_DAMAGE_TYPE_DEFINITION = "DestinyDamageTypeDefinition";
 export const DESTINY_SOCKET_TYPE_DEFINITION = "DestinySocketTypeDefinition";
 export const DESTINY_PLUG_SET_DEFINITION = "DestinyPlugSetDefinition";
 export const DESTINY_SANDBOX_PERK_DEFINITION = "DestinySandboxPerkDefinition";
+export const DESTINY_EQUIPABLE_ITEM_SET_DEFINITION =
+  "DestinyEquipableItemSetDefinition";
 export const DESTINY_OBJECTIVE_DEFINITION = "DestinyObjectiveDefinition";
 export const DESTINY_COLLECTIBLE_DEFINITION = "DestinyCollectibleDefinition";
 export const DESTINY_INVENTORY_ITEM_CONSTANTS_DEFINITION =

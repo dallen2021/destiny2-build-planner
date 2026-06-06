@@ -7,7 +7,9 @@ import {
 import { getOptionalBungieConfig } from "@/lib/bungie/config";
 import {
   DESTINY_DAMAGE_TYPE_DEFINITION,
+  DESTINY_EQUIPABLE_ITEM_SET_DEFINITION,
   DESTINY_INVENTORY_BUCKET_DEFINITION,
+  DESTINY_SANDBOX_PERK_DEFINITION,
   DESTINY_STAT_DEFINITION,
   getInventoryItemDefinitionsFromManifest,
   getManifestComponentDefinitions,
@@ -18,9 +20,11 @@ import {
   normalizeDestinyInventory,
   type DestinyDamageTypeDefinition,
   type DestinyDefinitionBundle,
+  type DestinyEquipableItemSetDefinition,
   type DestinyInventoryBucketDefinition,
   type DestinyItemDefinition,
   type DestinyProfileResponse,
+  type DestinySandboxPerkDefinition,
   type DestinyStatDefinition,
 } from "@/lib/destiny/inventory";
 import { readSessionCookie } from "@/lib/session/cookies";
@@ -64,6 +68,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       statDefinitions,
       bucketDefinitions,
       damageTypeDefinitions,
+      equipableItemSetDefinitions,
+      sandboxPerkDefinitions,
     ] = await Promise.all([
       getInventoryItemDefinitionsFromManifest<DestinyItemDefinition>({
         apiKey: config.apiKey,
@@ -81,11 +87,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         apiKey: config.apiKey,
         componentType: DESTINY_DAMAGE_TYPE_DEFINITION,
       }),
+      getManifestComponentDefinitions<DestinyEquipableItemSetDefinition>({
+        apiKey: config.apiKey,
+        componentType: DESTINY_EQUIPABLE_ITEM_SET_DEFINITION,
+      }),
+      getManifestComponentDefinitions<DestinySandboxPerkDefinition>({
+        apiKey: config.apiKey,
+        componentType: DESTINY_SANDBOX_PERK_DEFINITION,
+      }),
     ]);
     const definitionBundle: DestinyDefinitionBundle = {
       buckets: bucketDefinitions.definitions,
       damageTypes: damageTypeDefinitions.definitions,
+      equipableItemSets: equipableItemSetDefinitions.definitions,
       inventoryItems: manifestDefinitions.definitions,
+      sandboxPerks: sandboxPerkDefinitions.definitions,
       stats: statDefinitions.definitions,
     };
 

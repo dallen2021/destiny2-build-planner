@@ -403,3 +403,79 @@ describe("gear bucket helpers", () => {
     ]);
   });
 });
+
+describe("normalizeDestinyInventory set bonuses", () => {
+  it("attaches 2/4-piece set-bonus state to equipped armor in a set", () => {
+    const profile: DestinyProfileResponse = {
+      characters: {
+        data: { c1: { characterId: "c1", classType: 1, light: 100 } },
+      },
+      characterEquipment: {
+        data: {
+          c1: {
+            items: [
+              { itemHash: 7001, itemInstanceId: "i1" },
+              { itemHash: 7002, itemInstanceId: "i2" },
+            ],
+          },
+        },
+      },
+      itemComponents: {
+        instances: {
+          data: {
+            i1: { primaryStat: { value: 100 } },
+            i2: { primaryStat: { value: 100 } },
+          },
+        },
+      },
+    };
+    const definitions: DestinyDefinitionBundle = {
+      buckets: {
+        3448274439: { displayProperties: { name: "Helmet" }, hash: 3448274439, scope: 0 },
+        3551918588: { displayProperties: { name: "Gauntlets" }, hash: 3551918588, scope: 0 },
+      },
+      inventoryItems: {
+        7001: {
+          displayProperties: { name: "Warden Helm" },
+          inventory: { bucketTypeHash: 3448274439, tierTypeName: "Legendary" },
+          itemType: 2,
+        },
+        7002: {
+          displayProperties: { name: "Warden Arms" },
+          inventory: { bucketTypeHash: 3551918588, tierTypeName: "Legendary" },
+          itemType: 2,
+        },
+      },
+      equipableItemSets: {
+        900: {
+          displayProperties: { name: "Warden's Vigil" },
+          hash: 900,
+          setItems: [7001, 7002, 7003, 7004],
+          // intentionally out of order to exercise the sort
+          setPerks: [
+            { requiredSetCount: 4, sandboxPerkHash: 5002 },
+            { requiredSetCount: 2, sandboxPerkHash: 5001 },
+          ],
+        },
+      },
+      sandboxPerks: {
+        5001: { displayProperties: { description: "Two-piece bonus.", name: "2pc" } },
+        5002: { displayProperties: { description: "Four-piece bonus.", name: "4pc" } },
+      },
+    };
+
+    const result = normalizeDestinyInventory(profile, definitions);
+    const helm = result.items.find((item) => item.itemHash === 7001);
+
+    expect(helm?.kind).toBe("armor");
+    expect(helm?.inspector?.setBonus).toMatchObject({
+      equippedCount: 2,
+      name: "Warden's Vigil",
+      requiredForFull: 4,
+    });
+    expect(helm?.inspector?.setBonus?.perks).toEqual([
+      { active: true, description: "Two-piece bonus.", name: "2pc", requiredCount: 2 },
+      { active: false, description: "Four-piece bonus.", name: "4pc", requiredCount: 4 },
+    ]);
+  });
+});

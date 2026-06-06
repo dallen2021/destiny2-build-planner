@@ -106,10 +106,27 @@ export type DestinyDamageTypeDefinition = {
   transparentIconPath?: string;
 };
 
+export type DestinySandboxPerkDefinition = {
+  displayProperties?: DestinyDisplayProperties;
+  hash?: number;
+};
+
+export type DestinyEquipableItemSetDefinition = {
+  displayProperties?: DestinyDisplayProperties;
+  hash?: number;
+  setItems?: number[];
+  setPerks?: {
+    requiredSetCount?: number;
+    sandboxPerkHash?: number;
+  }[];
+};
+
 export type DestinyDefinitionBundle = {
   buckets?: Record<string, DestinyInventoryBucketDefinition>;
   damageTypes?: Record<string, DestinyDamageTypeDefinition>;
+  equipableItemSets?: Record<string, DestinyEquipableItemSetDefinition>;
   inventoryItems: Record<string, DestinyItemDefinition>;
+  sandboxPerks?: Record<string, DestinySandboxPerkDefinition>;
   stats?: Record<string, DestinyStatDefinition>;
 };
 
@@ -345,7 +362,7 @@ export type ItemInspectorExtras = {
     name: string;
     equippedCount: number;
     requiredForFull: number;
-    perks: { name: string; description: string; requiredCount: number; active: boolean }[];
+    perks: { name?: string; description: string; requiredCount: number; active: boolean }[];
   } | null;
   shader?: { name: string; icon: string | null } | null;
   ornament?: { name: string; icon: string | null } | null;
@@ -1268,6 +1285,84 @@ export function getItemStatTotals(
   return totals;
 }
 
+/**
+ * Cross-item pass: for each equipped armor piece in an Armor 3.0 set, count how
+ * many set members are equipped on the same character and attach the set-bonus
+ * (2-/4-piece) state to the item's inspector extras.
+ */
+function applySetBonuses(
+  items: NormalizedDestinyItem[],
+  definitions: DestinyDefinitionBundle,
+): void {
+  const sets = definitions.equipableItemSets;
+  if (!sets) {
+    return;
+  }
+
+  const setByItemHash = new Map<number, DestinyEquipableItemSetDefinition>();
+  for (const setDefinition of Object.values(sets)) {
+    for (const memberHash of setDefinition.setItems ?? []) {
+      setByItemHash.set(memberHash, setDefinition);
+    }
+  }
+  if (setByItemHash.size === 0) {
+    return;
+  }
+
+  const equippedByCharacter = new Map<string, Set<number>>();
+  for (const item of items) {
+    if (item.kind === "armor" && item.isEquipped && item.characterId) {
+      const equipped = equippedByCharacter.get(item.characterId) ?? new Set<number>();
+      equipped.add(item.itemHash);
+      equippedByCharacter.set(item.characterId, equipped);
+    }
+  }
+
+  for (const item of items) {
+    if (item.kind !== "armor" || !item.isEquipped || !item.characterId) {
+      continue;
+    }
+    const setDefinition = setByItemHash.get(item.itemHash);
+    if (!setDefinition) {
+      continue;
+    }
+
+    const equipped = equippedByCharacter.get(item.characterId) ?? new Set<number>();
+    const equippedCount = (setDefinition.setItems ?? []).filter((hash) =>
+      equipped.has(hash),
+    ).length;
+    const perks = (setDefinition.setPerks ?? [])
+      .slice()
+      .sort((a, b) => (a.requiredSetCount ?? 0) - (b.requiredSetCount ?? 0))
+      .map((perk) => {
+        const sandbox =
+          perk.sandboxPerkHash != null
+            ? definitions.sandboxPerks?.[String(perk.sandboxPerkHash)]
+            : undefined;
+        const required = perk.requiredSetCount ?? 0;
+        return {
+          active: equippedCount >= required,
+          description: sandbox?.displayProperties?.description ?? "",
+          name: sandbox?.displayProperties?.name,
+          requiredCount: required,
+        };
+      });
+    const requiredForFull =
+      perks.reduce((max, perk) => Math.max(max, perk.requiredCount), 0) ||
+      (setDefinition.setItems?.length ?? 0);
+
+    item.inspector = {
+      ...(item.inspector ?? {}),
+      setBonus: {
+        equippedCount,
+        name: setDefinition.displayProperties?.name ?? "Armor Set",
+        perks,
+        requiredForFull,
+      },
+    };
+  }
+}
+
 export function normalizeDestinyInventory(
   profile: DestinyProfileResponse,
   inputDefinitions: Record<string, DestinyItemDefinition> | DestinyDefinitionBundle,
@@ -1343,6 +1438,8 @@ export function normalizeDestinyInventory(
   const currencies = (profile.profileCurrencies?.data?.items ?? [])
     .map((item) => normalizeCurrency(item, definitions))
     .filter((item): item is CurrencySummary => Boolean(item));
+
+  applySetBonuses(items, definitions);
 
   return {
     armor: items.filter(
