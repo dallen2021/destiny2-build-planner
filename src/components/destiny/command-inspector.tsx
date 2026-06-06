@@ -316,25 +316,43 @@ function WeaponOverview({ item }: { item: NormalizedDestinyItem }) {
 
 function ArmorStats({ item }: { item: NormalizedDestinyItem }) {
   const byName = new Map(item.stats.map((stat) => [stat.name, stat] as const));
-  const rows = ARMOR_STAT_ORDER.map((name) => byName.get(name)?.value ?? 0);
-  const total = rows.reduce((sum, value) => sum + value, 0);
+  const rows = ARMOR_STAT_ORDER.map((name) => {
+    const stat = byName.get(name);
+    const value = stat?.value ?? 0;
+    const base = stat?.base ?? value;
+    return { base, delta: Math.max(0, value - base), name, value };
+  });
+  const total = rows.reduce((sum, row) => sum + row.value, 0);
+  const totalDelta = rows.reduce((sum, row) => sum + row.delta, 0);
 
   return (
     <section className="d2-ci-section">
       <span className="d2-ci-subhead">Armor Stats</span>
       <div className="d2-ci-armor-stats">
-        {ARMOR_STAT_ORDER.map((name, index) => (
-          <div className="d2-ci-stat" key={name}>
-            <span>{name}</span>
-            <i>
-              <b style={{ width: `${Math.min(100, (rows[index] / 200) * 100)}%` }} />
+        {rows.map((row) => (
+          <div className="d2-ci-stat" key={row.name}>
+            <span>{row.name}</span>
+            <i className="d2-ci-statbar">
+              <b style={{ width: `${Math.min(100, (row.base / 200) * 100)}%` }} />
+              {row.delta > 0 ? (
+                <b
+                  className="d2-ci-statbar-delta"
+                  style={{ width: `${Math.min(100, (row.delta / 200) * 100)}%` }}
+                />
+              ) : null}
             </i>
-            <strong>+{rows[index]}</strong>
+            <strong>
+              +{row.value}
+              {row.delta > 0 ? <em>▲{row.delta}</em> : null}
+            </strong>
           </div>
         ))}
         <div className="d2-ci-stat-total">
           <span>Total</span>
-          <strong>{total}</strong>
+          <strong>
+            {total}
+            {totalDelta > 0 ? <em>▲{totalDelta}</em> : null}
+          </strong>
         </div>
       </div>
     </section>
@@ -380,6 +398,7 @@ function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
                     className="d2-ci-arch-icon"
                     height={44}
                     src={archIcon}
+                    style={{ height: 44, width: 44 }}
                     width={44}
                   />
                 ) : (

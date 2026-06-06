@@ -297,8 +297,8 @@ describe("normalizeDestinyInventory", () => {
       },
     });
     expect(helmet.stats).toEqual([
-      { display: "bar", hash: 2996146975, name: "Weapons", sortOrder: 1, value: 42 },
-      { display: "bar", hash: 392767087, name: "Health", sortOrder: 2, value: 68 },
+      { base: 42, display: "bar", hash: 2996146975, name: "Weapons", sortOrder: 1, value: 42 },
+      { base: 68, display: "bar", hash: 392767087, name: "Health", sortOrder: 2, value: 68 },
     ]);
     expect(helmet.ornament).toMatchObject({ name: "Shiny Ornament" });
 

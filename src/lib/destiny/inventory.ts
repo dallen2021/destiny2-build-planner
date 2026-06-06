@@ -38,6 +38,11 @@ export type DestinyItemDefinition = {
     tierTypeHash?: number;
     tierTypeName?: string;
   };
+  investmentStats?: {
+    isConditionallyActive?: boolean;
+    statTypeHash?: number;
+    value?: number;
+  }[];
   isAdept?: boolean;
   isFeaturedItem?: boolean;
   isHolofoil?: boolean;
@@ -188,6 +193,8 @@ export type DestinyProfileResponse = {
 };
 
 export type NormalizedStat = {
+  /** Intrinsic value before mod/masterwork contributions (armor only). */
+  base?: number;
   display: "bar" | "number";
   hash: number;
   name: string;
@@ -1007,6 +1014,54 @@ function getItemLocation({
   return source === "profile" ? "vault" : "carried";
 }
 
+/**
+ * Sets each armor stat's `base` (the intrinsic roll) by subtracting the stat
+ * contributions of inserted mod/masterwork plugs, so the inspector can show the
+ * base segment + the green delta from mods.
+ */
+function applyArmorStatBases({
+  definitions,
+  sockets,
+  stats,
+}: {
+  definitions: DestinyDefinitionBundle;
+  sockets: NormalizedSocket[];
+  stats: NormalizedStat[];
+}): void {
+  const contributions = new Map<number, number>();
+  for (const socket of sockets) {
+    if (!socket.isEnabled || !socket.isVisible) {
+      continue;
+    }
+    // Only stat-bearing mod/masterwork plugs add to base; the intrinsic
+    // archetype roll and cosmetics do not.
+    if (
+      !categoryIncludes(socket, /mod|masterwork|enhancement/) ||
+      categoryIncludes(socket, /shader|ornament|intrinsic/)
+    ) {
+      continue;
+    }
+    const plugDefinition = getInventoryDefinition(definitions, socket.plugHash);
+    for (const investment of plugDefinition?.investmentStats ?? []) {
+      if (
+        investment.isConditionallyActive ||
+        investment.statTypeHash == null ||
+        investment.value == null
+      ) {
+        continue;
+      }
+      contributions.set(
+        investment.statTypeHash,
+        (contributions.get(investment.statTypeHash) ?? 0) + investment.value,
+      );
+    }
+  }
+
+  for (const stat of stats) {
+    stat.base = Math.max(0, stat.value - (contributions.get(stat.hash) ?? 0));
+  }
+}
+
 const AMMO_TYPE_LABEL: Record<number, string> = {
   1: "Primary",
   2: "Special",
@@ -1113,6 +1168,9 @@ function normalizeItem({
     itemInstanceId,
     profile,
   });
+  if (kind === "armor") {
+    applyArmorStatBases({ definitions, sockets, stats });
+  }
   const location = getItemLocation({ bucket, isEquipped, item, source });
   const classType = definition.classType ?? null;
   const gearTier = instance?.gearTier ?? null;

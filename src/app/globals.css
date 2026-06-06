@@ -4349,10 +4349,11 @@ main {
 .d2-command-console .d2-ci-arch-icon {
   width: 44px;
   height: 44px;
+  flex: none;
   border: 1px solid rgba(226, 185, 96, 0.4);
-  border-radius: 8px;
-  object-fit: cover;
-  background: radial-gradient(circle, rgba(226, 185, 96, 0.3), rgba(3, 10, 15, 0.9));
+  border-radius: 6px;
+  object-fit: contain;
+  background: radial-gradient(circle, rgba(226, 185, 96, 0.2), rgba(3, 10, 15, 0.9));
 }
 .d2-command-console .d2-ci-archetype strong {
   color: #fff;
@@ -4394,7 +4395,27 @@ main {
   gap: 6px;
 }
 .d2-command-console .d2-ci-armor-stats .d2-ci-stat {
-  grid-template-columns: 64px 1fr 34px;
+  grid-template-columns: 64px 1fr auto;
+}
+.d2-command-console .d2-ci-statbar {
+  display: flex;
+}
+.d2-command-console .d2-ci-statbar > b {
+  height: 100%;
+  border-right: 0;
+  border-radius: 0;
+  background: linear-gradient(90deg, rgba(99, 215, 255, 0.85), #9fe9ff);
+}
+.d2-command-console .d2-ci-statbar-delta {
+  background: linear-gradient(90deg, #5fbf63, #93e093) !important;
+}
+.d2-command-console .d2-ci-stat > strong em,
+.d2-command-console .d2-ci-stat-total strong em {
+  margin-left: 5px;
+  color: #84d484;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 700;
 }
 .d2-command-console .d2-ci-stat-total {
   display: flex;

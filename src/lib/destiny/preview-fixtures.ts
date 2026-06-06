@@ -315,6 +315,13 @@ function makeArmor(
 const helmet = makeArmor("Tactical Cowl", 200000001, "Helmet",
   armorStats({ Weapons: 16, Health: 10, Class: 12, Melee: 18, Grenade: 12, Super: 8 }),
   { gearTier: 5, locked: true });
+// demo mod contributions so the preview shows the green base/delta split
+[12, 10, 6, 9, 4, 7].forEach((delta, index) => {
+  const stat = helmet.stats[index];
+  if (stat) {
+    stat.base = Math.max(0, stat.value - delta);
+  }
+});
 helmet.inspector = {
   energy: { capacity: 10, used: 8 },
   archetype: {
