@@ -16,7 +16,7 @@ import {
   Sword,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,17 +74,38 @@ function getSelectedCharacter(
   );
 }
 
+const SELECTED_CHARACTER_KEY = "d2bp-command-character";
+
+function readStoredCharacter(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(SELECTED_CHARACTER_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function useSelectedCharacter(data: DestinyInventoryApiPayload | null) {
-  const [requestedCharacterId, setRequestedCharacterId] = useState<string | null>(
-    null,
-  );
+  // Lazy init from storage so the last selection survives a page refresh.
+  const [requestedCharacterId, setRequestedCharacterId] =
+    useState<string | null>(readStoredCharacter);
+
+  const selectCharacter = useCallback((characterId: string) => {
+    setRequestedCharacterId(characterId);
+    try {
+      window.localStorage.setItem(SELECTED_CHARACTER_KEY, characterId);
+    } catch {
+      // ignore storage access errors
+    }
+  }, []);
+
   const selectedCharacterId =
     requestedCharacterId &&
     data?.characters.some((character) => character.id === requestedCharacterId)
       ? requestedCharacterId
       : (data?.characters[0]?.id ?? null);
 
-  return [selectedCharacterId, setRequestedCharacterId] as const;
+  return [selectedCharacterId, selectCharacter] as const;
 }
 
 function CommandNav() {
@@ -374,36 +395,6 @@ function CommandStageItemNode({
   );
 }
 
-function CommandGuardianSilhouette({
-  guardianClass,
-  power,
-}: {
-  guardianClass: string;
-  power: number | null | undefined;
-}) {
-  return (
-    <div
-      aria-hidden="true"
-      className="d2-stage-guardian"
-      data-class={guardianClass}
-    >
-      <span className="d2-stage-aura" />
-      <span className="d2-stage-floor" />
-      <span className="d2-stage-cloak" />
-      <span className="d2-stage-head" />
-      <span className="d2-stage-shoulders" />
-      <span className="d2-stage-core" />
-      <span className="d2-stage-belt" />
-      <span className="d2-stage-legs" />
-      <span className="d2-stage-class-accent" />
-      <span className="d2-stage-caption">
-        <small>{guardianClass}</small>
-        <strong>{power ?? "----"}</strong>
-      </span>
-    </div>
-  );
-}
-
 function CommandStageFooter({
   character,
   equippedItems,
@@ -447,12 +438,14 @@ function GuardianStage({
   inspectedItem,
   onOpen,
   stageVariant,
+  refreshKey,
 }: {
   character: CharacterSummary | null;
   equippedItems: readonly NormalizedDestinyItem[];
   inspectedItem: NormalizedDestinyItem | null;
   onOpen: (item: NormalizedDestinyItem) => void;
   stageVariant: string;
+  refreshKey: number;
 }) {
   const slots = getCommandGearSlots(equippedItems);
   const leftItems = [
@@ -492,12 +485,8 @@ function GuardianStage({
       </div>
       <CommandGuardian
         characterId={character?.id ?? null}
-        fallback={
-          <CommandGuardianSilhouette
-            guardianClass={guardianClass}
-            power={character?.light}
-          />
-        }
+        power={character?.light ?? null}
+        refreshKey={refreshKey}
       />
       <div className="d2-stage-loadout-nodes d2-stage-loadout-nodes-right">
         {rightItems.map((item) => (
@@ -627,6 +616,12 @@ export function CommandCenter({
   const error = previewData ? null : live.error;
   const isLoading = previewData ? false : live.isLoading;
   const reload = live.reload;
+  const [refreshKey, setRefreshKey] = useState(0);
+  const handleReload = useCallback(() => {
+    // Bump the key so the 3D Guardian re-fetches too, then reload inventory.
+    setRefreshKey((key) => key + 1);
+    reload();
+  }, [reload]);
   const [selectedCharacterId, setSelectedCharacterId] = useSelectedCharacter(data);
   const [inspectedItem, setInspectedItem] = useState<NormalizedDestinyItem | null>(
     null,
@@ -650,11 +645,11 @@ export function CommandCenter({
       <section className="d2-console-main">
         <CommandToolbar
           isLoading={isLoading}
-          reload={reload}
+          reload={handleReload}
           selectedCharacter={selectedCharacter}
         />
         {isLoading ? <CommandLoading /> : null}
-        {error ? <CommandError error={error} reload={reload} /> : null}
+        {error ? <CommandError error={error} reload={handleReload} /> : null}
         {data ? (
           <>
             <CommandReauthBanner data={data} />
@@ -689,6 +684,7 @@ export function CommandCenter({
                 inspectedItem={selectedInspectItem}
                 onOpen={setInspectedItem}
                 stageVariant={stage}
+                refreshKey={refreshKey}
               />
               <CommandItemInspector item={selectedInspectItem} />
             </div>

@@ -306,6 +306,32 @@ body:has(.d2-command-console) .app-header {
   z-index: 1;
 }
 
+/* Power level floating above the Guardian's head. */
+.d2-command-console .d2-stage-power {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  pointer-events: none;
+  text-align: center;
+}
+.d2-command-console .d2-stage-power small {
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(245, 236, 215, 0.6);
+}
+.d2-command-console .d2-stage-power strong {
+  font-size: 2rem;
+  line-height: 1;
+  color: #f4d98c;
+  text-shadow: 0 0 18px rgba(229, 187, 91, 0.35);
+}
+
 /* --- Command stage backdrop treatments (switchable via data-stage) --- */
 .d2-command-console .d2-stage-backdrop {
   position: absolute;
