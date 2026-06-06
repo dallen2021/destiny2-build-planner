@@ -292,6 +292,18 @@ body:has(.d2-command-console) .app-header {
   transform: translateX(-50%);
 }
 
+/* Real 3D Guardian render — centered, click-through, behind the loadout nodes. */
+.d2-stage-guardian-3d {
+  position: absolute;
+  left: 50%;
+  top: 24px;
+  bottom: 44px;
+  width: min(54%, 360px);
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
 .d2-stage-head,
 .d2-stage-core,
 .d2-stage-cloak {

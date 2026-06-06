@@ -4,7 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-export function GearCanvas({ itemHashes }: { itemHashes: string[] }) {
+export function GearCanvas({
+  itemHashes,
+  showStatus = true,
+  interactive = true,
+}: {
+  itemHashes: string[];
+  showStatus?: boolean;
+  interactive?: boolean;
+}) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState("Loading geometry…");
 
@@ -16,6 +24,7 @@ export function GearCanvas({ itemHashes }: { itemHashes: string[] }) {
     let controls: OrbitControls | null = null;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    if (!interactive) renderer.domElement.style.pointerEvents = "none";
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -110,6 +119,9 @@ export function GearCanvas({ itemHashes }: { itemHashes: string[] }) {
         controls.enableDamping = true;
         controls.autoRotate = true;
         controls.autoRotateSpeed = 1.4;
+        controls.enableZoom = interactive;
+        controls.enablePan = false;
+        controls.enableRotate = interactive;
         controls.target.set(0, 0, 0);
         controls.update();
 
@@ -138,24 +150,26 @@ export function GearCanvas({ itemHashes }: { itemHashes: string[] }) {
         mount.removeChild(renderer.domElement);
       }
     };
-  }, [itemHashes]);
+  }, [itemHashes, interactive]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
-      <div
-        style={{
-          position: "absolute",
-          top: 12,
-          left: 14,
-          color: "#cfd6dd",
-          font: "12px ui-monospace, monospace",
-          letterSpacing: "0.04em",
-          pointerEvents: "none",
-        }}
-      >
-        {status}
-      </div>
+      {showStatus ? (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            left: 14,
+            color: "#cfd6dd",
+            font: "12px ui-monospace, monospace",
+            letterSpacing: "0.04em",
+            pointerEvents: "none",
+          }}
+        >
+          {status}
+        </div>
+      ) : null}
     </div>
   );
 }

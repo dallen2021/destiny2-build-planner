@@ -36,6 +36,8 @@ import type {
 import { isItemMasterworked } from "@/lib/destiny/presentation";
 import { ITEM_TAGS, type ItemTag } from "@/lib/destiny/tags";
 
+import { CommandGuardian } from "@/components/render/command-guardian";
+
 import { D2BrandLockup } from "./brand-logo";
 import { CommandInspector } from "./command-inspector";
 import {
@@ -502,9 +504,14 @@ function GuardianStage({
           />
         ))}
       </div>
-      <CommandGuardianSilhouette
-        guardianClass={guardianClass}
-        power={character?.light}
+      <CommandGuardian
+        characterId={character?.id ?? null}
+        fallback={
+          <CommandGuardianSilhouette
+            guardianClass={guardianClass}
+            power={character?.light}
+          />
+        }
       />
       <div className="d2-stage-loadout-nodes d2-stage-loadout-nodes-right">
         {rightItems.map((item) => (
