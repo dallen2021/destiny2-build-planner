@@ -330,6 +330,7 @@ export type ItemInspectorExtras = {
   archetype?: {
     name: string;
     description: string | null;
+    icon?: string | null;
     primaryStat: string | null;
     secondaryStat: string | null;
   } | null;
@@ -1051,11 +1052,17 @@ function buildInspectorExtras({
       const ranked = stats
         .filter((stat) => stat.value > 0)
         .sort((first, second) => second.value - first.value);
+      // The intrinsic description usually states the authoritative focus
+      // ("Primary Stat: X Secondary Stat: Y"); fall back to the top stats.
+      const description = intrinsic.description ?? "";
+      const primaryMatch = description.match(/primary stat:\s*([a-z]+)/i);
+      const secondaryMatch = description.match(/secondary stat:\s*([a-z]+)/i);
       extras.archetype = {
         name: intrinsic.name,
         description: intrinsic.description,
-        primaryStat: ranked[0]?.name ?? null,
-        secondaryStat: ranked[1]?.name ?? null,
+        icon: intrinsic.icon,
+        primaryStat: primaryMatch?.[1] ?? ranked[0]?.name ?? null,
+        secondaryStat: secondaryMatch?.[1] ?? ranked[1]?.name ?? null,
       };
     }
   }

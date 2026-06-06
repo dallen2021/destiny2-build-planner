@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Check, Lock, Pencil, Plus } from "lucide-react";
+import { Check, Lock, Pencil } from "lucide-react";
 import { forwardRef, useState } from "react";
 
 import {
@@ -345,6 +345,7 @@ function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
   const sections = getItemPlugSections(item);
   const energy = item.inspector?.energy ?? null;
   const archetype = item.inspector?.archetype ?? null;
+  const archIcon = bungieImage(archetype?.icon ?? null);
   const setBonus = item.inspector?.setBonus ?? null;
   const unused = energy ? energy.capacity - energy.used : 0;
 
@@ -357,12 +358,14 @@ function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
               <span className="d2-ci-subhead">Energy</span>
               <div className="d2-ci-energy">
                 <strong>{energy.capacity}</strong>
-                <div className="d2-ci-pips">
-                  {Array.from({ length: energy.capacity }).map((_, index) => (
-                    <span data-on={index < energy.used} key={index} />
-                  ))}
+                <div className="d2-ci-energy-track">
+                  {unused > 0 ? <small>Unused {unused}</small> : null}
+                  <div className="d2-ci-pips">
+                    {Array.from({ length: energy.capacity }).map((_, index) => (
+                      <span data-on={index < energy.used} key={index} />
+                    ))}
+                  </div>
                 </div>
-                {unused > 0 ? <small>Unused {unused}</small> : null}
               </div>
             </section>
           ) : null}
@@ -371,29 +374,30 @@ function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
             <section className="d2-ci-section">
               <span className="d2-ci-subhead">Armor Frame / Archetype</span>
               <div className="d2-ci-archetype">
-                <span className="d2-ci-arch-icon" aria-hidden="true" />
-                <div>
-                  <strong>{archetype.name}</strong>
-                  {archetype.description ? <small>{archetype.description}</small> : null}
-                </div>
+                {archIcon ? (
+                  <Image
+                    alt=""
+                    className="d2-ci-arch-icon"
+                    height={44}
+                    src={archIcon}
+                    width={44}
+                  />
+                ) : (
+                  <span className="d2-ci-arch-icon" aria-hidden="true" />
+                )}
+                <strong>{archetype.name}</strong>
               </div>
               <dl className="d2-ci-focus">
                 {archetype.primaryStat ? (
                   <div>
                     <dt>Primary Focus</dt>
-                    <dd>
-                      {archetype.primaryStat}
-                      <Plus aria-hidden="true" />
-                    </dd>
+                    <dd>{archetype.primaryStat}</dd>
                   </div>
                 ) : null}
                 {archetype.secondaryStat ? (
                   <div>
                     <dt>Secondary Focus</dt>
-                    <dd>
-                      {archetype.secondaryStat}
-                      <Plus aria-hidden="true" />
-                    </dd>
+                    <dd>{archetype.secondaryStat}</dd>
                   </div>
                 ) : null}
               </dl>

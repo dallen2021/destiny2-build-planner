@@ -4301,21 +4301,32 @@ main {
 }
 .d2-command-console .d2-ci-energy {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 .d2-command-console .d2-ci-energy > strong {
   color: #fff;
-  font-size: 1.4rem;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.d2-command-console .d2-ci-energy-track {
+  display: grid;
+  gap: 4px;
+}
+.d2-command-console .d2-ci-energy-track small {
+  justify-self: end;
+  color: rgba(243, 234, 216, 0.55);
+  font-size: 0.64rem;
 }
 .d2-command-console .d2-ci-pips {
   display: flex;
-  gap: 3px;
+  gap: 2px;
 }
 .d2-command-console .d2-ci-pips span {
-  width: 14px;
-  height: 9px;
+  flex: 1;
+  min-width: 0;
+  height: 10px;
   border: 1px solid rgba(99, 215, 255, 0.4);
   border-radius: 2px;
   background: rgba(99, 215, 255, 0.06);
@@ -4325,68 +4336,58 @@ main {
   background: linear-gradient(180deg, #8fe6ff, var(--d2-command-blue));
   box-shadow: 0 0 6px rgba(99, 215, 255, 0.4);
 }
-.d2-command-console .d2-ci-energy small {
-  color: rgba(243, 234, 216, 0.55);
-  font-size: 0.66rem;
-}
 .d2-command-console .d2-ci-archetype {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   border: 1px solid rgba(226, 185, 96, 0.16);
   border-radius: 8px;
   background: rgba(3, 10, 15, 0.6);
-  padding: 10px;
+  padding: 10px 12px;
 }
 .d2-command-console .d2-ci-arch-icon {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 1px solid rgba(226, 185, 96, 0.4);
   border-radius: 8px;
+  object-fit: cover;
   background: radial-gradient(circle, rgba(226, 185, 96, 0.3), rgba(3, 10, 15, 0.9));
 }
 .d2-command-console .d2-ci-archetype strong {
-  display: block;
   color: #fff;
-  font-size: 0.82rem;
-}
-.d2-command-console .d2-ci-archetype small {
-  display: block;
-  margin-top: 2px;
-  color: rgba(243, 234, 216, 0.55);
-  font-size: 0.64rem;
-  line-height: 1.3;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
 }
 .d2-command-console .d2-ci-focus {
   display: grid;
-  gap: 6px;
+  grid-template-columns: 1fr 1fr;
   margin: 0;
 }
 .d2-command-console .d2-ci-focus div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(226, 185, 96, 0.1);
-  padding-bottom: 4px;
+  display: grid;
+  gap: 3px;
+  align-content: start;
+  padding: 4px 0;
+}
+.d2-command-console .d2-ci-focus div:first-child {
+  border-right: 1px solid rgba(226, 185, 96, 0.16);
+  padding-right: 12px;
+}
+.d2-command-console .d2-ci-focus div:last-child {
+  padding-left: 12px;
 }
 .d2-command-console .d2-ci-focus dt {
-  color: rgba(243, 234, 216, 0.62);
-  font-size: 0.7rem;
+  color: rgba(243, 234, 216, 0.55);
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .d2-command-console .d2-ci-focus dd {
-  display: flex;
-  align-items: center;
-  gap: 5px;
   margin: 0;
   color: var(--d2-command-gold-soft);
-  font-size: 0.74rem;
+  font-size: 0.86rem;
   font-weight: 700;
-}
-.d2-command-console .d2-ci-focus dd svg {
-  width: 12px;
-  height: 12px;
-  color: var(--d2-command-blue);
 }
 .d2-command-console .d2-ci-armor-stats {
   display: grid;
