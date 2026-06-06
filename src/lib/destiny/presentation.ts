@@ -99,7 +99,10 @@ export function getItemPlugSections(
       continue;
     }
 
-    if (plugMatches(socket, /intrinsic|frame/)) {
+    // NB: the weapon intrinsic plug category is "intrinsics"; trait/perk columns
+    // use "frames" — match only "intrinsic" here so trait columns fall through to
+    // the perks bucket below instead of being swallowed as intrinsics.
+    if (plugMatches(socket, /intrinsic/)) {
       sections.intrinsic.push(socket);
       continue;
     }
@@ -119,7 +122,10 @@ export function getItemPlugSections(
 
     if (
       item.kind === "weapon" &&
-      plugMatches(socket, /barrel|battery|blade|guard|haft|magazine|origin|stock|grip|sight|scope|trait|perk/)
+      plugMatches(
+        socket,
+        /arrow|barrel|battery|blade|bowstring|frame|grip|guard|haft|launcher|magazine|origin|perk|scope|sight|stock|tube|trait/,
+      )
     ) {
       sections.perks.push(socket);
       continue;
@@ -147,7 +153,7 @@ function getWeaponSocketOrder(socket: NormalizedSocket) {
     return 4;
   }
 
-  if (/barrel|blade|haft|sight|scope/.test(text)) {
+  if (/arrow|barrel|blade|bowstring|haft|launcher|scope|sight|tube/.test(text)) {
     return 0;
   }
 
@@ -155,7 +161,7 @@ function getWeaponSocketOrder(socket: NormalizedSocket) {
     return 1;
   }
 
-  if (/trait|perk/.test(text)) {
+  if (/frame|perk|trait/.test(text)) {
     return 2;
   }
 
@@ -173,6 +179,63 @@ function compareWeaponSockets(
   }
 
   return left.index - right.index;
+}
+
+export type WeaponPerkColumn = {
+  isIntrinsic: boolean;
+  key: string;
+  label: string;
+  socket: NormalizedSocket;
+};
+
+const WEAPON_COLUMN_LABEL: Record<number, string> = {
+  0: "Barrel",
+  1: "Magazine",
+  2: "Trait",
+  3: "Perk",
+  4: "Origin Trait",
+};
+
+/**
+ * The clean, fixed set of weapon perk columns the inspector should show:
+ * Intrinsic + Barrel/Scope, Magazine/Battery, Trait 1, Trait 2, Origin Trait.
+ * Everything else (mods, masterwork, shaders) is intentionally excluded — those
+ * are rendered in their own strips — which is what stops real weapons from
+ * exploding into a horizontally-scrolling wall of sockets.
+ */
+export function getWeaponPerkColumns(
+  item: Pick<NormalizedDestinyItem, "kind" | "sockets">,
+): WeaponPerkColumn[] {
+  const sections = getItemPlugSections(item);
+  const columns: WeaponPerkColumn[] = [];
+
+  const intrinsic = sections.intrinsic[0];
+  if (intrinsic) {
+    columns.push({
+      isIntrinsic: true,
+      key: "intrinsic",
+      label: "Intrinsic",
+      socket: intrinsic,
+    });
+  }
+
+  let traitCount = 0;
+  for (const socket of sections.perks.slice().sort(compareWeaponSockets)) {
+    const order = getWeaponSocketOrder(socket);
+    let label = WEAPON_COLUMN_LABEL[order] ?? "Perk";
+    if (order === 2) {
+      traitCount += 1;
+      label = `Trait ${traitCount}`;
+    }
+    columns.push({
+      isIntrinsic: false,
+      key: `${socket.index}:${socket.plugHash}`,
+      label,
+      socket,
+    });
+  }
+
+  return columns;
 }
 
 export function getItemSocketBoardSockets(

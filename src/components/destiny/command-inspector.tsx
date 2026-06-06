@@ -6,54 +6,61 @@ import { useState } from "react";
 
 import type {
   NormalizedDestinyItem,
+  NormalizedPlug,
   NormalizedSocket,
   NormalizedStat,
 } from "@/lib/destiny/inventory";
+import {
+  getItemPlugSections,
+  getWeaponPerkColumns,
+  type WeaponPerkColumn,
+} from "@/lib/destiny/presentation";
 
 import { bungieImage } from "./item-presentation";
 
 type Tab = "overview" | "triage";
 
+/** Canonical Armor 3.0 display order; the inspector always shows all six. */
+const ARMOR_STAT_ORDER = ["Weapons", "Health", "Class", "Melee", "Grenade", "Super"] as const;
+
+const MAX_PERK_ALTERNATES = 5;
+
 function PlugIcon({
   icon,
   selected = false,
   size = 30,
-  empty = false,
 }: {
   icon: string | null;
   selected?: boolean;
   size?: number;
-  empty?: boolean;
 }) {
   const url = bungieImage(icon);
   return (
-    <span
-      className="d2-ci-plug"
-      data-selected={selected}
-      data-empty={empty}
-      style={{ width: size, height: size }}
-    >
+    <span className="d2-ci-plug" data-selected={selected} style={{ width: size, height: size }}>
       {url ? <Image alt="" height={size} src={url} width={size} /> : null}
+      {selected ? (
+        <i className="d2-ci-plug-check" aria-hidden="true">
+          <Check />
+        </i>
+      ) : null}
     </span>
   );
 }
 
-/** A single weapon perk / socket column: header, selected plug, alternates. */
-function PerkColumn({ socket }: { socket: NormalizedSocket }) {
-  const header = (socket.category ?? "Perk").toUpperCase();
-  const isIntrinsic = /intrinsic/i.test(socket.category ?? "");
-  const alternates = socket.reusablePlugs.filter(
-    (plug) => plug.plugHash !== socket.plugHash,
-  );
+function PerkColumn({ column }: { column: WeaponPerkColumn }) {
+  const { socket, label, isIntrinsic } = column;
+  const alternates = socket.reusablePlugs
+    .filter((plug) => plug.plugHash !== socket.plugHash)
+    .slice(0, MAX_PERK_ALTERNATES);
 
   return (
     <div className="d2-ci-perk-col" data-intrinsic={isIntrinsic}>
-      <span className="d2-ci-perk-head">{header}</span>
+      <span className="d2-ci-perk-head">{label}</span>
       <div className="d2-ci-perk-stack">
         <PlugIcon icon={socket.icon} selected size={isIntrinsic ? 46 : 34} />
-        {alternates.map((plug) => (
-          <PlugIcon icon={plug.icon} key={plug.plugHash} size={30} />
-        ))}
+        {isIntrinsic
+          ? null
+          : alternates.map((plug) => <PlugIcon icon={plug.icon} key={plug.plugHash} size={30} />)}
       </div>
       {isIntrinsic ? (
         <div className="d2-ci-perk-intrinsic">
@@ -65,7 +72,43 @@ function PerkColumn({ socket }: { socket: NormalizedSocket }) {
   );
 }
 
-function StatRow({ stat, max }: { stat: NormalizedStat; max: number }) {
+function ModSlot({ plug }: { plug: Pick<NormalizedPlug, "icon" | "name"> }) {
+  const icon = bungieImage(plug.icon);
+  return (
+    <span className="d2-ci-modslot" data-filled={Boolean(icon)} title={plug.name}>
+      {icon ? <Image alt="" height={30} src={icon} width={30} /> : null}
+    </span>
+  );
+}
+
+/** A labelled row of mod/cosmetic slots: real plugs first, padded to `count`. */
+function SlotRow({
+  count,
+  items,
+  label,
+}: {
+  count: number;
+  items: readonly NormalizedSocket[];
+  label: string;
+}) {
+  const shown = items.slice(0, count);
+  const pad = Math.max(0, count - shown.length);
+  return (
+    <div className="d2-ci-modgroup">
+      <span className="d2-ci-subhead">{label}</span>
+      <div className="d2-ci-slot-row">
+        {shown.map((socket) => (
+          <ModSlot key={`${socket.index}:${socket.plugHash}`} plug={socket} />
+        ))}
+        {Array.from({ length: pad }).map((_, index) => (
+          <span aria-hidden="true" className="d2-ci-modslot" key={`pad-${index}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatRow({ stat }: { stat: NormalizedStat }) {
   if (stat.display === "number") {
     return (
       <div className="d2-ci-stat d2-ci-stat-num">
@@ -74,7 +117,7 @@ function StatRow({ stat, max }: { stat: NormalizedStat; max: number }) {
       </div>
     );
   }
-  const pct = Math.max(0, Math.min(100, Math.round((stat.value / max) * 100)));
+  const pct = Math.max(0, Math.min(100, Math.round((stat.value / 100) * 100)));
   return (
     <div className="d2-ci-stat">
       <span>{stat.name}</span>
@@ -82,19 +125,6 @@ function StatRow({ stat, max }: { stat: NormalizedStat; max: number }) {
         <b style={{ width: `${pct}%` }} />
       </i>
       <strong>{stat.value}</strong>
-    </div>
-  );
-}
-
-function SlotStrip({ count, label }: { count: number; label: string }) {
-  return (
-    <div className="d2-ci-modgroup">
-      <span className="d2-ci-subhead">{label}</span>
-      <div className="d2-ci-slot-row">
-        {Array.from({ length: count }).map((_, index) => (
-          <span className="d2-ci-modslot" key={index} />
-        ))}
-      </div>
     </div>
   );
 }
@@ -109,11 +139,7 @@ function InspectorHeader({ item }: { item: NormalizedDestinyItem }) {
 
   return (
     <header className="d2-ci-head">
-      <span
-        className="d2-ci-thumb"
-        data-rarity={item.rarity ?? "unknown"}
-        aria-hidden="true"
-      >
+      <span className="d2-ci-thumb" data-rarity={item.rarity ?? "unknown"} aria-hidden="true">
         {iconUrl ? <Image alt="" height={72} src={iconUrl} width={72} /> : null}
       </span>
 
@@ -140,9 +166,7 @@ function InspectorHeader({ item }: { item: NormalizedDestinyItem }) {
                 : undefined
             }
           >
-            {damageIcon ? (
-              <Image alt="" height={16} src={damageIcon} width={16} />
-            ) : null}
+            {damageIcon ? <Image alt="" height={16} src={damageIcon} width={16} /> : null}
             {item.damageType.name}
           </span>
         ) : null}
@@ -158,9 +182,7 @@ function InspectorHeader({ item }: { item: NormalizedDestinyItem }) {
             {tier != null ? <span>Gear Tier · T{tier}</span> : null}
             {archetype ? <span>Archetype · {archetype.name}</span> : null}
             {energy && energy.capacity - energy.used > 0 ? (
-              <span className="d2-ci-subline-muted">
-                Unused {energy.capacity - energy.used}
-              </span>
+              <span className="d2-ci-subline-muted">Unused {energy.capacity - energy.used}</span>
             ) : null}
           </>
         ) : (
@@ -175,26 +197,28 @@ function InspectorHeader({ item }: { item: NormalizedDestinyItem }) {
 }
 
 function WeaponOverview({ item }: { item: NormalizedDestinyItem }) {
-  const barStats = item.stats.filter((s) => s.display !== "number");
-  const numStats = item.stats.filter((s) => s.display === "number");
+  const columns = getWeaponPerkColumns(item);
+  const sections = getItemPlugSections(item);
+  const barStats = item.stats.filter((stat) => stat.display !== "number");
+  const numStats = item.stats.filter((stat) => stat.display === "number");
 
   return (
     <>
-      {item.sockets.length > 0 ? (
+      {columns.length > 0 ? (
         <section className="d2-ci-section">
           <span className="d2-ci-subhead">Weapon Perks</span>
           <div className="d2-ci-perk-grid">
-            {item.sockets.map((socket) => (
-              <PerkColumn key={`${socket.index}:${socket.plugHash}`} socket={socket} />
+            {columns.map((column) => (
+              <PerkColumn column={column} key={column.key} />
             ))}
           </div>
         </section>
       ) : null}
 
       <section className="d2-ci-section d2-ci-modbar">
-        <SlotStrip count={4} label="Weapon Mods" />
-        <SlotStrip count={1} label="Enhancement" />
-        <SlotStrip count={2} label="Weapon Cosmetics" />
+        <SlotRow count={4} items={sections.mods} label="Weapon Mods" />
+        <SlotRow count={1} items={sections.upgrades} label="Enhancement" />
+        <SlotRow count={3} items={sections.appearance} label="Weapon Cosmetics" />
       </section>
 
       {item.stats.length > 0 ? (
@@ -203,12 +227,12 @@ function WeaponOverview({ item }: { item: NormalizedDestinyItem }) {
           <div className="d2-ci-stat-grid">
             <div>
               {barStats.map((stat) => (
-                <StatRow key={`${stat.hash}:${stat.name}`} max={100} stat={stat} />
+                <StatRow key={`${stat.hash}:${stat.name}`} stat={stat} />
               ))}
             </div>
             <div>
               {numStats.map((stat) => (
-                <StatRow key={`${stat.hash}:${stat.name}`} max={100} stat={stat} />
+                <StatRow key={`${stat.hash}:${stat.name}`} stat={stat} />
               ))}
             </div>
           </div>
@@ -218,7 +242,35 @@ function WeaponOverview({ item }: { item: NormalizedDestinyItem }) {
   );
 }
 
+function ArmorStats({ item }: { item: NormalizedDestinyItem }) {
+  const byName = new Map(item.stats.map((stat) => [stat.name, stat] as const));
+  const rows = ARMOR_STAT_ORDER.map((name) => byName.get(name)?.value ?? 0);
+  const total = rows.reduce((sum, value) => sum + value, 0);
+
+  return (
+    <section className="d2-ci-section">
+      <span className="d2-ci-subhead">Armor Stats</span>
+      <div className="d2-ci-armor-stats">
+        {ARMOR_STAT_ORDER.map((name, index) => (
+          <div className="d2-ci-stat" key={name}>
+            <span>{name}</span>
+            <i>
+              <b style={{ width: `${Math.min(100, (rows[index] / 200) * 100)}%` }} />
+            </i>
+            <strong>+{rows[index]}</strong>
+          </div>
+        ))}
+        <div className="d2-ci-stat-total">
+          <span>Total</span>
+          <strong>{total}</strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
+  const sections = getItemPlugSections(item);
   const energy = item.inspector?.energy ?? null;
   const archetype = item.inspector?.archetype ?? null;
   const setBonus = item.inspector?.setBonus ?? null;
@@ -234,8 +286,8 @@ function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
               <div className="d2-ci-energy">
                 <strong>{energy.capacity}</strong>
                 <div className="d2-ci-pips">
-                  {Array.from({ length: energy.capacity }).map((_, i) => (
-                    <span data-on={i < energy.used} key={i} />
+                  {Array.from({ length: energy.capacity }).map((_, index) => (
+                    <span data-on={index < energy.used} key={index} />
                   ))}
                 </div>
                 {unused > 0 ? <small>Unused {unused}</small> : null}
@@ -276,31 +328,12 @@ function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
             </section>
           ) : null}
 
-          <SlotStrip count={5} label="Armor Mods" />
-          <SlotStrip count={3} label="Armor Cosmetics" />
+          <SlotRow count={6} items={sections.mods} label="Armor Mods" />
+          <SlotRow count={4} items={sections.appearance} label="Armor Cosmetics" />
         </div>
 
         <div className="d2-ci-armor-right">
-          {item.stats.length > 0 ? (
-            <section className="d2-ci-section">
-              <span className="d2-ci-subhead">Armor Stats</span>
-              <div className="d2-ci-armor-stats">
-                {item.stats.map((stat) => (
-                  <div className="d2-ci-stat" key={`${stat.hash}:${stat.name}`}>
-                    <span>{stat.name}</span>
-                    <i>
-                      <b style={{ width: `${Math.min(100, (stat.value / 200) * 100)}%` }} />
-                    </i>
-                    <strong>+{stat.value}</strong>
-                  </div>
-                ))}
-                <div className="d2-ci-stat-total">
-                  <span>Total</span>
-                  <strong>{item.statTotal}</strong>
-                </div>
-              </div>
-            </section>
-          ) : null}
+          {item.stats.length > 0 ? <ArmorStats item={item} /> : null}
 
           {setBonus ? (
             <section className="d2-ci-section">

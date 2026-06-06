@@ -177,23 +177,30 @@ const novaJudicator = makeItem({
     ["Magazine", 10, "number"],
   ]),
   sockets: [
-    socket(0, plug("Precision Frame", "Recoil pattern is more predictably vertical.", { category: "Intrinsic" })),
-    socket(1, plug("Corkscrew Rifling", "Balanced barrel. Slightly increases range and stability.", { category: "Barrel" }), [
-      plug("Hammer-Forged Rifling", "Increases range.", { category: "Barrel" }),
-      plug("Smallbore", "Increases range and stability.", { category: "Barrel" }),
+    socket(0, plug("Precision Frame", "Recoil pattern is more predictably vertical.", { category: "intrinsics" })),
+    socket(1, plug("Corkscrew Rifling", "Balanced barrel. Slightly increases range and stability.", { category: "barrels" }), [
+      plug("Hammer-Forged Rifling", "Increases range.", { category: "barrels" }),
+      plug("Smallbore", "Increases range and stability.", { category: "barrels" }),
     ]),
-    socket(2, plug("Accurized Rounds", "Increases effective range.", { category: "Magazine" }), [
-      plug("Tactical Mag", "Improves stability, reload, and magazine.", { category: "Magazine" }),
+    socket(2, plug("Accurized Rounds", "Increases effective range.", { category: "magazines" }), [
+      plug("Tactical Mag", "Improves stability, reload, and magazine.", { category: "magazines" }),
     ]),
-    socket(3, plug("Keep Away", "Increased range and reload speed when no enemies are nearby.", { category: "Trait" }), [
-      plug("Perpetual Motion", "Movement grants stability, handling, and reload.", { category: "Trait" }),
-      plug("Rapid Hit", "Precision hits temporarily increase stability and reload.", { category: "Trait" }),
+    socket(3, plug("Keep Away", "Increased range and reload speed when no enemies are nearby.", { category: "frames" }), [
+      plug("Perpetual Motion", "Movement grants stability, handling, and reload.", { category: "frames" }),
+      plug("Rapid Hit", "Precision hits temporarily increase stability and reload.", { category: "frames" }),
     ]),
-    socket(4, plug("Explosive Payload", "Rounds deal bonus area damage on impact.", { category: "Trait" }), [
-      plug("Frenzy", "Being in combat boosts damage, handling, and reload.", { category: "Trait" }),
-      plug("Kill Clip", "Reloading after a kill grants increased damage.", { category: "Trait" }),
+    socket(4, plug("Explosive Payload", "Rounds deal bonus area damage on impact.", { category: "frames" }), [
+      plug("Frenzy", "Being in combat boosts damage, handling, and reload.", { category: "frames" }),
+      plug("Kill Clip", "Reloading after a kill grants increased damage.", { category: "frames" }),
     ]),
-    socket(5, plug("Veist Stinger", "Damage has a chance to reload from reserves.", { category: "Origin Trait" })),
+    socket(5, plug("Veist Stinger", "Damage has a chance to reload from reserves.", { category: "origins" })),
+    // these should NOT become perk columns — they route to mods / cosmetics / hidden:
+    socket(6, plug("Backup Mag", "Increases magazine size.", { category: "v400.weapon.mod_magazine" })),
+    socket(7, plug("Default Shader", "Restores your gear to its default colors.", { category: "shader" }), [
+      plug("Cryptochroic Vandal", "A shader.", { category: "shader" }),
+      plug("Monochromatic", "A shader.", { category: "shader" }),
+    ]),
+    socket(8, plug("Kill Tracker", "Tracks kills with this weapon.", { category: "v400.plugs.weapons.trackers" })),
   ],
 });
 
