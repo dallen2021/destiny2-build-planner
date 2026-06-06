@@ -22,10 +22,6 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ itemHash: string }> },
 ): Promise<NextResponse> {
-  if (process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Render spike is dev-only." }, { status: 404 });
-  }
-
   const { itemHash } = await context.params;
 
   try {
