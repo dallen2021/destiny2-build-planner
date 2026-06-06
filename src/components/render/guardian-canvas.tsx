@@ -118,9 +118,9 @@ export function GearCanvas({
     const applyDye = (
       material: THREE.MeshStandardMaterial,
       gearstack: THREE.CanvasTexture,
-      dye: Dye,
+      color: [number, number, number],
     ) => {
-      const change = new THREE.Vector3(dye.secondary[0], dye.secondary[1], dye.secondary[2]);
+      const change = new THREE.Vector3(color[0], color[1], color[2]);
       material.onBeforeCompile = (shader) => {
         shader.uniforms.uGearstack = { value: gearstack };
         shader.uniforms.uChangeColor = { value: change };
@@ -156,11 +156,14 @@ export function GearCanvas({
             const header = JSON.parse(
               new TextDecoder().decode(new Uint8Array(buffer, 4, jsonLength)),
             ) as { dyes: Dye[]; parts: PartHeader[] };
-            const dyeFor = (slot: number) =>
-              header.dyes.find((d) => d.slot === slot) ??
-              header.dyes[slot] ??
-              header.dyes[0] ??
-              null;
+            // gear_dye_change_color_index encodes slot*2 + (0 primary, 1 secondary).
+            const colorForIndex = (index: number): [number, number, number] | null => {
+              const slot = index >> 1;
+              const dye =
+                header.dyes.find((d) => d.slot === slot) ?? header.dyes[slot] ?? header.dyes[0];
+              if (!dye) return null;
+              return (index & 1) === 1 ? dye.secondary : dye.primary;
+            };
 
             // Geometry section (4-byte aligned) first.
             let cursor = (4 + jsonLength + 3) & ~3;
@@ -230,8 +233,8 @@ export function GearCanvas({
                 side: THREE.DoubleSide,
               });
               const gearstack = gearstackTex[k];
-              const dye = dyeFor(part.dyeSlot);
-              if (gearstack && dye) applyDye(material, gearstack, dye);
+              const color = colorForIndex(part.dyeSlot);
+              if (gearstack && color) applyDye(material, gearstack, color);
               model.add(new THREE.Mesh(part.geometry, material));
             });
           }),
