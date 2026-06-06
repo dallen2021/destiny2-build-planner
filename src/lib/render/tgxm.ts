@@ -1,0 +1,204 @@
+/**
+ * Clean-room parser for Bungie's TGXM gear-geometry container, plus a minimal
+ * mesh extractor. The binary format was reverse-engineered from public
+ * documentation (Lowlines' write-up) and validated byte-for-byte against live
+ * Bungie geometry — no third-party code was copied (the reference loader is
+ * unlicensed and 2017-era).
+ *
+ * Container layout (validated):
+ *   header:  "TGXM"(4) version:u32 fileTableOffset:u32 fileCount:u32
+ *   table:   fileCount entries, stride 272 = name[256] offset:u64 size:u64
+ *   files:   render_metadata.js (JSON) + *.vertexbuffer.tgx + *.indexbuffer.tgx
+ */
+
+export type GearMesh = {
+  /** xyz triplets in model space */
+  positions: number[];
+  /** xyz triplets */
+  normals: number[];
+  /** triangle-list indices */
+  indices: number[];
+};
+
+type VertexElement = {
+  semantic: string;
+  type: string;
+  offset: number;
+  normalized?: boolean;
+};
+type VertexFormat = { stride: number; elements: VertexElement[] };
+type LayoutDef = { formats: VertexFormat[] };
+type StagePart = {
+  start_index: number;
+  index_count: number;
+  primitive_type: number;
+  lod_category?: { value: number };
+};
+type RenderMesh = {
+  vertex_buffers: { file_name: string; stride: number }[];
+  index_buffer: { file_name: string; value_byte_size?: number };
+  stage_part_list: StagePart[];
+  stage_part_vertex_stream_layout_definitions: LayoutDef[];
+};
+type RenderMetadata = {
+  render_model?: { render_meshes?: RenderMesh[] };
+};
+
+const TABLE_ENTRY_STRIDE = 272;
+const NAME_BYTES = 256;
+const HIGHEST_LOD = 0;
+
+function parseContainer(buffer: ArrayBuffer): {
+  files: Map<string, Uint8Array>;
+  metadata: RenderMetadata;
+} {
+  const u8 = new Uint8Array(buffer);
+  const dv = new DataView(buffer);
+  const magic = String.fromCharCode(u8[0], u8[1], u8[2], u8[3]);
+  if (magic !== "TGXM") {
+    throw new Error(`Not a TGXM container (magic="${magic}")`);
+  }
+
+  const tableOffset = dv.getUint32(8, true);
+  const fileCount = dv.getUint32(12, true);
+  const files = new Map<string, Uint8Array>();
+
+  for (let i = 0; i < fileCount; i += 1) {
+    const base = tableOffset + i * TABLE_ENTRY_STRIDE;
+    let name = "";
+    for (let c = 0; c < NAME_BYTES; c += 1) {
+      const ch = u8[base + c];
+      if (ch === 0) break;
+      name += String.fromCharCode(ch);
+    }
+    // offset/size are u64 LE; geometry files are well under 4 GB so the low
+    // dword is sufficient.
+    const offset = dv.getUint32(base + NAME_BYTES, true);
+    const size = dv.getUint32(base + NAME_BYTES + 8, true);
+    files.set(name, u8.subarray(offset, offset + size));
+  }
+
+  const metaBytes = files.get("render_metadata.js");
+  if (!metaBytes) {
+    throw new Error("TGXM container missing render_metadata.js");
+  }
+  return {
+    files,
+    metadata: JSON.parse(new TextDecoder().decode(metaBytes)) as RenderMetadata,
+  };
+}
+
+function findElement(mesh: RenderMesh, semanticPart: string) {
+  const defs = mesh.stage_part_vertex_stream_layout_definitions ?? [];
+  for (const def of defs) {
+    for (let formatIndex = 0; formatIndex < (def.formats?.length ?? 0); formatIndex += 1) {
+      const format = def.formats[formatIndex];
+      for (const element of format.elements ?? []) {
+        if (element.semantic?.includes(semanticPart)) {
+          return { bufferIndex: formatIndex, ...element, stride: format.stride };
+        }
+      }
+    }
+    if (def.formats?.length) break; // first layout describes the renderable streams
+  }
+  return null;
+}
+
+function readVec3(
+  view: DataView,
+  byteOffset: number,
+  type: string,
+  normalized: boolean | undefined,
+): [number, number, number] {
+  if (type.includes("float")) {
+    return [
+      view.getFloat32(byteOffset, true),
+      view.getFloat32(byteOffset + 4, true),
+      view.getFloat32(byteOffset + 8, true),
+    ];
+  }
+  // short / normalized short
+  const divisor = normalized ? 32767 : 1;
+  return [
+    view.getInt16(byteOffset, true) / divisor,
+    view.getInt16(byteOffset + 2, true) / divisor,
+    view.getInt16(byteOffset + 4, true) / divisor,
+  ];
+}
+
+function extractRenderMesh(mesh: RenderMesh, files: Map<string, Uint8Array>): GearMesh | null {
+  const position = findElement(mesh, "position");
+  if (!position) return null;
+  const normal = findElement(mesh, "normal");
+
+  const positionFile = mesh.vertex_buffers?.[position.bufferIndex]?.file_name;
+  const positionBytes = positionFile ? files.get(positionFile) : undefined;
+  if (!positionBytes) return null;
+  const vbView = new DataView(
+    positionBytes.buffer,
+    positionBytes.byteOffset,
+    positionBytes.byteLength,
+  );
+  const stride = position.stride;
+  const vertexCount = Math.floor(positionBytes.byteLength / stride);
+
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const sameBuffer = normal != null && normal.bufferIndex === position.bufferIndex;
+  for (let v = 0; v < vertexCount; v += 1) {
+    const vertexBase = v * stride;
+    const p = readVec3(vbView, vertexBase + position.offset, position.type, position.normalized);
+    positions.push(p[0], p[1], p[2]);
+    if (sameBuffer && normal) {
+      const n = readVec3(vbView, vertexBase + normal.offset, normal.type, normal.normalized);
+      normals.push(n[0], n[1], n[2]);
+    } else {
+      normals.push(0, 0, 1);
+    }
+  }
+
+  const indexBytes = files.get(mesh.index_buffer.file_name);
+  if (!indexBytes) return null;
+  const ibView = new DataView(indexBytes.buffer, indexBytes.byteOffset, indexBytes.byteLength);
+  const indexIsU16 = (mesh.index_buffer.value_byte_size ?? 2) === 2;
+  const readIndex = (i: number) =>
+    indexIsU16 ? ibView.getUint16(i * 2, true) : ibView.getUint32(i * 4, true);
+
+  const indices: number[] = [];
+  for (const part of mesh.stage_part_list ?? []) {
+    if ((part.lod_category?.value ?? 0) !== HIGHEST_LOD) continue;
+    const start = part.start_index;
+    const count = part.index_count;
+    if (part.primitive_type === 5) {
+      // triangle strip (with degenerate triangles for stitching)
+      for (let i = 0; i < count - 2; i += 1) {
+        const a = readIndex(start + i);
+        const b = readIndex(start + i + 1);
+        const c = readIndex(start + i + 2);
+        if (a === b || b === c || a === c) continue;
+        if (i % 2 === 0) indices.push(a, b, c);
+        else indices.push(a, c, b);
+      }
+    } else {
+      // triangle list
+      for (let i = 0; i + 2 < count; i += 3) {
+        indices.push(readIndex(start + i), readIndex(start + i + 1), readIndex(start + i + 2));
+      }
+    }
+  }
+
+  return { positions, normals, indices };
+}
+
+/** Parse a TGXM geometry container into renderable LOD-0 meshes. */
+export function extractGearMeshes(buffer: ArrayBuffer): GearMesh[] {
+  const { files, metadata } = parseContainer(buffer);
+  const meshes: GearMesh[] = [];
+  for (const mesh of metadata.render_model?.render_meshes ?? []) {
+    const extracted = extractRenderMesh(mesh, files);
+    if (extracted && extracted.indices.length > 0) {
+      meshes.push(extracted);
+    }
+  }
+  return meshes;
+}
