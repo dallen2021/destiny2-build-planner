@@ -78,7 +78,7 @@ function PlugTip({
       <TooltipTrigger asChild>
         <Plug icon={icon} selected={selected} size={size} />
       </TooltipTrigger>
-      <TooltipContent className="d2-ci-tip" side="left">
+      <TooltipContent className="d2-ci-tip" hideArrow side="left">
         <span className="d2-ci-tip-name">{name}</span>
         {description ? <span className="d2-ci-tip-desc">{description}</span> : null}
       </TooltipContent>
@@ -137,7 +137,7 @@ function ModSlot({
           {icon ? <Image alt="" height={30} src={icon} width={30} /> : null}
         </span>
       </TooltipTrigger>
-      <TooltipContent className="d2-ci-tip" side="top">
+      <TooltipContent className="d2-ci-tip" hideArrow side="top">
         <span className="d2-ci-tip-name">{plug.name}</span>
         {plug.description ? <span className="d2-ci-tip-desc">{plug.description}</span> : null}
       </TooltipContent>
@@ -427,18 +427,22 @@ function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
 
       {item.inspector?.source || item.inspector?.reason ? (
         <section className="d2-ci-section d2-ci-meta-row">
-          <div>
-            <span className="d2-ci-subhead">Source</span>
-            <strong>{item.inspector?.source ?? "Unknown"}</strong>
-            {item.inspector?.acquired ? <small>Acquired {item.inspector.acquired}</small> : null}
-          </div>
-          <div>
-            <span className="d2-ci-subhead">Reason</span>
-            <strong>{item.inspector?.reason ?? "—"}</strong>
-            {item.inspector?.instanceNumber != null ? (
-              <small>Instance {item.inspector.instanceNumber}</small>
-            ) : null}
-          </div>
+          {item.inspector?.source ? (
+            <div>
+              <span className="d2-ci-subhead">Source</span>
+              <strong>{item.inspector.source}</strong>
+              {item.inspector.acquired ? <small>Acquired {item.inspector.acquired}</small> : null}
+            </div>
+          ) : null}
+          {item.inspector?.reason ? (
+            <div>
+              <span className="d2-ci-subhead">Reason</span>
+              <strong>{item.inspector.reason}</strong>
+              {item.inspector.instanceNumber != null ? (
+                <small>Instance {item.inspector.instanceNumber}</small>
+              ) : null}
+            </div>
+          ) : null}
         </section>
       ) : null}
     </>

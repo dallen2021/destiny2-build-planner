@@ -24,6 +24,7 @@ export type DestinyItemDefinition = {
   displayProperties?: DestinyDisplayProperties;
   displaySource?: string;
   equippingBlock?: {
+    ammoType?: number;
     equipmentSlotTypeHash?: number;
     uniqueLabel?: string;
   };
@@ -1005,6 +1006,68 @@ function getItemLocation({
   return source === "profile" ? "vault" : "carried";
 }
 
+const AMMO_TYPE_LABEL: Record<number, string> = {
+  1: "Primary",
+  2: "Special",
+  3: "Heavy",
+};
+
+/**
+ * Best-effort inspector extras derived from data we already fetch (item def +
+ * instance components). Energy/archetype only apply to armor; ammo to weapons.
+ * Set-bonus and stat deltas are populated elsewhere (cross-item / mod math).
+ */
+function buildInspectorExtras({
+  definition,
+  instance,
+  kind,
+  sockets,
+  stats,
+}: {
+  definition: DestinyItemDefinition;
+  instance: DestinyItemInstanceComponent | undefined;
+  kind: ItemKind;
+  sockets: NormalizedSocket[];
+  stats: NormalizedStat[];
+}): ItemInspectorExtras | null {
+  const extras: ItemInspectorExtras = {};
+
+  const ammoType = definition.equippingBlock?.ammoType;
+  if (kind === "weapon" && ammoType && AMMO_TYPE_LABEL[ammoType]) {
+    extras.ammoType = AMMO_TYPE_LABEL[ammoType];
+  }
+
+  const energy = instance?.energy;
+  if (energy && (energy.energyCapacity ?? 0) > 0) {
+    extras.energy = {
+      capacity: energy.energyCapacity ?? 0,
+      used: energy.energyUsed ?? 0,
+    };
+  }
+
+  if (kind === "armor") {
+    const intrinsic = findPlugByCategory(sockets, /intrinsic|archetype/);
+    if (intrinsic) {
+      const ranked = stats
+        .filter((stat) => stat.value > 0)
+        .sort((first, second) => second.value - first.value);
+      extras.archetype = {
+        name: intrinsic.name,
+        description: intrinsic.description,
+        primaryStat: ranked[0]?.name ?? null,
+        secondaryStat: ranked[1]?.name ?? null,
+      };
+    }
+  }
+
+  const source = definition.displaySource?.trim();
+  if (source) {
+    extras.source = source;
+  }
+
+  return Object.keys(extras).length > 0 ? extras : null;
+}
+
 function normalizeItem({
   characterId,
   definitions,
@@ -1087,6 +1150,7 @@ function normalizeItem({
     state: normalizeItemState({ definition, instance, item }),
     tier: rarity,
     weaponTier: kind === "weapon" ? gearTier : null,
+    inspector: buildInspectorExtras({ definition, instance, kind, sockets, stats }),
   };
 }
 

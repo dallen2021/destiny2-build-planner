@@ -4595,15 +4595,26 @@ main {
   padding: 9px 11px;
   box-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.9);
 }
-[data-slot="tooltip-content"].d2-ci-tip svg {
-  fill: rgba(7, 16, 23, 0.98);
-}
+/* Arrow is dropped at the component level (hideArrow); the Destiny diamond
+   motif below stands in for the pointer. */
 .d2-ci-tip .d2-ci-tip-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: #f5e5b7;
   font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+}
+.d2-ci-tip .d2-ci-tip-name::before {
+  content: "";
+  flex: none;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, #f7ecc4, #d8a93f);
+  box-shadow: 0 0 8px rgba(226, 185, 96, 0.55);
 }
 .d2-ci-tip .d2-ci-tip-desc {
   color: rgba(243, 234, 216, 0.82);
