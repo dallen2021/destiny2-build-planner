@@ -65,14 +65,14 @@ async function loadTextureIndex(textureFiles: string[]): Promise<Map<string, Uin
 }
 
 type Placement = { x: number; y: number; w: number; h: number; png: Uint8Array };
+type Plate = { w: number; h: number; placements: Placement[] };
 type Part = {
   positions: Float32Array;
   normals: Float32Array;
   uvs: Float32Array;
   indices: Uint32Array;
-  plateW: number;
-  plateH: number;
-  placements: Placement[];
+  diffuse: Plate;
+  normal: Plate;
 };
 
 function align4(n: number): number {
@@ -117,48 +117,56 @@ export async function GET(
       return NextResponse.json({ error: "no renderable meshes" }, { status: 404 });
     }
 
-    // Resolve diffuse-plate placements to their PNG bytes.
-    const needsTextures = meshes.some((m) => (m.diffusePlate?.placements.length ?? 0) > 0);
+    // Resolve plate placements (diffuse + normal) to their PNG bytes.
+    const needsTextures = meshes.some(
+      (m) =>
+        (m.diffusePlate?.placements.length ?? 0) > 0 ||
+        (m.normalPlate?.placements.length ?? 0) > 0,
+    );
     const textureIndex = needsTextures
       ? await loadTextureIndex(textureFiles)
       : new Map<string, Uint8Array>();
 
-    const parts: Part[] = meshes.map((mesh) => {
+    const resolvePlate = (plate: GearMesh["diffusePlate"]): Plate => {
       const placements: Placement[] = [];
-      for (const p of mesh.diffusePlate?.placements ?? []) {
+      for (const p of plate?.placements ?? []) {
         const png = textureIndex.get(p.name);
         if (png) placements.push({ x: p.x, y: p.y, w: p.w, h: p.h, png });
       }
-      return {
-        positions: new Float32Array(mesh.positions),
-        normals: new Float32Array(mesh.normals),
-        uvs: new Float32Array(mesh.uvs),
-        indices: new Uint32Array(mesh.indices),
-        plateW: mesh.diffusePlate?.width ?? 0,
-        plateH: mesh.diffusePlate?.height ?? 0,
-        placements,
-      };
-    });
+      return { w: plate?.width ?? 0, h: plate?.height ?? 0, placements };
+    };
 
-    // JSON header describes structure; geometry + PNGs follow as binary.
+    const parts: Part[] = meshes.map((mesh) => ({
+      positions: new Float32Array(mesh.positions),
+      normals: new Float32Array(mesh.normals),
+      uvs: new Float32Array(mesh.uvs),
+      indices: new Uint32Array(mesh.indices),
+      diffuse: resolvePlate(mesh.diffusePlate),
+      normal: resolvePlate(mesh.normalPlate),
+    }));
+
+    const headerPlate = (plate: Plate) =>
+      plate.placements.length > 0
+        ? {
+            w: plate.w,
+            h: plate.h,
+            placements: plate.placements.map((pl) => ({
+              x: pl.x,
+              y: pl.y,
+              w: pl.w,
+              h: pl.h,
+              png: pl.png.byteLength,
+            })),
+          }
+        : null;
+
+    // JSON header describes structure; geometry then diffuse PNGs then normal PNGs.
     const header = {
       parts: parts.map((part) => ({
         v: part.positions.length / 3,
         i: part.indices.length,
-        plate:
-          part.placements.length > 0
-            ? {
-                w: part.plateW,
-                h: part.plateH,
-                placements: part.placements.map((pl) => ({
-                  x: pl.x,
-                  y: pl.y,
-                  w: pl.w,
-                  h: pl.h,
-                  png: pl.png.byteLength,
-                })),
-              }
-            : null,
+        diffuse: headerPlate(part.diffuse),
+        normal: headerPlate(part.normal),
       })),
     };
     const jsonBytes = new TextEncoder().encode(JSON.stringify(header));
@@ -172,7 +180,8 @@ export async function GET(
         part.normals.byteLength +
         part.uvs.byteLength +
         part.indices.byteLength;
-      for (const pl of part.placements) pngBytes += pl.png.byteLength;
+      for (const pl of part.diffuse.placements) pngBytes += pl.png.byteLength;
+      for (const pl of part.normal.placements) pngBytes += pl.png.byteLength;
     }
 
     const payload = new Uint8Array(geomStart + geomBytes + pngBytes);
@@ -191,7 +200,13 @@ export async function GET(
       writeTyped(part.indices);
     }
     for (const part of parts) {
-      for (const pl of part.placements) {
+      for (const pl of part.diffuse.placements) {
+        payload.set(pl.png, cursor);
+        cursor += pl.png.byteLength;
+      }
+    }
+    for (const part of parts) {
+      for (const pl of part.normal.placements) {
         payload.set(pl.png, cursor);
         cursor += pl.png.byteLength;
       }
@@ -202,7 +217,7 @@ export async function GET(
       parts: parts.length,
       vertexCount: parts.reduce((n, p) => n + p.positions.length / 3, 0),
       triangleCount: parts.reduce((n, p) => n + p.indices.length / 3, 0),
-      textured: parts.filter((p) => p.placements.length > 0).length,
+      textured: parts.filter((p) => p.diffuse.placements.length > 0).length,
     };
     return new NextResponse(payload, {
       headers: {

@@ -37,6 +37,8 @@ export type GearMesh = {
   indices: number[];
   /** Diffuse texture plate (placements resolved to PNGs server-side). */
   diffusePlate: DiffusePlate | null;
+  /** Normal texture plate (same compositing; applied as a normal map). */
+  normalPlate: DiffusePlate | null;
 };
 
 type VertexElement = {
@@ -68,9 +70,12 @@ type TexturePlacement = {
   texture_size_x: number;
   texture_size_y: number;
 };
+type PlateChannel = { plate_size?: number[]; texture_placements?: TexturePlacement[] };
 type TexturePlate = {
   plate_set?: {
-    diffuse?: { plate_size?: number[]; texture_placements?: TexturePlacement[] };
+    diffuse?: PlateChannel;
+    normal?: PlateChannel;
+    gearstack?: PlateChannel;
   };
 };
 type RenderMetadata = {
@@ -191,7 +196,8 @@ function readVec3(
 function extractRenderMesh(
   mesh: RenderMesh,
   files: Map<string, Uint8Array>,
-  plate: DiffusePlate | null,
+  diffusePlate: DiffusePlate | null,
+  normalPlate: DiffusePlate | null,
 ): GearMesh | null {
   const position = findElement(mesh, "position");
   if (!position) return null;
@@ -294,14 +300,17 @@ function extractRenderMesh(
     }
   }
 
-  return { positions, normals, uvs, indices, diffusePlate: plate };
+  return { positions, normals, uvs, indices, diffusePlate, normalPlate };
 }
 
-function readDiffusePlate(metadata: RenderMetadata): DiffusePlate | null {
-  const diffuse = metadata.texture_plates?.[0]?.plate_set?.diffuse;
-  const size = diffuse?.plate_size;
-  const placements = diffuse?.texture_placements;
-  if (!diffuse || !size || !placements?.length) return null;
+function readPlate(
+  metadata: RenderMetadata,
+  channel: "diffuse" | "normal",
+): DiffusePlate | null {
+  const plate = metadata.texture_plates?.[0]?.plate_set?.[channel];
+  const size = plate?.plate_size;
+  const placements = plate?.texture_placements;
+  if (!plate || !size || !placements?.length) return null;
   return {
     width: size[0],
     height: size[1],
@@ -318,10 +327,11 @@ function readDiffusePlate(metadata: RenderMetadata): DiffusePlate | null {
 /** Parse a TGXM geometry container into renderable LOD-0 meshes. */
 export function extractGearMeshes(buffer: ArrayBuffer): GearMesh[] {
   const { files, metadata } = parseContainer(buffer);
-  const plate = readDiffusePlate(metadata);
+  const diffusePlate = readPlate(metadata, "diffuse");
+  const normalPlate = readPlate(metadata, "normal");
   const meshes: GearMesh[] = [];
   for (const mesh of metadata.render_model?.render_meshes ?? []) {
-    const extracted = extractRenderMesh(mesh, files, plate);
+    const extracted = extractRenderMesh(mesh, files, diffusePlate, normalPlate);
     if (extracted && extracted.indices.length > 0) {
       meshes.push(extracted);
     }

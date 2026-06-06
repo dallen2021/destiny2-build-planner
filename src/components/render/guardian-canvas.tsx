@@ -65,14 +65,39 @@ export function GearCanvas({
     group.add(model);
     scene.add(group);
 
-    type PartHeader = {
-      v: number;
-      i: number;
-      plate: {
-        w: number;
-        h: number;
-        placements: { x: number; y: number; w: number; h: number; png: number }[];
-      } | null;
+    type Plate = {
+      w: number;
+      h: number;
+      placements: { x: number; y: number; w: number; h: number; png: number }[];
+    } | null;
+    type PartHeader = { v: number; i: number; diffuse: Plate; normal: Plate };
+
+    // Composite a plate's placement PNGs (starting at `offset`) into a canvas
+    // texture; returns the texture and the advanced byte offset.
+    const compositePlate = async (
+      buffer: ArrayBuffer,
+      offset: number,
+      plate: NonNullable<Plate>,
+    ): Promise<{ texture: THREE.CanvasTexture; offset: number }> => {
+      const canvas = document.createElement("canvas");
+      canvas.width = plate.w;
+      canvas.height = plate.h;
+      const ctx = canvas.getContext("2d");
+      for (const pl of plate.placements) {
+        const pngBytes = new Uint8Array(buffer.slice(offset, offset + pl.png));
+        offset += pl.png;
+        if (!ctx) continue;
+        try {
+          const bmp = await createImageBitmap(new Blob([pngBytes]));
+          ctx.drawImage(bmp, pl.x, pl.y, pl.w, pl.h);
+          bmp.close();
+        } catch {
+          // skip an undecodable placement
+        }
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.flipY = false;
+      return { texture, offset };
     };
 
     void (async () => {
@@ -97,9 +122,9 @@ export function GearCanvas({
               new TextDecoder().decode(new Uint8Array(buffer, 4, jsonLength)),
             ) as { parts: PartHeader[] };
 
-            // Geometry section (4-byte aligned), then all PNG bytes.
+            // Geometry section (4-byte aligned) first.
             let cursor = (4 + jsonLength + 3) & ~3;
-            const built: { geometry: THREE.BufferGeometry; plate: PartHeader["plate"] }[] = [];
+            const built: { geometry: THREE.BufferGeometry; diffuse: Plate; normal: Plate }[] = [];
             for (const part of header.parts) {
               const positions = new Float32Array(buffer, cursor, part.v * 3);
               cursor += part.v * 3 * 4;
@@ -115,42 +140,48 @@ export function GearCanvas({
               geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
               geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
               geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-              built.push({ geometry, plate: part.plate });
+              built.push({ geometry, diffuse: part.diffuse, normal: part.normal });
               triangleTotal += part.i / 3;
             }
 
-            let pngCursor = cursor;
-            for (const { geometry, plate } of built) {
-              let material: THREE.MeshStandardMaterial = fallbackMaterial;
-              if (plate && plate.placements.length > 0) {
-                const canvas = document.createElement("canvas");
-                canvas.width = plate.w;
-                canvas.height = plate.h;
-                const ctx = canvas.getContext("2d");
-                for (const pl of plate.placements) {
-                  const pngBytes = new Uint8Array(buffer.slice(pngCursor, pngCursor + pl.png));
-                  pngCursor += pl.png;
-                  if (!ctx) continue;
-                  try {
-                    const bmp = await createImageBitmap(new Blob([pngBytes]));
-                    ctx.drawImage(bmp, pl.x, pl.y, pl.w, pl.h);
-                    bmp.close();
-                  } catch {
-                    // skip an undecodable placement
-                  }
-                }
-                const texture = new THREE.CanvasTexture(canvas);
-                texture.colorSpace = THREE.SRGBColorSpace;
-                texture.flipY = false;
-                material = new THREE.MeshStandardMaterial({
-                  map: texture,
-                  metalness: 0.2,
-                  roughness: 0.72,
-                  side: THREE.DoubleSide,
-                });
+            // PNG sections follow geometry: all diffuse plates, then all normal plates.
+            let off = cursor;
+            const diffuseTex: (THREE.CanvasTexture | null)[] = [];
+            for (const part of built) {
+              if (part.diffuse) {
+                const r = await compositePlate(buffer, off, part.diffuse);
+                r.texture.colorSpace = THREE.SRGBColorSpace;
+                diffuseTex.push(r.texture);
+                off = r.offset;
+              } else {
+                diffuseTex.push(null);
               }
-              model.add(new THREE.Mesh(geometry, material));
             }
+            const normalTex: (THREE.CanvasTexture | null)[] = [];
+            for (const part of built) {
+              if (part.normal) {
+                const r = await compositePlate(buffer, off, part.normal);
+                r.texture.colorSpace = THREE.NoColorSpace;
+                normalTex.push(r.texture);
+                off = r.offset;
+              } else {
+                normalTex.push(null);
+              }
+            }
+
+            built.forEach((part, k) => {
+              const diffuse = diffuseTex[k];
+              const material = diffuse
+                ? new THREE.MeshStandardMaterial({
+                    map: diffuse,
+                    normalMap: normalTex[k] ?? null,
+                    metalness: 0.28,
+                    roughness: 0.62,
+                    side: THREE.DoubleSide,
+                  })
+                : fallbackMaterial;
+              model.add(new THREE.Mesh(part.geometry, material));
+            });
           }),
         );
 
