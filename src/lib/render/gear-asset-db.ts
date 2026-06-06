@@ -54,6 +54,8 @@ async function loadDb(): Promise<Database | null> {
   const sqliteBytes = files[Object.keys(files)[0]];
   if (!sqliteBytes) return null;
 
+  // locateFile + outputFileTracingIncludes (next.config) ships the wasm with the
+  // serverless function. Static `require.resolve` of the .wasm trips Turbopack.
   const SQL = await initSqlJs({
     locateFile: (file) => path.join(process.cwd(), "node_modules/sql.js/dist", file),
   });

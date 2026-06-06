@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  // Bundle the sql.js wasm into the gear route's serverless function so the
+  // gear-asset DB (dye colors) works on Vercel.
+  outputFileTracingIncludes: {
+    "/api/render/gear/[itemHash]": ["./node_modules/sql.js/dist/sql-wasm.wasm"],
+  },
   images: {
     remotePatterns: [
       {
