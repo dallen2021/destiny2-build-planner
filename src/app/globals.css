@@ -4581,3 +4581,32 @@ main {
 .d2-command-console .d2-ci-perk-col + .d2-ci-perk-col {
   border-left: 1px solid rgba(226, 185, 96, 0.08);
 }
+
+/* Perk/mod hover tooltips (portaled outside .d2-command-console, so unscoped).
+   The attribute+class selector outranks the component's utility classes. */
+[data-slot="tooltip-content"].d2-ci-tip {
+  display: grid;
+  gap: 4px;
+  max-width: 264px;
+  border: 1px solid rgba(226, 185, 96, 0.42);
+  border-radius: 8px;
+  background: rgba(7, 16, 23, 0.98);
+  color: #f3ead8;
+  padding: 9px 11px;
+  box-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.9);
+}
+[data-slot="tooltip-content"].d2-ci-tip svg {
+  fill: rgba(7, 16, 23, 0.98);
+}
+.d2-ci-tip .d2-ci-tip-name {
+  color: #f5e5b7;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.d2-ci-tip .d2-ci-tip-desc {
+  color: rgba(243, 234, 216, 0.82);
+  font-size: 0.71rem;
+  line-height: 1.36;
+}

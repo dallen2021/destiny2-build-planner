@@ -2,8 +2,13 @@
 
 import Image from "next/image";
 import { Check, Lock, Pencil, Plus } from "lucide-react";
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import type {
   NormalizedDestinyItem,
   NormalizedPlug,
@@ -25,18 +30,25 @@ const ARMOR_STAT_ORDER = ["Weapons", "Health", "Class", "Melee", "Grenade", "Sup
 
 const MAX_PERK_ALTERNATES = 5;
 
-function PlugIcon({
-  icon,
-  selected = false,
-  size = 30,
-}: {
-  icon: string | null;
-  selected?: boolean;
-  size?: number;
-}) {
+const Plug = forwardRef<
+  HTMLSpanElement,
+  React.ComponentPropsWithoutRef<"span"> & {
+    icon: string | null;
+    selected?: boolean;
+    size?: number;
+  }
+>(function Plug({ icon, selected = false, size = 30, style, ...rest }, ref) {
   const url = bungieImage(icon);
   return (
-    <span className="d2-ci-plug" data-selected={selected} style={{ width: size, height: size }}>
+    // `...rest` forwards the pointer handlers + data-state Radix injects via asChild.
+    <span
+      {...rest}
+      className="d2-ci-plug"
+      data-selected={selected}
+      ref={ref}
+      style={{ ...style, width: size, height: size }}
+      tabIndex={0}
+    >
       {url ? <Image alt="" height={size} src={url} width={size} /> : null}
       {selected ? (
         <i className="d2-ci-plug-check" aria-hidden="true">
@@ -44,6 +56,33 @@ function PlugIcon({
         </i>
       ) : null}
     </span>
+  );
+});
+
+/** Tooltip showing a plug's name + description on hover/focus. */
+function PlugTip({
+  description,
+  icon,
+  name,
+  selected = false,
+  size = 30,
+}: {
+  description?: string | null;
+  icon: string | null;
+  name: string;
+  selected?: boolean;
+  size?: number;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Plug icon={icon} selected={selected} size={size} />
+      </TooltipTrigger>
+      <TooltipContent className="d2-ci-tip" side="left">
+        <span className="d2-ci-tip-name">{name}</span>
+        {description ? <span className="d2-ci-tip-desc">{description}</span> : null}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -57,27 +96,52 @@ function PerkColumn({ column }: { column: WeaponPerkColumn }) {
     <div className="d2-ci-perk-col" data-intrinsic={isIntrinsic}>
       <span className="d2-ci-perk-head">{label}</span>
       <div className="d2-ci-perk-stack">
-        <PlugIcon icon={socket.icon} selected size={isIntrinsic ? 46 : 34} />
+        <PlugTip
+          description={socket.description}
+          icon={socket.icon}
+          name={socket.name}
+          selected
+          size={isIntrinsic ? 46 : 34}
+        />
         {isIntrinsic
           ? null
-          : alternates.map((plug) => <PlugIcon icon={plug.icon} key={plug.plugHash} size={30} />)}
+          : alternates.map((plug) => (
+              <PlugTip
+                description={plug.description}
+                icon={plug.icon}
+                key={plug.plugHash}
+                name={plug.name}
+                size={30}
+              />
+            ))}
       </div>
       {isIntrinsic ? (
         <div className="d2-ci-perk-intrinsic">
           <strong>{socket.name}</strong>
-          {socket.description ? <small>{socket.description}</small> : null}
         </div>
       ) : null}
     </div>
   );
 }
 
-function ModSlot({ plug }: { plug: Pick<NormalizedPlug, "icon" | "name"> }) {
+function ModSlot({
+  plug,
+}: {
+  plug: Pick<NormalizedPlug, "description" | "icon" | "name">;
+}) {
   const icon = bungieImage(plug.icon);
   return (
-    <span className="d2-ci-modslot" data-filled={Boolean(icon)} title={plug.name}>
-      {icon ? <Image alt="" height={30} src={icon} width={30} /> : null}
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="d2-ci-modslot" data-filled={Boolean(icon)} tabIndex={0}>
+          {icon ? <Image alt="" height={30} src={icon} width={30} /> : null}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="d2-ci-tip" side="top">
+        <span className="d2-ci-tip-name">{plug.name}</span>
+        {plug.description ? <span className="d2-ci-tip-desc">{plug.description}</span> : null}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
