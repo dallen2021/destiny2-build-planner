@@ -4,19 +4,29 @@ import { GearCanvas } from "@/components/render/guardian-canvas";
 
 export const dynamic = "force-dynamic";
 
-// Dev-only 3D render spike (Phase 1). 404 in production. Default item is
-// Riskrunner (3089417789); override with ?item=<hash>.
+// Default: a Titan exotic set (helm / arms / chest / legs) assembled together.
+// Override with ?items=h1,h2,... or a single ?item=hash.
+const TITAN_SET = [
+  "1362342075", // Helm of Saint-14
+  "241462142", // Synthoceps
+  "1192890598", // Hallowfire Heart
+  "1437375562", // Dunemarchers
+];
+
 export default async function SpikeRenderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ item?: string }>;
+  searchParams: Promise<{ item?: string; items?: string }>;
 }) {
   if (process.env.NODE_ENV === "production") {
     notFound();
   }
 
-  const { item } = await searchParams;
-  const itemHash = item ?? "3089417789";
+  const params = await searchParams;
+  const raw = params.items ?? params.item;
+  const itemHashes = raw
+    ? raw.split(",").map((value) => value.trim()).filter(Boolean)
+    : TITAN_SET;
 
   return (
     <main
@@ -26,7 +36,7 @@ export default async function SpikeRenderPage({
         background: "radial-gradient(circle at 50% 38%, #1c2733 0%, #080c12 70%)",
       }}
     >
-      <GearCanvas itemHash={itemHash} />
+      <GearCanvas itemHashes={itemHashes} />
     </main>
   );
 }

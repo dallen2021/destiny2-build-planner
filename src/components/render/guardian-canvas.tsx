@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-export function GearCanvas({ itemHash }: { itemHash: string }) {
+export function GearCanvas({ itemHashes }: { itemHashes: string[] }) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState("Loading geometry…");
 
@@ -19,7 +19,7 @@ export function GearCanvas({ itemHash }: { itemHash: string }) {
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.001, 100);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.001, 100);
 
     const resize = () => {
       const w = mount.clientWidth || 1;
@@ -47,52 +47,66 @@ export function GearCanvas({ itemHash }: { itemHash: string }) {
 
     void (async () => {
       try {
-        const response = await fetch(`/api/render/gear/${itemHash}`);
-        const contentType = response.headers.get("content-type") ?? "";
-        if (!response.ok || !contentType.includes("octet-stream")) {
-          const failure = (await response.json().catch(() => null)) as { error?: string } | null;
-          setStatus(`Error: ${failure?.error ?? `HTTP ${response.status}`}`);
-          return;
-        }
-        const buffer = await response.arrayBuffer();
-        const view = new DataView(buffer);
-        const vertexCount = view.getUint32(0, true);
-        const indexCount = view.getUint32(4, true);
-        const positions = new Float32Array(buffer, 8, vertexCount * 3);
-        const indices = new Uint32Array(buffer, 8 + vertexCount * 3 * 4, indexCount);
-
         const material = new THREE.MeshStandardMaterial({
           color: 0xc2cad2,
           metalness: 0.6,
           roughness: 0.5,
           side: THREE.DoubleSide,
         });
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-        geometry.computeVertexNormals();
-        group.add(new THREE.Mesh(geometry, material));
+        let triangleTotal = 0;
+
+        await Promise.all(
+          itemHashes.map(async (hash) => {
+            const response = await fetch(`/api/render/gear/${hash}`);
+            const contentType = response.headers.get("content-type") ?? "";
+            if (!response.ok || !contentType.includes("octet-stream")) return;
+            const buffer = await response.arrayBuffer();
+            const view = new DataView(buffer);
+            const vertexCount = view.getUint32(0, true);
+            const indexCount = view.getUint32(4, true);
+            const positions = new Float32Array(buffer, 8, vertexCount * 3);
+            const indices = new Uint32Array(buffer, 8 + vertexCount * 3 * 4, indexCount);
+
+            const geometry = new THREE.BufferGeometry();
+            geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+            geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+            geometry.computeVertexNormals();
+            group.add(new THREE.Mesh(geometry, material));
+
+            const stats = JSON.parse(response.headers.get("x-mesh-stats") ?? "{}") as {
+              triangleCount?: number;
+            };
+            triangleTotal += stats.triangleCount ?? indexCount / 3;
+          }),
+        );
+
+        if (group.children.length === 0) {
+          setStatus("No geometry loaded");
+          return;
+        }
+
+        // Destiny gear is authored Z-up; stand the Guardian up for a Y-up scene.
+        group.rotation.x = -Math.PI / 2;
 
         const box = new THREE.Box3().setFromObject(group);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         group.position.sub(center);
         const radius = Math.max(size.x, size.y, size.z, 0.001) * 0.5;
-        const distance = (radius / Math.tan((camera.fov * Math.PI) / 360)) * 2.4;
-        camera.position.set(distance * 0.6, distance * 0.3, distance);
+        const distance = (radius / Math.tan((camera.fov * Math.PI) / 360)) * 2.1;
+        camera.position.set(distance * 0.35, distance * 0.12, distance);
         camera.lookAt(0, 0, 0);
 
         controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.autoRotate = true;
-        controls.autoRotateSpeed = 1.6;
+        controls.autoRotateSpeed = 1.4;
         controls.target.set(0, 0, 0);
         controls.update();
 
-        const stats = JSON.parse(response.headers.get("x-mesh-stats") ?? "{}") as {
-          triangleCount?: number;
-        };
-        setStatus(`${(stats.triangleCount ?? indexCount / 3).toLocaleString()} triangles`);
+        setStatus(
+          `${itemHashes.length} piece${itemHashes.length === 1 ? "" : "s"} · ${triangleTotal.toLocaleString()} triangles`,
+        );
       } catch (error) {
         setStatus(`Failed: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -115,7 +129,7 @@ export function GearCanvas({ itemHash }: { itemHash: string }) {
         mount.removeChild(renderer.domElement);
       }
     };
-  }, [itemHash]);
+  }, [itemHashes]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
