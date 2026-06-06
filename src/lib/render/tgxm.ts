@@ -88,14 +88,42 @@ function parseContainer(buffer: ArrayBuffer): {
   };
 }
 
+/** Byte size of one vertex attribute by its TFX format name. */
+function elementByteSize(type: string): number {
+  if (type.includes("float4")) return 16;
+  if (type.includes("float3")) return 12;
+  if (type.includes("float2")) return 8;
+  if (type.includes("short4")) return 8;
+  if (type.includes("short2")) return 4;
+  if (type.includes("ubyte4") || type.includes("byte4")) return 4;
+  if (type.includes("short")) return 2;
+  if (type.includes("float")) return 4;
+  return 4;
+}
+
 function findElement(mesh: RenderMesh, semanticPart: string) {
   const defs = mesh.stage_part_vertex_stream_layout_definitions ?? [];
   for (const def of defs) {
     for (let formatIndex = 0; formatIndex < (def.formats?.length ?? 0); formatIndex += 1) {
       const format = def.formats[formatIndex];
-      for (const element of format.elements ?? []) {
+      const elements = format.elements ?? [];
+      for (let ei = 0; ei < elements.length; ei += 1) {
+        const element = elements[ei];
         if (element.semantic?.includes(semanticPart)) {
-          return { bufferIndex: formatIndex, ...element, stride: format.stride };
+          // The declared `offset` field is unreliable — it overlaps siblings
+          // (e.g. position float4@0 and normal short4@8 both claim byte 8).
+          // The real layout is tightly packed in declaration order, so derive
+          // the byte offset from the sizes of the preceding elements. Verified
+          // against live data: position@0, normal@16, tangent@24 (stride 32).
+          let packed = 0;
+          for (let j = 0; j < ei; j += 1) packed += elementByteSize(elements[j].type);
+          return {
+            bufferIndex: formatIndex,
+            type: element.type,
+            normalized: element.normalized,
+            offset: packed,
+            stride: format.stride,
+          };
         }
       }
     }
@@ -161,6 +189,7 @@ function extractRenderMesh(mesh: RenderMesh, files: Map<string, Uint8Array>): Ge
   if (!indexBytes) return null;
   const ibView = new DataView(indexBytes.buffer, indexBytes.byteOffset, indexBytes.byteLength);
   const indexIsU16 = (mesh.index_buffer.value_byte_size ?? 2) === 2;
+  const RESTART = indexIsU16 ? 0xffff : 0xffffffff;
   const readIndex = (i: number) =>
     indexIsU16 ? ibView.getUint16(i * 2, true) : ibView.getUint32(i * 4, true);
 
@@ -170,19 +199,39 @@ function extractRenderMesh(mesh: RenderMesh, files: Map<string, Uint8Array>): Ge
     const start = part.start_index;
     const count = part.index_count;
     if (part.primitive_type === 5) {
-      // triangle strip (with degenerate triangles for stitching)
-      for (let i = 0; i < count - 2; i += 1) {
-        const a = readIndex(start + i);
-        const b = readIndex(start + i + 1);
-        const c = readIndex(start + i + 2);
-        if (a === b || b === c || a === c) continue;
-        if (i % 2 === 0) indices.push(a, b, c);
-        else indices.push(a, c, b);
+      // Triangle strip. Bungie joins sub-strips with a 0xFFFF primitive-restart
+      // sentinel (and sometimes degenerate triangles). Reset the running window
+      // and winding parity on restart / any out-of-range index; skip degenerate
+      // triangles but keep advancing parity so winding stays consistent.
+      let a = -1;
+      let b = -1;
+      let tri = 0;
+      for (let i = 0; i < count; i += 1) {
+        const idx = readIndex(start + i);
+        if (idx === RESTART || idx >= vertexCount) {
+          a = -1;
+          b = -1;
+          tri = 0;
+          continue;
+        }
+        if (a >= 0 && b >= 0) {
+          if (a !== b && b !== idx && a !== idx) {
+            if (tri % 2 === 0) indices.push(a, b, idx);
+            else indices.push(a, idx, b);
+          }
+          tri += 1;
+        }
+        a = b;
+        b = idx;
       }
     } else {
       // triangle list
       for (let i = 0; i + 2 < count; i += 3) {
-        indices.push(readIndex(start + i), readIndex(start + i + 1), readIndex(start + i + 2));
+        const a = readIndex(start + i);
+        const b = readIndex(start + i + 1);
+        const c = readIndex(start + i + 2);
+        if (a >= vertexCount || b >= vertexCount || c >= vertexCount) continue;
+        indices.push(a, b, c);
       }
     }
   }

@@ -42,15 +42,19 @@ export function GearCanvas({ itemHashes }: { itemHashes: string[] }) {
     rim.position.set(-3, 1.5, -3);
     scene.add(rim);
 
+    // Outer group = yaw + framing; inner = stand-up rotation. Nesting keeps the
+    // two rotations from interacting through a single Euler.
     const group = new THREE.Group();
+    const model = new THREE.Group();
+    group.add(model);
     scene.add(group);
 
     void (async () => {
       try {
         const material = new THREE.MeshStandardMaterial({
           color: 0xc2cad2,
-          metalness: 0.6,
-          roughness: 0.5,
+          metalness: 0.25,
+          roughness: 0.6,
           side: THREE.DoubleSide,
         });
         let triangleTotal = 0;
@@ -65,13 +69,16 @@ export function GearCanvas({ itemHashes }: { itemHashes: string[] }) {
             const vertexCount = view.getUint32(0, true);
             const indexCount = view.getUint32(4, true);
             const positions = new Float32Array(buffer, 8, vertexCount * 3);
-            const indices = new Uint32Array(buffer, 8 + vertexCount * 3 * 4, indexCount);
+            const normals = new Float32Array(buffer, 8 + vertexCount * 3 * 4, vertexCount * 3);
+            const indices = new Uint32Array(buffer, 8 + vertexCount * 3 * 4 * 2, indexCount);
 
             const geometry = new THREE.BufferGeometry();
             geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+            // Use Bungie's authored normals — computeVertexNormals on the
+            // strip-derived mesh produces noisy, faceted shading.
+            geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
             geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-            geometry.computeVertexNormals();
-            group.add(new THREE.Mesh(geometry, material));
+            model.add(new THREE.Mesh(geometry, material));
 
             const stats = JSON.parse(response.headers.get("x-mesh-stats") ?? "{}") as {
               triangleCount?: number;
@@ -80,13 +87,15 @@ export function GearCanvas({ itemHashes }: { itemHashes: string[] }) {
           }),
         );
 
-        if (group.children.length === 0) {
+        if (model.children.length === 0) {
           setStatus("No geometry loaded");
           return;
         }
 
-        // Destiny gear is authored Z-up; stand the Guardian up for a Y-up scene.
-        group.rotation.x = -Math.PI / 2;
+        // Destiny gear is authored Z-up; stand the Guardian up for a Y-up scene,
+        // then yaw 180° so the front faces the camera + key light.
+        model.rotation.x = -Math.PI / 2;
+        group.rotation.y = Math.PI;
 
         const box = new THREE.Box3().setFromObject(group);
         const size = box.getSize(new THREE.Vector3());

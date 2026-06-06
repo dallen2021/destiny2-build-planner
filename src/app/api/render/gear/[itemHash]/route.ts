@@ -66,12 +66,14 @@ export async function GET(
       indexTotal += mesh.indices.length;
     }
     const positions = new Float32Array(vertexTotal * 3);
+    const normals = new Float32Array(vertexTotal * 3);
     const indices = new Uint32Array(indexTotal);
     let positionCursor = 0;
     let indexCursor = 0;
     let vertexBase = 0;
     for (const mesh of meshes) {
       positions.set(mesh.positions, positionCursor * 3);
+      normals.set(mesh.normals, positionCursor * 3);
       for (let i = 0; i < mesh.indices.length; i += 1) {
         indices[indexCursor + i] = mesh.indices[i] + vertexBase;
       }
@@ -81,11 +83,16 @@ export async function GET(
       indexCursor += mesh.indices.length;
     }
 
-    const payload = new Uint8Array(8 + positions.byteLength + indices.byteLength);
-    new DataView(payload.buffer).setUint32(0, vertexTotal, true);
-    new DataView(payload.buffer).setUint32(4, indexTotal, true);
+    // Layout: [u32 vCount][u32 iCount][f32 positions][f32 normals][u32 indices]
+    const payload = new Uint8Array(
+      8 + positions.byteLength + normals.byteLength + indices.byteLength,
+    );
+    const header = new DataView(payload.buffer);
+    header.setUint32(0, vertexTotal, true);
+    header.setUint32(4, indexTotal, true);
     payload.set(new Uint8Array(positions.buffer), 8);
-    payload.set(new Uint8Array(indices.buffer), 8 + positions.byteLength);
+    payload.set(new Uint8Array(normals.buffer), 8 + positions.byteLength);
+    payload.set(new Uint8Array(indices.buffer), 8 + positions.byteLength + normals.byteLength);
 
     const stats = {
       itemHash,
