@@ -5,18 +5,79 @@ import { extractGearMeshes, type GearMesh } from "@/lib/render/tgxm";
 export const dynamic = "force-dynamic";
 
 // Spike only. Keyless path: gear-asset lookup via Lowlines' public endpoint,
-// geometry from the public bungie.net CDN. Production will replace the lookup
-// with our own gear-asset DB query (needs the Bungie API key).
+// geometry + textures from the public bungie.net CDN. Production will replace
+// the lookup with our own gear-asset DB query (needs the Bungie API key).
 const gearAssetUrl = (hash: string) =>
   `https://lowlidev.com.au/destiny/api/gearasset/${hash}?destiny2`;
-const geometryUrl = (file: string) =>
-  `https://www.bungie.net/common/destiny2_content/geometry/platform/mobile/geometry/${file}`;
+const cdnUrl = (kind: "geometry" | "textures", file: string) =>
+  `https://www.bungie.net/common/destiny2_content/geometry/platform/mobile/${kind}/${file}`;
 
 type GearAssetResponse = {
   gearAsset?: {
     content?: Array<{ platform?: string; geometry?: string[]; textures?: string[] }>;
   };
 };
+
+// Texture .tgxm.bin containers are content-addressed (immutable) — cache the
+// extracted PNGs by internal name across requests so we don't re-download.
+const textureCache = new Map<string, Map<string, Uint8Array>>();
+
+/** Parse a TGXM container's file table into { internalName: bytes }. */
+function readContainerFiles(buffer: ArrayBuffer): Map<string, Uint8Array> {
+  const u8 = new Uint8Array(buffer);
+  const dv = new DataView(buffer);
+  const files = new Map<string, Uint8Array>();
+  if (String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) !== "TGXM") return files;
+  const tableOffset = dv.getUint32(8, true);
+  const fileCount = dv.getUint32(12, true);
+  for (let i = 0; i < fileCount; i += 1) {
+    const base = tableOffset + i * 272;
+    let name = "";
+    for (let c = 0; c < 256; c += 1) {
+      const ch = u8[base + c];
+      if (ch === 0) break;
+      name += String.fromCharCode(ch);
+    }
+    const offset = dv.getUint32(base + 256, true);
+    const size = dv.getUint32(base + 264, true);
+    files.set(name, u8.subarray(offset, offset + size));
+  }
+  return files;
+}
+
+async function loadTextureIndex(textureFiles: string[]): Promise<Map<string, Uint8Array>> {
+  const index = new Map<string, Uint8Array>();
+  await Promise.all(
+    textureFiles.map(async (file) => {
+      let entries = textureCache.get(file);
+      if (!entries) {
+        const response = await fetch(cdnUrl("textures", file));
+        if (!response.ok) return;
+        entries = readContainerFiles(await response.arrayBuffer());
+        textureCache.set(file, entries);
+      }
+      for (const [name, bytes] of entries) {
+        if (!index.has(name)) index.set(name, bytes);
+      }
+    }),
+  );
+  return index;
+}
+
+type Placement = { x: number; y: number; w: number; h: number; png: Uint8Array };
+type Part = {
+  positions: Float32Array;
+  normals: Float32Array;
+  uvs: Float32Array;
+  indices: Uint32Array;
+  plateW: number;
+  plateH: number;
+  placements: Placement[];
+};
+
+function align4(n: number): number {
+  return (n + 3) & ~3;
+}
 
 export async function GET(
   _request: NextRequest,
@@ -37,65 +98,111 @@ export async function GET(
       gear.gearAsset?.content?.find((entry) => /mobile/i.test(entry.platform ?? "")) ??
       gear.gearAsset?.content?.[0];
     const geometryFiles = content?.geometry ?? [];
+    const textureFiles = content?.textures ?? [];
     if (geometryFiles.length === 0) {
       return NextResponse.json({ error: "no geometry for this item" }, { status: 404 });
     }
 
     const meshes: GearMesh[] = [];
     for (const file of geometryFiles) {
-      const geometryResponse = await fetch(geometryUrl(file));
+      const geometryResponse = await fetch(cdnUrl("geometry", file));
       if (!geometryResponse.ok) continue;
-      const buffer = await geometryResponse.arrayBuffer();
       try {
-        meshes.push(...extractGearMeshes(buffer));
+        meshes.push(...extractGearMeshes(await geometryResponse.arrayBuffer()));
       } catch {
         // skip a container we can't parse; keep going for the rest
       }
     }
-
-    // Merge into one indexed mesh and ship it as a compact binary payload —
-    // returning hundreds of thousands of numbers as JSON crashes the dev worker.
-    let vertexTotal = 0;
-    let indexTotal = 0;
-    for (const mesh of meshes) {
-      vertexTotal += mesh.positions.length / 3;
-      indexTotal += mesh.indices.length;
+    if (meshes.length === 0) {
+      return NextResponse.json({ error: "no renderable meshes" }, { status: 404 });
     }
-    const positions = new Float32Array(vertexTotal * 3);
-    const normals = new Float32Array(vertexTotal * 3);
-    const indices = new Uint32Array(indexTotal);
-    let positionCursor = 0;
-    let indexCursor = 0;
-    let vertexBase = 0;
-    for (const mesh of meshes) {
-      positions.set(mesh.positions, positionCursor * 3);
-      normals.set(mesh.normals, positionCursor * 3);
-      for (let i = 0; i < mesh.indices.length; i += 1) {
-        indices[indexCursor + i] = mesh.indices[i] + vertexBase;
+
+    // Resolve diffuse-plate placements to their PNG bytes.
+    const needsTextures = meshes.some((m) => (m.diffusePlate?.placements.length ?? 0) > 0);
+    const textureIndex = needsTextures
+      ? await loadTextureIndex(textureFiles)
+      : new Map<string, Uint8Array>();
+
+    const parts: Part[] = meshes.map((mesh) => {
+      const placements: Placement[] = [];
+      for (const p of mesh.diffusePlate?.placements ?? []) {
+        const png = textureIndex.get(p.name);
+        if (png) placements.push({ x: p.x, y: p.y, w: p.w, h: p.h, png });
       }
-      const meshVertices = mesh.positions.length / 3;
-      positionCursor += meshVertices;
-      vertexBase += meshVertices;
-      indexCursor += mesh.indices.length;
+      return {
+        positions: new Float32Array(mesh.positions),
+        normals: new Float32Array(mesh.normals),
+        uvs: new Float32Array(mesh.uvs),
+        indices: new Uint32Array(mesh.indices),
+        plateW: mesh.diffusePlate?.width ?? 0,
+        plateH: mesh.diffusePlate?.height ?? 0,
+        placements,
+      };
+    });
+
+    // JSON header describes structure; geometry + PNGs follow as binary.
+    const header = {
+      parts: parts.map((part) => ({
+        v: part.positions.length / 3,
+        i: part.indices.length,
+        plate:
+          part.placements.length > 0
+            ? {
+                w: part.plateW,
+                h: part.plateH,
+                placements: part.placements.map((pl) => ({
+                  x: pl.x,
+                  y: pl.y,
+                  w: pl.w,
+                  h: pl.h,
+                  png: pl.png.byteLength,
+                })),
+              }
+            : null,
+      })),
+    };
+    const jsonBytes = new TextEncoder().encode(JSON.stringify(header));
+    const geomStart = align4(4 + jsonBytes.byteLength);
+
+    let geomBytes = 0;
+    let pngBytes = 0;
+    for (const part of parts) {
+      geomBytes +=
+        part.positions.byteLength +
+        part.normals.byteLength +
+        part.uvs.byteLength +
+        part.indices.byteLength;
+      for (const pl of part.placements) pngBytes += pl.png.byteLength;
     }
 
-    // Layout: [u32 vCount][u32 iCount][f32 positions][f32 normals][u32 indices]
-    const payload = new Uint8Array(
-      8 + positions.byteLength + normals.byteLength + indices.byteLength,
-    );
-    const header = new DataView(payload.buffer);
-    header.setUint32(0, vertexTotal, true);
-    header.setUint32(4, indexTotal, true);
-    payload.set(new Uint8Array(positions.buffer), 8);
-    payload.set(new Uint8Array(normals.buffer), 8 + positions.byteLength);
-    payload.set(new Uint8Array(indices.buffer), 8 + positions.byteLength + normals.byteLength);
+    const payload = new Uint8Array(geomStart + geomBytes + pngBytes);
+    new DataView(payload.buffer).setUint32(0, jsonBytes.byteLength, true);
+    payload.set(jsonBytes, 4);
+
+    let cursor = geomStart;
+    const writeTyped = (arr: Float32Array | Uint32Array) => {
+      payload.set(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength), cursor);
+      cursor += arr.byteLength;
+    };
+    for (const part of parts) {
+      writeTyped(part.positions);
+      writeTyped(part.normals);
+      writeTyped(part.uvs);
+      writeTyped(part.indices);
+    }
+    for (const part of parts) {
+      for (const pl of part.placements) {
+        payload.set(pl.png, cursor);
+        cursor += pl.png.byteLength;
+      }
+    }
 
     const stats = {
       itemHash,
-      geometryFiles: geometryFiles.length,
-      meshCount: meshes.length,
-      vertexCount: vertexTotal,
-      triangleCount: indexTotal / 3,
+      parts: parts.length,
+      vertexCount: parts.reduce((n, p) => n + p.positions.length / 3, 0),
+      triangleCount: parts.reduce((n, p) => n + p.indices.length / 3, 0),
+      textured: parts.filter((p) => p.placements.length > 0).length,
     };
     return new NextResponse(payload, {
       headers: {

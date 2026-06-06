@@ -65,9 +65,19 @@ export function GearCanvas({
     group.add(model);
     scene.add(group);
 
+    type PartHeader = {
+      v: number;
+      i: number;
+      plate: {
+        w: number;
+        h: number;
+        placements: { x: number; y: number; w: number; h: number; png: number }[];
+      } | null;
+    };
+
     void (async () => {
       try {
-        const material = new THREE.MeshStandardMaterial({
+        const fallbackMaterial = new THREE.MeshStandardMaterial({
           color: 0xc2cad2,
           metalness: 0.25,
           roughness: 0.6,
@@ -81,25 +91,66 @@ export function GearCanvas({
             const contentType = response.headers.get("content-type") ?? "";
             if (!response.ok || !contentType.includes("octet-stream")) return;
             const buffer = await response.arrayBuffer();
-            const view = new DataView(buffer);
-            const vertexCount = view.getUint32(0, true);
-            const indexCount = view.getUint32(4, true);
-            const positions = new Float32Array(buffer, 8, vertexCount * 3);
-            const normals = new Float32Array(buffer, 8 + vertexCount * 3 * 4, vertexCount * 3);
-            const indices = new Uint32Array(buffer, 8 + vertexCount * 3 * 4 * 2, indexCount);
+            const dv = new DataView(buffer);
+            const jsonLength = dv.getUint32(0, true);
+            const header = JSON.parse(
+              new TextDecoder().decode(new Uint8Array(buffer, 4, jsonLength)),
+            ) as { parts: PartHeader[] };
 
-            const geometry = new THREE.BufferGeometry();
-            geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-            // Use Bungie's authored normals — computeVertexNormals on the
-            // strip-derived mesh produces noisy, faceted shading.
-            geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
-            geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-            model.add(new THREE.Mesh(geometry, material));
+            // Geometry section (4-byte aligned), then all PNG bytes.
+            let cursor = (4 + jsonLength + 3) & ~3;
+            const built: { geometry: THREE.BufferGeometry; plate: PartHeader["plate"] }[] = [];
+            for (const part of header.parts) {
+              const positions = new Float32Array(buffer, cursor, part.v * 3);
+              cursor += part.v * 3 * 4;
+              const normals = new Float32Array(buffer, cursor, part.v * 3);
+              cursor += part.v * 3 * 4;
+              const uvs = new Float32Array(buffer, cursor, part.v * 2);
+              cursor += part.v * 2 * 4;
+              const indices = new Uint32Array(buffer, cursor, part.i);
+              cursor += part.i * 4;
 
-            const stats = JSON.parse(response.headers.get("x-mesh-stats") ?? "{}") as {
-              triangleCount?: number;
-            };
-            triangleTotal += stats.triangleCount ?? indexCount / 3;
+              const geometry = new THREE.BufferGeometry();
+              geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+              geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+              geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+              geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+              built.push({ geometry, plate: part.plate });
+              triangleTotal += part.i / 3;
+            }
+
+            let pngCursor = cursor;
+            for (const { geometry, plate } of built) {
+              let material: THREE.MeshStandardMaterial = fallbackMaterial;
+              if (plate && plate.placements.length > 0) {
+                const canvas = document.createElement("canvas");
+                canvas.width = plate.w;
+                canvas.height = plate.h;
+                const ctx = canvas.getContext("2d");
+                for (const pl of plate.placements) {
+                  const pngBytes = new Uint8Array(buffer.slice(pngCursor, pngCursor + pl.png));
+                  pngCursor += pl.png;
+                  if (!ctx) continue;
+                  try {
+                    const bmp = await createImageBitmap(new Blob([pngBytes]));
+                    ctx.drawImage(bmp, pl.x, pl.y, pl.w, pl.h);
+                    bmp.close();
+                  } catch {
+                    // skip an undecodable placement
+                  }
+                }
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.colorSpace = THREE.SRGBColorSpace;
+                texture.flipY = false;
+                material = new THREE.MeshStandardMaterial({
+                  map: texture,
+                  metalness: 0.2,
+                  roughness: 0.72,
+                  side: THREE.DoubleSide,
+                });
+              }
+              model.add(new THREE.Mesh(geometry, material));
+            }
           }),
         );
 

@@ -11,13 +11,32 @@
  *   files:   render_metadata.js (JSON) + *.vertexbuffer.tgx + *.indexbuffer.tgx
  */
 
+export type PlatePlacement = {
+  /** Exact internal PNG name to resolve from the gear-asset textures[]. */
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+export type DiffusePlate = {
+  width: number;
+  height: number;
+  placements: PlatePlacement[];
+};
+
 export type GearMesh = {
   /** xyz triplets in model space */
   positions: number[];
   /** xyz triplets */
   normals: number[];
+  /** uv pairs (dequantized into [0,1] plate space) */
+  uvs: number[];
   /** triangle-list indices */
   indices: number[];
+  /** Diffuse texture plate (placements resolved to PNGs server-side). */
+  diffusePlate: DiffusePlate | null;
 };
 
 type VertexElement = {
@@ -39,9 +58,24 @@ type RenderMesh = {
   index_buffer: { file_name: string; value_byte_size?: number };
   stage_part_list: StagePart[];
   stage_part_vertex_stream_layout_definitions: LayoutDef[];
+  /** [scaleX, scaleY, offsetX, offsetY] to dequantize the texcoord stream. */
+  texcoord0_scale_offset?: number[];
+};
+type TexturePlacement = {
+  texture_tag_name: string;
+  position_x: number;
+  position_y: number;
+  texture_size_x: number;
+  texture_size_y: number;
+};
+type TexturePlate = {
+  plate_set?: {
+    diffuse?: { plate_size?: number[]; texture_placements?: TexturePlacement[] };
+  };
 };
 type RenderMetadata = {
   render_model?: { render_meshes?: RenderMesh[] };
+  texture_plates?: TexturePlate[];
 };
 
 const TABLE_ENTRY_STRIDE = 272;
@@ -154,10 +188,15 @@ function readVec3(
   ];
 }
 
-function extractRenderMesh(mesh: RenderMesh, files: Map<string, Uint8Array>): GearMesh | null {
+function extractRenderMesh(
+  mesh: RenderMesh,
+  files: Map<string, Uint8Array>,
+  plate: DiffusePlate | null,
+): GearMesh | null {
   const position = findElement(mesh, "position");
   if (!position) return null;
   const normal = findElement(mesh, "normal");
+  const texcoord = findElement(mesh, "texcoord");
 
   const positionFile = mesh.vertex_buffers?.[position.bufferIndex]?.file_name;
   const positionBytes = positionFile ? files.get(positionFile) : undefined;
@@ -170,8 +209,19 @@ function extractRenderMesh(mesh: RenderMesh, files: Map<string, Uint8Array>): Ge
   const stride = position.stride;
   const vertexCount = Math.floor(positionBytes.byteLength / stride);
 
+  // Texcoords usually live in a second vertex buffer (stride 4, short2),
+  // dequantized into [0,1] plate space via texcoord0_scale_offset.
+  const uvFile =
+    texcoord != null ? mesh.vertex_buffers?.[texcoord.bufferIndex]?.file_name : undefined;
+  const uvBytes = uvFile ? files.get(uvFile) : undefined;
+  const uvView = uvBytes
+    ? new DataView(uvBytes.buffer, uvBytes.byteOffset, uvBytes.byteLength)
+    : null;
+  const [su, sv, ou, ov] = mesh.texcoord0_scale_offset ?? [1, 1, 0, 0];
+
   const positions: number[] = [];
   const normals: number[] = [];
+  const uvs: number[] = [];
   const sameBuffer = normal != null && normal.bufferIndex === position.bufferIndex;
   for (let v = 0; v < vertexCount; v += 1) {
     const vertexBase = v * stride;
@@ -182,6 +232,14 @@ function extractRenderMesh(mesh: RenderMesh, files: Map<string, Uint8Array>): Ge
       normals.push(n[0], n[1], n[2]);
     } else {
       normals.push(0, 0, 1);
+    }
+    if (uvView && texcoord) {
+      const o = v * texcoord.stride + texcoord.offset;
+      const rawU = uvView.getInt16(o, true) / 32767;
+      const rawV = uvView.getInt16(o + 2, true) / 32767;
+      uvs.push(rawU * su + ou, rawV * sv + ov);
+    } else {
+      uvs.push(0, 0);
     }
   }
 
@@ -236,15 +294,34 @@ function extractRenderMesh(mesh: RenderMesh, files: Map<string, Uint8Array>): Ge
     }
   }
 
-  return { positions, normals, indices };
+  return { positions, normals, uvs, indices, diffusePlate: plate };
+}
+
+function readDiffusePlate(metadata: RenderMetadata): DiffusePlate | null {
+  const diffuse = metadata.texture_plates?.[0]?.plate_set?.diffuse;
+  const size = diffuse?.plate_size;
+  const placements = diffuse?.texture_placements;
+  if (!diffuse || !size || !placements?.length) return null;
+  return {
+    width: size[0],
+    height: size[1],
+    placements: placements.map((p) => ({
+      name: p.texture_tag_name,
+      x: p.position_x,
+      y: p.position_y,
+      w: p.texture_size_x,
+      h: p.texture_size_y,
+    })),
+  };
 }
 
 /** Parse a TGXM geometry container into renderable LOD-0 meshes. */
 export function extractGearMeshes(buffer: ArrayBuffer): GearMesh[] {
   const { files, metadata } = parseContainer(buffer);
+  const plate = readDiffusePlate(metadata);
   const meshes: GearMesh[] = [];
   for (const mesh of metadata.render_model?.render_meshes ?? []) {
-    const extracted = extractRenderMesh(mesh, files);
+    const extracted = extractRenderMesh(mesh, files, plate);
     if (extracted && extracted.indices.length > 0) {
       meshes.push(extracted);
     }
