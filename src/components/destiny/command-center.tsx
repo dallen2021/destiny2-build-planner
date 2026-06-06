@@ -374,24 +374,6 @@ function CommandStageItemNode({
   );
 }
 
-function CommandStageConnectors({
-  activeSide,
-}: {
-  activeSide: "left" | "right" | "none";
-}) {
-  return (
-    <div
-      aria-hidden="true"
-      className="d2-stage-connectors"
-      data-active-side={activeSide}
-    >
-      <span className="d2-stage-connector d2-stage-connector-left" />
-      <span className="d2-stage-connector d2-stage-connector-right" />
-      <span className="d2-stage-connector-core" />
-    </div>
-  );
-}
-
 function CommandGuardianSilhouette({
   guardianClass,
   power,
@@ -497,7 +479,6 @@ function GuardianStage({
       <div className="d2-stage-floor-glow" aria-hidden="true" />
       <div className="d2-stage-ring" aria-hidden="true" />
       <div className="d2-stage-lines" aria-hidden="true" />
-      <CommandStageConnectors activeSide={selectedSide} />
       <div className="d2-stage-loadout-nodes d2-stage-loadout-nodes-left">
         {leftItems.map((item) => (
           <CommandStageItemNode
@@ -627,7 +608,7 @@ function CommandUtilityPanels({
 }
 
 const STAGE_VARIANTS = ["studio", "vanguard", "holo"];
-const DEFAULT_STAGE_VARIANT = "vanguard";
+const DEFAULT_STAGE_VARIANT = "studio";
 
 export function CommandCenter({
   previewData,
