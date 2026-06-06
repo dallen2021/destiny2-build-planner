@@ -8,7 +8,7 @@ type RenderCharacter = {
   characterId: string;
   classType: number;
   className: string;
-  armor: string[];
+  armor: { hash: string; shader: string | null }[];
 };
 
 /**
@@ -69,7 +69,7 @@ export function CommandGuardian({
         <div className="d2-stage-guardian-3d" aria-hidden="true">
           <GearCanvas
             key={`${active?.characterId ?? "guardian"}-${refreshKey}`}
-            itemHashes={armor}
+            items={armor}
             showStatus={false}
             interactive={false}
             fill={1.55}

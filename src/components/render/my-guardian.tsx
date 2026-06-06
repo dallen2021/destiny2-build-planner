@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { GearCanvas } from "./guardian-canvas";
+import { GearCanvas, type GearItem } from "./guardian-canvas";
 
 type RenderCharacter = {
   characterId: string;
@@ -10,11 +10,16 @@ type RenderCharacter = {
   className: string;
   light: number | null;
   emblemPath: string | null;
-  armor: string[];
+  armor: GearItem[];
 };
 
 // Shown when nobody is signed in, so the stage still demos something.
-const DEMO_TITAN = ["1362342075", "241462142", "1192890598", "1437375562"];
+const DEMO_TITAN: GearItem[] = [
+  { hash: "1362342075" },
+  { hash: "241462142" },
+  { hash: "1192890598" },
+  { hash: "1437375562" },
+];
 
 type LoadState =
   | { kind: "loading" }
@@ -64,7 +69,7 @@ export function MyGuardian() {
   const active = characters?.[Math.min(selected, (characters?.length ?? 1) - 1)] ?? null;
 
   // Stable identity so GearCanvas doesn't re-init on unrelated re-renders.
-  const items = useMemo(
+  const items = useMemo<GearItem[]>(
     () => (active ? active.armor : state.kind === "anon" ? DEMO_TITAN : []),
     [active, state.kind],
   );
@@ -73,7 +78,7 @@ export function MyGuardian() {
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {items.length > 0 ? (
-        <GearCanvas key={canvasKey} itemHashes={items} />
+        <GearCanvas key={canvasKey} items={items} />
       ) : (
         <Centered>
           {state.kind === "loading"

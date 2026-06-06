@@ -27,7 +27,11 @@ export default async function SpikeRenderPage({
         background: "radial-gradient(circle at 50% 38%, #1c2733 0%, #080c12 70%)",
       }}
     >
-      {overrideHashes ? <GearCanvas itemHashes={overrideHashes} /> : <MyGuardian />}
+      {overrideHashes ? (
+        <GearCanvas items={overrideHashes.map((hash) => ({ hash }))} />
+      ) : (
+        <MyGuardian />
+      )}
     </main>
   );
 }

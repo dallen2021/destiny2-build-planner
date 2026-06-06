@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { bungieFetch } from "@/lib/bungie/client";
 import { getOptionalBungieConfig } from "@/lib/bungie/config";
+import { findShader } from "@/lib/render/gear-asset-db";
 import {
   ARMOR_SLOT_BY_BUCKET_HASH,
   type DestinyProfileResponse,
@@ -27,8 +28,8 @@ type RenderCharacter = {
   className: string;
   light: number | null;
   emblemPath: string | null;
-  /** Equipped armor render hashes (ornament-aware), helmet → class item. */
-  armor: string[];
+  /** Equipped armor pieces (ornament-aware render hash + equipped shader). */
+  armor: { hash: string; shader: string | null }[];
 };
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -57,40 +58,57 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       apiKey: config.apiKey,
       path: `/Destiny2/${session.destinyMembership.membershipType}/Profile/${session.destinyMembership.membershipId}/`,
       // Just what we need to place a body on the stage — keep it light.
-      searchParams: { components: ["Characters", "CharacterEquipment"] },
+      searchParams: { components: ["Characters", "CharacterEquipment", "ItemSockets"] },
     });
 
     const characterData = profile.characters?.data ?? {};
     const equipment = profile.characterEquipment?.data ?? {};
+    const socketsData = profile.itemComponents?.sockets?.data ?? {};
 
-    const characters: RenderCharacter[] = Object.values(characterData)
-      .map((character) => {
-        const id = character.characterId ?? "";
-        const items = equipment[id]?.items ?? [];
-        const byBucket = new Map<number, number>();
-        for (const item of items) {
-          if (item.bucketHash != null && item.bucketHash in ARMOR_SLOT_BY_BUCKET_HASH) {
-            // overrideStyleItemHash is the applied (universal) ornament — that's
-            // what the player actually sees, so prefer it over the base item.
-            byBucket.set(item.bucketHash, item.overrideStyleItemHash || item.itemHash);
-          }
+    // The equipped shader is a plug in the armor's sockets; resolve it so we can
+    // render the player's actual shader colors, not the item's default dyes.
+    const resolveShader = async (instanceId: string | undefined): Promise<string | null> => {
+      if (!instanceId) return null;
+      const plugHashes = (socketsData[instanceId]?.sockets ?? [])
+        .map((socket) => socket.plugHash)
+        .filter((hash): hash is number => hash != null);
+      const shader = await findShader(plugHashes);
+      return shader != null ? String(shader) : null;
+    };
+
+    const characters: RenderCharacter[] = [];
+    for (const character of Object.values(characterData)) {
+      const id = character.characterId ?? "";
+      const items = equipment[id]?.items ?? [];
+      const byBucket = new Map<number, { hash: string; instanceId?: string }>();
+      for (const item of items) {
+        if (item.bucketHash != null && item.bucketHash in ARMOR_SLOT_BY_BUCKET_HASH) {
+          // overrideStyleItemHash is the applied (universal) ornament.
+          byBucket.set(item.bucketHash, {
+            hash: String(item.overrideStyleItemHash || item.itemHash),
+            instanceId: item.itemInstanceId,
+          });
         }
-        const armor = ARMOR_BUCKET_ORDER.map((bucket) => byBucket.get(bucket)).filter(
-          (hash): hash is number => hash != null,
-        );
-        const classType = character.classType ?? 3;
-        return {
-          characterId: id,
-          classType,
-          className: CLASS_NAME[classType] ?? "Guardian",
-          light: character.light ?? null,
-          emblemPath: character.emblemBackgroundPath
-            ? `https://www.bungie.net${character.emblemBackgroundPath}`
-            : null,
-          armor: armor.map(String),
-        };
-      })
-      .filter((character) => character.armor.length > 0);
+      }
+      const armor: { hash: string; shader: string | null }[] = [];
+      for (const bucket of ARMOR_BUCKET_ORDER) {
+        const entry = byBucket.get(bucket);
+        if (!entry) continue;
+        armor.push({ hash: entry.hash, shader: await resolveShader(entry.instanceId) });
+      }
+      if (armor.length === 0) continue;
+      const classType = character.classType ?? 3;
+      characters.push({
+        characterId: id,
+        classType,
+        className: CLASS_NAME[classType] ?? "Guardian",
+        light: character.light ?? null,
+        emblemPath: character.emblemBackgroundPath
+          ? `https://www.bungie.net${character.emblemBackgroundPath}`
+          : null,
+        armor,
+      });
+    }
 
     return NextResponse.json({ authenticated: true, characters });
   } catch (error) {

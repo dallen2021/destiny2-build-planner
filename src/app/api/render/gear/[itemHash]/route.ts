@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getGearAsset, getGearDyes, type GearDye } from "@/lib/render/gear-asset-db";
+import { getItemDyes, type GearDye } from "@/lib/render/gear-asset-db";
 import { extractGearMeshes, type GearMesh } from "@/lib/render/tgxm";
 
 export const dynamic = "force-dynamic";
@@ -83,10 +83,11 @@ function align4(n: number): number {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ itemHash: string }> },
 ): Promise<NextResponse> {
   const { itemHash } = await context.params;
+  const shaderHash = request.nextUrl.searchParams.get("shader");
 
   try {
     const gearResponse = await fetch(gearAssetUrl(itemHash));
@@ -166,11 +167,14 @@ export async function GET(
         : null;
 
     // Dye colors live in the gear-asset DB's `gear` files (which Lowlines
-    // strips). Best-effort — never block the render on it.
+    // strips). Prefer the equipped shader's dyes (what the player sees); fall
+    // back to the item's own default dyes. Best-effort — never block the render.
     let dyes: GearDye[] = [];
     try {
-      const asset = await getGearAsset(Number(itemHash));
-      if (asset?.gear.length) dyes = await getGearDyes(asset.gear);
+      dyes = await getItemDyes(shaderHash ? Number(shaderHash) : Number(itemHash));
+      if (dyes.length === 0 && shaderHash) {
+        dyes = await getItemDyes(Number(itemHash));
+      }
     } catch {
       dyes = [];
     }

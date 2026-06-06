@@ -4,13 +4,15 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
+export type GearItem = { hash: string; shader?: string | null };
+
 export function GearCanvas({
-  itemHashes,
+  items,
   showStatus = true,
   interactive = true,
   fill = 2.1,
 }: {
-  itemHashes: string[];
+  items: GearItem[];
   showStatus?: boolean;
   interactive?: boolean;
   /** Camera distance multiplier; lower = the Guardian fills more of the frame. */
@@ -146,8 +148,11 @@ export function GearCanvas({
         let triangleTotal = 0;
 
         await Promise.all(
-          itemHashes.map(async (hash) => {
-            const response = await fetch(`/api/render/gear/${hash}`);
+          items.map(async ({ hash, shader }) => {
+            const url = shader
+              ? `/api/render/gear/${hash}?shader=${encodeURIComponent(shader)}`
+              : `/api/render/gear/${hash}`;
+            const response = await fetch(url);
             const contentType = response.headers.get("content-type") ?? "";
             if (!response.ok || !contentType.includes("octet-stream")) return;
             const buffer = await response.arrayBuffer();
@@ -270,7 +275,7 @@ export function GearCanvas({
         controls.update();
 
         setStatus(
-          `${itemHashes.length} piece${itemHashes.length === 1 ? "" : "s"} · ${triangleTotal.toLocaleString()} triangles`,
+          `${items.length} piece${items.length === 1 ? "" : "s"} · ${triangleTotal.toLocaleString()} triangles`,
         );
       } catch (error) {
         setStatus(`Failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -294,7 +299,7 @@ export function GearCanvas({
         mount.removeChild(renderer.domElement);
       }
     };
-  }, [itemHashes, interactive, fill]);
+  }, [items, interactive, fill]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>

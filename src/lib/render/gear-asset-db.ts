@@ -107,6 +107,29 @@ const rgb3 = (value: unknown): [number, number, number] => {
   return [Number(a[0]) || 0, Number(a[1]) || 0, Number(a[2]) || 0];
 };
 
+/** Dyes for an item by its hash (armor default dyes, or a shader's dyes). */
+export async function getItemDyes(itemHash: number): Promise<GearDye[]> {
+  const asset = await getGearAsset(itemHash);
+  if (!asset?.gear.length) return [];
+  return getGearDyes(asset.gear);
+}
+
+/**
+ * Among an item's socket plug hashes, find the equipped shader — the plug whose
+ * gear-asset entry carries dye gear files but no geometry (armor/ornaments have
+ * geometry; shaders are dye-only).
+ */
+export async function findShader(plugHashes: number[]): Promise<number | null> {
+  for (const hash of plugHashes) {
+    if (!hash) continue;
+    const asset = await getGearAsset(hash);
+    if (asset && asset.gear.length > 0 && asset.geometry.length === 0) {
+      return hash;
+    }
+  }
+  return null;
+}
+
 /** Fetch the gear-content `.js` files and pull each dye slot's albedo tints. */
 export async function getGearDyes(gearFiles: string[]): Promise<GearDye[]> {
   const dyes: GearDye[] = [];
