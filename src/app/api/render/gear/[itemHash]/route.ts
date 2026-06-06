@@ -75,7 +75,7 @@ type Part = {
   diffuse: Plate;
   normal: Plate;
   gearstack: Plate;
-  dyeSlot: number;
+  dyeIndex: Uint8Array;
 };
 
 function align4(n: number): number {
@@ -148,7 +148,7 @@ export async function GET(
       diffuse: resolvePlate(mesh.diffusePlate),
       normal: resolvePlate(mesh.normalPlate),
       gearstack: resolvePlate(mesh.gearstackPlate),
-      dyeSlot: mesh.dyeSlot,
+      dyeIndex: new Uint8Array(mesh.dyeIndex),
     }));
 
     const headerPlate = (plate: Plate) =>
@@ -185,7 +185,6 @@ export async function GET(
       parts: parts.map((part) => ({
         v: part.positions.length / 3,
         i: part.indices.length,
-        dyeSlot: part.dyeSlot,
         diffuse: headerPlate(part.diffuse),
         normal: headerPlate(part.normal),
         gearstack: headerPlate(part.gearstack),
@@ -195,6 +194,7 @@ export async function GET(
     const geomStart = align4(4 + jsonBytes.byteLength);
 
     let geomBytes = 0;
+    let dyeBytes = 0;
     let pngBytes = 0;
     for (const part of parts) {
       geomBytes +=
@@ -202,12 +202,13 @@ export async function GET(
         part.normals.byteLength +
         part.uvs.byteLength +
         part.indices.byteLength;
+      dyeBytes += part.dyeIndex.byteLength;
       for (const pl of part.diffuse.placements) pngBytes += pl.png.byteLength;
       for (const pl of part.normal.placements) pngBytes += pl.png.byteLength;
       for (const pl of part.gearstack.placements) pngBytes += pl.png.byteLength;
     }
 
-    const payload = new Uint8Array(geomStart + geomBytes + pngBytes);
+    const payload = new Uint8Array(geomStart + geomBytes + dyeBytes + pngBytes);
     new DataView(payload.buffer).setUint32(0, jsonBytes.byteLength, true);
     payload.set(jsonBytes, 4);
 
@@ -221,6 +222,11 @@ export async function GET(
       writeTyped(part.normals);
       writeTyped(part.uvs);
       writeTyped(part.indices);
+    }
+    // Per-vertex dye indices (u8), right after geometry, before the PNG blobs.
+    for (const part of parts) {
+      payload.set(part.dyeIndex, cursor);
+      cursor += part.dyeIndex.byteLength;
     }
     for (const part of parts) {
       for (const pl of part.diffuse.placements) {

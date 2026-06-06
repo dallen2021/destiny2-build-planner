@@ -81,7 +81,6 @@ export function GearCanvas({
     type PartHeader = {
       v: number;
       i: number;
-      dyeSlot: number;
       diffuse: Plate;
       normal: Plate;
       gearstack: Plate;
@@ -115,26 +114,36 @@ export function GearCanvas({
       return { texture, offset };
     };
 
-    // Bungie's gear-dye model (from spasm): the final albedo is the diffuse
-    // overlay-blended with the dye color, masked by the gearstack red channel.
+    // Bungie's gear-dye model (from spasm): albedo = overlay(diffuse, dyeColor)
+    // masked by gearstack.r. The dye color is chosen per pixel from an 8-entry
+    // palette by the per-vertex dye index (different sub-parts of a mesh use
+    // different slots), so e.g. gold stripes sit on a purple base.
+    const DYE_PALETTE_SIZE = 8;
     const applyDye = (
       material: THREE.MeshStandardMaterial,
       gearstack: THREE.CanvasTexture,
-      color: [number, number, number],
+      palette: THREE.Vector3[],
     ) => {
-      const change = new THREE.Vector3(color[0], color[1], color[2]);
       material.onBeforeCompile = (shader) => {
         shader.uniforms.uGearstack = { value: gearstack };
-        shader.uniforms.uChangeColor = { value: change };
+        shader.uniforms.uChangeColors = { value: palette };
+        shader.vertexShader =
+          "attribute float aDyeIndex;\nvarying float vDyeIndex;\n" +
+          shader.vertexShader.replace(
+            "#include <begin_vertex>",
+            "#include <begin_vertex>\n  vDyeIndex = aDyeIndex;",
+          );
         shader.fragmentShader =
-          "uniform sampler2D uGearstack;\nuniform vec3 uChangeColor;\n" +
+          `uniform sampler2D uGearstack;\nuniform vec3 uChangeColors[${DYE_PALETTE_SIZE}];\nvarying float vDyeIndex;\n` +
           "vec3 d2Overlay(vec3 b, vec3 s){return mix(2.0*b*s,1.0-2.0*(1.0-b)*(1.0-s),step(vec3(0.5),b));}\n" +
           shader.fragmentShader.replace(
             "#include <map_fragment>",
-            "#include <map_fragment>\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, uChangeColor), d2Mask);",
+            "#include <map_fragment>\n  int d2i = int(clamp(vDyeIndex + 0.5, 0.0, float(" +
+              (DYE_PALETTE_SIZE - 1) +
+              ")));\n  vec3 d2Dye = uChangeColors[d2i];\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, d2Dye), d2Mask);",
           );
       };
-      material.customProgramCacheKey = () => "d2-dye-v1";
+      material.customProgramCacheKey = () => "d2-dye-v2";
     };
 
     void (async () => {
@@ -174,10 +183,10 @@ export function GearCanvas({
             let cursor = (4 + jsonLength + 3) & ~3;
             const built: {
               geometry: THREE.BufferGeometry;
+              v: number;
               diffuse: Plate;
               normal: Plate;
               gearstack: Plate;
-              dyeSlot: number;
             }[] = [];
             for (const part of header.parts) {
               const positions = new Float32Array(buffer, cursor, part.v * 3);
@@ -196,15 +205,34 @@ export function GearCanvas({
               geometry.setIndex(new THREE.BufferAttribute(indices, 1));
               built.push({
                 geometry,
+                v: part.v,
                 diffuse: part.diffuse,
                 normal: part.normal,
                 gearstack: part.gearstack,
-                dyeSlot: part.dyeSlot,
               });
               triangleTotal += part.i / 3;
             }
 
-            // PNG sections follow geometry, in order: diffuse, normal, gearstack.
+            // Per-vertex dye indices (u8) follow geometry; upload as a float attr.
+            for (const part of built) {
+              const dyeBytes = new Uint8Array(buffer, cursor, part.v);
+              cursor += part.v;
+              const aDyeIndex = new Float32Array(part.v);
+              for (let n = 0; n < part.v; n += 1) aDyeIndex[n] = dyeBytes[n];
+              part.geometry.setAttribute("aDyeIndex", new THREE.BufferAttribute(aDyeIndex, 1));
+            }
+
+            // 8-entry dye palette keyed by gear_dye_change_color_index; 0.5 grey
+            // is an overlay no-op for unused slots.
+            const palette: THREE.Vector3[] = [];
+            for (let n = 0; n < DYE_PALETTE_SIZE; n += 1) {
+              const c = colorForIndex(n);
+              palette.push(
+                c ? new THREE.Vector3(c[0], c[1], c[2]) : new THREE.Vector3(0.5, 0.5, 0.5),
+              );
+            }
+
+            // PNG sections follow: diffuse, normal, gearstack.
             let off = cursor;
             const compositeAll = async (plates: Plate[], srgb: boolean) => {
               const out: (THREE.CanvasTexture | null)[] = [];
@@ -238,8 +266,7 @@ export function GearCanvas({
                 side: THREE.DoubleSide,
               });
               const gearstack = gearstackTex[k];
-              const color = colorForIndex(part.dyeSlot);
-              if (gearstack && color) applyDye(material, gearstack, color);
+              if (gearstack) applyDye(material, gearstack, palette);
               model.add(new THREE.Mesh(part.geometry, material));
             });
           }),

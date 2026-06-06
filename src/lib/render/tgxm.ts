@@ -41,8 +41,8 @@ export type GearMesh = {
   normalPlate: DiffusePlate | null;
   /** Gearstack plate — its red channel masks where the dye color applies. */
   gearstackPlate: DiffusePlate | null;
-  /** Gear dye slot (0/1/2) that tints this mesh. */
-  dyeSlot: number;
+  /** Per-vertex gear dye index (slot*2 + primary/secondary), one per vertex. */
+  dyeIndex: number[];
 };
 
 type VertexElement = {
@@ -265,10 +265,15 @@ function extractRenderMesh(
     indexIsU16 ? ibView.getUint16(i * 2, true) : ibView.getUint32(i * 4, true);
 
   const indices: number[] = [];
+  // Per-vertex gear dye index — different stage parts within a mesh can use
+  // different dye slots (e.g. the legs mix slot 0 and slot 2), so a single
+  // per-mesh color is wrong. Stamp each part's index onto its vertices.
+  const dyeIndex = new Array<number>(vertexCount).fill(0);
   for (const part of mesh.stage_part_list ?? []) {
     if ((part.lod_category?.value ?? 0) !== HIGHEST_LOD) continue;
     const start = part.start_index;
     const count = part.index_count;
+    const partDye = part.gear_dye_change_color_index ?? 0;
     if (part.primitive_type === 5) {
       // Triangle strip. Bungie joins sub-strips with a 0xFFFF primitive-restart
       // sentinel (and sometimes degenerate triangles). Reset the running window
@@ -285,6 +290,7 @@ function extractRenderMesh(
           tri = 0;
           continue;
         }
+        dyeIndex[idx] = partDye;
         if (a >= 0 && b >= 0) {
           if (a !== b && b !== idx && a !== idx) {
             if (tri % 2 === 0) indices.push(a, b, idx);
@@ -302,17 +308,15 @@ function extractRenderMesh(
         const b = readIndex(start + i + 1);
         const c = readIndex(start + i + 2);
         if (a >= vertexCount || b >= vertexCount || c >= vertexCount) continue;
+        dyeIndex[a] = partDye;
+        dyeIndex[b] = partDye;
+        dyeIndex[c] = partDye;
         indices.push(a, b, c);
       }
     }
   }
 
-  const lod0Part = (mesh.stage_part_list ?? []).find(
-    (p) => (p.lod_category?.value ?? 0) === HIGHEST_LOD,
-  );
-  const dyeSlot = lod0Part?.gear_dye_change_color_index ?? 0;
-
-  return { positions, normals, uvs, indices, diffusePlate, normalPlate, gearstackPlate, dyeSlot };
+  return { positions, normals, uvs, indices, diffusePlate, normalPlate, gearstackPlate, dyeIndex };
 }
 
 function readPlate(
