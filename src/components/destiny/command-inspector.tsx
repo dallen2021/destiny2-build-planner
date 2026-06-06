@@ -78,7 +78,11 @@ function PlugTip({
       <TooltipTrigger asChild>
         <Plug icon={icon} selected={selected} size={size} />
       </TooltipTrigger>
-      <TooltipContent className="d2-ci-tip" hideArrow side="left">
+      <TooltipContent
+        arrowClassName="bg-[#d8a93f] fill-[#d8a93f]"
+        className="d2-ci-tip"
+        side="left"
+      >
         <span className="d2-ci-tip-name">{name}</span>
         {description ? <span className="d2-ci-tip-desc">{description}</span> : null}
       </TooltipContent>
@@ -137,7 +141,11 @@ function ModSlot({
           {icon ? <Image alt="" height={30} src={icon} width={30} /> : null}
         </span>
       </TooltipTrigger>
-      <TooltipContent className="d2-ci-tip" hideArrow side="top">
+      <TooltipContent
+        arrowClassName="bg-[#d8a93f] fill-[#d8a93f]"
+        className="d2-ci-tip"
+        side="top"
+      >
         <span className="d2-ci-tip-name">{plug.name}</span>
         {plug.description ? <span className="d2-ci-tip-desc">{plug.description}</span> : null}
       </TooltipContent>
