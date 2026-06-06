@@ -8,7 +8,7 @@ type RenderCharacter = {
   characterId: string;
   classType: number;
   className: string;
-  armor: { hash: string; shader: string | null }[];
+  armor: { hash: string; shader: string | null; dyes?: number[] }[];
 };
 
 /**

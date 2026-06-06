@@ -22,6 +22,8 @@ export type GearAssetEntry = {
 export type GearDye = {
   slot: number;
   cloth: boolean;
+  /** investment_hash — matches CharacterRenderData's applied dyeHash. */
+  investment: number;
   /** linear RGB 0–1 */
   primary: [number, number, number];
   secondary: [number, number, number];
@@ -140,6 +142,7 @@ export async function getGearDyes(gearFiles: string[]): Promise<GearDye[]> {
       default_dyes?: {
         slot_type_index?: number;
         cloth?: boolean;
+        investment_hash?: number;
         material_properties?: { primary_albedo_tint?: unknown; secondary_albedo_tint?: unknown };
       }[];
     };
@@ -148,6 +151,7 @@ export async function getGearDyes(gearFiles: string[]): Promise<GearDye[]> {
       dyes.push({
         slot: dye.slot_type_index ?? 0,
         cloth: Boolean(dye.cloth),
+        investment: dye.investment_hash ?? 0,
         primary: rgb3(mp.primary_albedo_tint),
         secondary: rgb3(mp.secondary_albedo_tint),
       });

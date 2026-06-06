@@ -88,6 +88,14 @@ export async function GET(
 ): Promise<NextResponse> {
   const { itemHash } = await context.params;
   const shaderHash = request.nextUrl.searchParams.get("shader");
+  // Applied dye hashes for THIS piece (from CharacterRenderData.peerView). A
+  // shader carries ~5 dye "sets"; this picks the one set the piece actually uses.
+  const appliedDyes = new Set(
+    (request.nextUrl.searchParams.get("dyes") ?? "")
+      .split(",")
+      .map(Number)
+      .filter((n) => Number.isFinite(n) && n > 0),
+  );
 
   try {
     const gearResponse = await fetch(gearAssetUrl(itemHash));
@@ -174,6 +182,13 @@ export async function GET(
       dyes = await getItemDyes(shaderHash ? Number(shaderHash) : Number(itemHash));
       if (dyes.length === 0 && shaderHash) {
         dyes = await getItemDyes(Number(itemHash));
+      }
+      // Narrow the shader's many dye sets to the ones this piece actually applies
+      // (matched by investment_hash). Keep the full list if nothing matches so we
+      // never blank out the dyes (e.g. when we fell back to item defaults).
+      if (appliedDyes.size > 0) {
+        const filtered = dyes.filter((d) => appliedDyes.has(d.investment));
+        if (filtered.length > 0) dyes = filtered;
       }
     } catch {
       dyes = [];

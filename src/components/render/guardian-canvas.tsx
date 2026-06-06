@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
-export type GearItem = { hash: string; shader?: string | null };
+export type GearItem = {
+  hash: string;
+  shader?: string | null;
+  /** Applied dye hashes for this piece (from CharacterRenderData.peerView). */
+  dyes?: number[];
+};
 
 export function GearCanvas({
   items,
@@ -157,10 +162,12 @@ export function GearCanvas({
         let triangleTotal = 0;
 
         await Promise.all(
-          items.map(async ({ hash, shader }) => {
-            const url = shader
-              ? `/api/render/gear/${hash}?shader=${encodeURIComponent(shader)}`
-              : `/api/render/gear/${hash}`;
+          items.map(async ({ hash, shader, dyes }) => {
+            const params = new URLSearchParams();
+            if (shader) params.set("shader", shader);
+            if (dyes && dyes.length > 0) params.set("dyes", dyes.join(","));
+            const query = params.toString();
+            const url = `/api/render/gear/${hash}${query ? `?${query}` : ""}`;
             const response = await fetch(url);
             const contentType = response.headers.get("content-type") ?? "";
             if (!response.ok || !contentType.includes("octet-stream")) return;

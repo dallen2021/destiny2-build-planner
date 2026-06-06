@@ -175,6 +175,19 @@ export type DestinyProfileResponse = {
   characterEquipment?: {
     data?: Record<string, { items?: DestinyInventoryItem[] }>;
   };
+  characterRenderData?: {
+    data?: Record<
+      string,
+      {
+        peerView?: {
+          equipment?: {
+            itemHash?: number;
+            dyes?: { channelHash?: number; dyeHash?: number }[];
+          }[];
+        };
+      }
+    >;
+  };
   characterInventories?: {
     data?: Record<string, { items?: DestinyInventoryItem[] }>;
   };

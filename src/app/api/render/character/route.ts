@@ -29,7 +29,7 @@ type RenderCharacter = {
   light: number | null;
   emblemPath: string | null;
   /** Equipped armor pieces (ornament-aware render hash + equipped shader). */
-  armor: { hash: string; shader: string | null }[];
+  armor: { hash: string; shader: string | null; dyes: number[] }[];
 };
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -58,12 +58,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       apiKey: config.apiKey,
       path: `/Destiny2/${session.destinyMembership.membershipType}/Profile/${session.destinyMembership.membershipId}/`,
       // Just what we need to place a body on the stage — keep it light.
-      searchParams: { components: ["Characters", "CharacterEquipment", "ItemSockets"] },
+      // CharacterRenderData gives the per-piece applied dyes (the exact dye set
+      // the shader resolves to for that piece), which we need because a shader
+      // carries several dye "sets" and each piece uses a different one.
+      searchParams: {
+        components: [
+          "Characters",
+          "CharacterEquipment",
+          "ItemSockets",
+          "CharacterRenderData",
+        ],
+      },
     });
 
     const characterData = profile.characters?.data ?? {};
     const equipment = profile.characterEquipment?.data ?? {};
     const socketsData = profile.itemComponents?.sockets?.data ?? {};
+    const renderData = profile.characterRenderData?.data ?? {};
 
     // The equipped shader is a plug in the armor's sockets; resolve it so we can
     // render the player's actual shader colors, not the item's default dyes.
@@ -80,21 +91,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     for (const character of Object.values(characterData)) {
       const id = character.characterId ?? "";
       const items = equipment[id]?.items ?? [];
-      const byBucket = new Map<number, { hash: string; instanceId?: string }>();
+      const byBucket = new Map<
+        number,
+        { hash: string; baseHash: number; instanceId?: string }
+      >();
       for (const item of items) {
         if (item.bucketHash != null && item.bucketHash in ARMOR_SLOT_BY_BUCKET_HASH) {
           // overrideStyleItemHash is the applied (universal) ornament.
           byBucket.set(item.bucketHash, {
             hash: String(item.overrideStyleItemHash || item.itemHash),
+            baseHash: Number(item.itemHash),
             instanceId: item.itemInstanceId,
           });
         }
       }
-      const armor: { hash: string; shader: string | null }[] = [];
+
+      // peerView.equipment carries the resolved dyes per equipped item — match by
+      // render hash (ornament-aware) first, then the base item hash.
+      const dyeByHash = new Map<number, number[]>();
+      for (const entry of renderData[id]?.peerView?.equipment ?? []) {
+        if (entry.itemHash == null) continue;
+        const applied = (entry.dyes ?? [])
+          .map((d) => d.dyeHash)
+          .filter((h): h is number => h != null);
+        if (applied.length > 0) dyeByHash.set(entry.itemHash, applied);
+      }
+
+      const armor: { hash: string; shader: string | null; dyes: number[] }[] = [];
       for (const bucket of ARMOR_BUCKET_ORDER) {
         const entry = byBucket.get(bucket);
         if (!entry) continue;
-        armor.push({ hash: entry.hash, shader: await resolveShader(entry.instanceId) });
+        const dyes = dyeByHash.get(Number(entry.hash)) ?? dyeByHash.get(entry.baseHash) ?? [];
+        armor.push({ hash: entry.hash, shader: await resolveShader(entry.instanceId), dyes });
       }
       if (armor.length === 0) continue;
       const classType = character.classType ?? 3;
