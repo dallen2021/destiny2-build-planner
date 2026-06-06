@@ -39,6 +39,10 @@ export type GearMesh = {
   diffusePlate: DiffusePlate | null;
   /** Normal texture plate (same compositing; applied as a normal map). */
   normalPlate: DiffusePlate | null;
+  /** Gearstack plate — its red channel masks where the dye color applies. */
+  gearstackPlate: DiffusePlate | null;
+  /** Gear dye slot (0/1/2) that tints this mesh. */
+  dyeSlot: number;
 };
 
 type VertexElement = {
@@ -54,6 +58,8 @@ type StagePart = {
   index_count: number;
   primitive_type: number;
   lod_category?: { value: number };
+  /** Which gear dye slot (0/1/2) tints this part. */
+  gear_dye_change_color_index?: number;
 };
 type RenderMesh = {
   vertex_buffers: { file_name: string; stride: number }[];
@@ -198,6 +204,7 @@ function extractRenderMesh(
   files: Map<string, Uint8Array>,
   diffusePlate: DiffusePlate | null,
   normalPlate: DiffusePlate | null,
+  gearstackPlate: DiffusePlate | null,
 ): GearMesh | null {
   const position = findElement(mesh, "position");
   if (!position) return null;
@@ -300,12 +307,17 @@ function extractRenderMesh(
     }
   }
 
-  return { positions, normals, uvs, indices, diffusePlate, normalPlate };
+  const lod0Part = (mesh.stage_part_list ?? []).find(
+    (p) => (p.lod_category?.value ?? 0) === HIGHEST_LOD,
+  );
+  const dyeSlot = lod0Part?.gear_dye_change_color_index ?? 0;
+
+  return { positions, normals, uvs, indices, diffusePlate, normalPlate, gearstackPlate, dyeSlot };
 }
 
 function readPlate(
   metadata: RenderMetadata,
-  channel: "diffuse" | "normal",
+  channel: "diffuse" | "normal" | "gearstack",
 ): DiffusePlate | null {
   const plate = metadata.texture_plates?.[0]?.plate_set?.[channel];
   const size = plate?.plate_size;
@@ -329,9 +341,10 @@ export function extractGearMeshes(buffer: ArrayBuffer): GearMesh[] {
   const { files, metadata } = parseContainer(buffer);
   const diffusePlate = readPlate(metadata, "diffuse");
   const normalPlate = readPlate(metadata, "normal");
+  const gearstackPlate = readPlate(metadata, "gearstack");
   const meshes: GearMesh[] = [];
   for (const mesh of metadata.render_model?.render_meshes ?? []) {
-    const extracted = extractRenderMesh(mesh, files, diffusePlate, normalPlate);
+    const extracted = extractRenderMesh(mesh, files, diffusePlate, normalPlate, gearstackPlate);
     if (extracted && extracted.indices.length > 0) {
       meshes.push(extracted);
     }

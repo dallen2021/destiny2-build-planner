@@ -65,12 +65,25 @@ export function GearCanvas({
     group.add(model);
     scene.add(group);
 
+    type Dye = {
+      slot: number;
+      cloth: boolean;
+      primary: [number, number, number];
+      secondary: [number, number, number];
+    };
     type Plate = {
       w: number;
       h: number;
       placements: { x: number; y: number; w: number; h: number; png: number }[];
     } | null;
-    type PartHeader = { v: number; i: number; diffuse: Plate; normal: Plate };
+    type PartHeader = {
+      v: number;
+      i: number;
+      dyeSlot: number;
+      diffuse: Plate;
+      normal: Plate;
+      gearstack: Plate;
+    };
 
     // Composite a plate's placement PNGs (starting at `offset`) into a canvas
     // texture; returns the texture and the advanced byte offset.
@@ -100,6 +113,28 @@ export function GearCanvas({
       return { texture, offset };
     };
 
+    // Bungie's gear-dye model (from spasm): the final albedo is the diffuse
+    // overlay-blended with the dye color, masked by the gearstack red channel.
+    const applyDye = (
+      material: THREE.MeshStandardMaterial,
+      gearstack: THREE.CanvasTexture,
+      dye: Dye,
+    ) => {
+      const change = new THREE.Vector3(dye.secondary[0], dye.secondary[1], dye.secondary[2]);
+      material.onBeforeCompile = (shader) => {
+        shader.uniforms.uGearstack = { value: gearstack };
+        shader.uniforms.uChangeColor = { value: change };
+        shader.fragmentShader =
+          "uniform sampler2D uGearstack;\nuniform vec3 uChangeColor;\n" +
+          "vec3 d2Overlay(vec3 b, vec3 s){return mix(2.0*b*s,1.0-2.0*(1.0-b)*(1.0-s),step(vec3(0.5),b));}\n" +
+          shader.fragmentShader.replace(
+            "#include <map_fragment>",
+            "#include <map_fragment>\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, uChangeColor), d2Mask);",
+          );
+      };
+      material.customProgramCacheKey = () => "d2-dye-v1";
+    };
+
     void (async () => {
       try {
         const fallbackMaterial = new THREE.MeshStandardMaterial({
@@ -120,11 +155,22 @@ export function GearCanvas({
             const jsonLength = dv.getUint32(0, true);
             const header = JSON.parse(
               new TextDecoder().decode(new Uint8Array(buffer, 4, jsonLength)),
-            ) as { parts: PartHeader[] };
+            ) as { dyes: Dye[]; parts: PartHeader[] };
+            const dyeFor = (slot: number) =>
+              header.dyes.find((d) => d.slot === slot) ??
+              header.dyes[slot] ??
+              header.dyes[0] ??
+              null;
 
             // Geometry section (4-byte aligned) first.
             let cursor = (4 + jsonLength + 3) & ~3;
-            const built: { geometry: THREE.BufferGeometry; diffuse: Plate; normal: Plate }[] = [];
+            const built: {
+              geometry: THREE.BufferGeometry;
+              diffuse: Plate;
+              normal: Plate;
+              gearstack: Plate;
+              dyeSlot: number;
+            }[] = [];
             for (const part of header.parts) {
               const positions = new Float32Array(buffer, cursor, part.v * 3);
               cursor += part.v * 3 * 4;
@@ -140,46 +186,52 @@ export function GearCanvas({
               geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
               geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
               geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-              built.push({ geometry, diffuse: part.diffuse, normal: part.normal });
+              built.push({
+                geometry,
+                diffuse: part.diffuse,
+                normal: part.normal,
+                gearstack: part.gearstack,
+                dyeSlot: part.dyeSlot,
+              });
               triangleTotal += part.i / 3;
             }
 
-            // PNG sections follow geometry: all diffuse plates, then all normal plates.
+            // PNG sections follow geometry, in order: diffuse, normal, gearstack.
             let off = cursor;
-            const diffuseTex: (THREE.CanvasTexture | null)[] = [];
-            for (const part of built) {
-              if (part.diffuse) {
-                const r = await compositePlate(buffer, off, part.diffuse);
-                r.texture.colorSpace = THREE.SRGBColorSpace;
-                diffuseTex.push(r.texture);
-                off = r.offset;
-              } else {
-                diffuseTex.push(null);
+            const compositeAll = async (plates: Plate[], srgb: boolean) => {
+              const out: (THREE.CanvasTexture | null)[] = [];
+              for (const plate of plates) {
+                if (plate) {
+                  const r = await compositePlate(buffer, off, plate);
+                  r.texture.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+                  out.push(r.texture);
+                  off = r.offset;
+                } else {
+                  out.push(null);
+                }
               }
-            }
-            const normalTex: (THREE.CanvasTexture | null)[] = [];
-            for (const part of built) {
-              if (part.normal) {
-                const r = await compositePlate(buffer, off, part.normal);
-                r.texture.colorSpace = THREE.NoColorSpace;
-                normalTex.push(r.texture);
-                off = r.offset;
-              } else {
-                normalTex.push(null);
-              }
-            }
+              return out;
+            };
+            const diffuseTex = await compositeAll(built.map((b) => b.diffuse), true);
+            const normalTex = await compositeAll(built.map((b) => b.normal), false);
+            const gearstackTex = await compositeAll(built.map((b) => b.gearstack), false);
 
             built.forEach((part, k) => {
               const diffuse = diffuseTex[k];
-              const material = diffuse
-                ? new THREE.MeshStandardMaterial({
-                    map: diffuse,
-                    normalMap: normalTex[k] ?? null,
-                    metalness: 0.28,
-                    roughness: 0.62,
-                    side: THREE.DoubleSide,
-                  })
-                : fallbackMaterial;
+              if (!diffuse) {
+                model.add(new THREE.Mesh(part.geometry, fallbackMaterial));
+                return;
+              }
+              const material = new THREE.MeshStandardMaterial({
+                map: diffuse,
+                normalMap: normalTex[k] ?? null,
+                metalness: 0.28,
+                roughness: 0.62,
+                side: THREE.DoubleSide,
+              });
+              const gearstack = gearstackTex[k];
+              const dye = dyeFor(part.dyeSlot);
+              if (gearstack && dye) applyDye(material, gearstack, dye);
               model.add(new THREE.Mesh(part.geometry, material));
             });
           }),

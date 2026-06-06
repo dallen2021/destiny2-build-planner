@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getGearAsset, getGearDyes, type GearDye } from "@/lib/render/gear-asset-db";
 import { extractGearMeshes, type GearMesh } from "@/lib/render/tgxm";
 
 export const dynamic = "force-dynamic";
@@ -73,6 +74,8 @@ type Part = {
   indices: Uint32Array;
   diffuse: Plate;
   normal: Plate;
+  gearstack: Plate;
+  dyeSlot: number;
 };
 
 function align4(n: number): number {
@@ -143,6 +146,8 @@ export async function GET(
       indices: new Uint32Array(mesh.indices),
       diffuse: resolvePlate(mesh.diffusePlate),
       normal: resolvePlate(mesh.normalPlate),
+      gearstack: resolvePlate(mesh.gearstackPlate),
+      dyeSlot: mesh.dyeSlot,
     }));
 
     const headerPlate = (plate: Plate) =>
@@ -160,13 +165,26 @@ export async function GET(
           }
         : null;
 
+    // Dye colors live in the gear-asset DB's `gear` files (which Lowlines
+    // strips). Best-effort — never block the render on it.
+    let dyes: GearDye[] = [];
+    try {
+      const asset = await getGearAsset(Number(itemHash));
+      if (asset?.gear.length) dyes = await getGearDyes(asset.gear);
+    } catch {
+      dyes = [];
+    }
+
     // JSON header describes structure; geometry then diffuse PNGs then normal PNGs.
     const header = {
+      dyes,
       parts: parts.map((part) => ({
         v: part.positions.length / 3,
         i: part.indices.length,
+        dyeSlot: part.dyeSlot,
         diffuse: headerPlate(part.diffuse),
         normal: headerPlate(part.normal),
+        gearstack: headerPlate(part.gearstack),
       })),
     };
     const jsonBytes = new TextEncoder().encode(JSON.stringify(header));
@@ -182,6 +200,7 @@ export async function GET(
         part.indices.byteLength;
       for (const pl of part.diffuse.placements) pngBytes += pl.png.byteLength;
       for (const pl of part.normal.placements) pngBytes += pl.png.byteLength;
+      for (const pl of part.gearstack.placements) pngBytes += pl.png.byteLength;
     }
 
     const payload = new Uint8Array(geomStart + geomBytes + pngBytes);
@@ -211,6 +230,12 @@ export async function GET(
         cursor += pl.png.byteLength;
       }
     }
+    for (const part of parts) {
+      for (const pl of part.gearstack.placements) {
+        payload.set(pl.png, cursor);
+        cursor += pl.png.byteLength;
+      }
+    }
 
     const stats = {
       itemHash,
@@ -218,6 +243,7 @@ export async function GET(
       vertexCount: parts.reduce((n, p) => n + p.positions.length / 3, 0),
       triangleCount: parts.reduce((n, p) => n + p.indices.length / 3, 0),
       textured: parts.filter((p) => p.diffuse.placements.length > 0).length,
+      dyes: dyes.length,
     };
     return new NextResponse(payload, {
       headers: {

@@ -1,0 +1,132 @@
+import path from "node:path";
+import zlib from "node:zlib";
+
+import { unzipSync } from "fflate";
+import initSqlJs, { type Database } from "sql.js";
+
+import { getOptionalBungieConfig } from "@/lib/bungie/config";
+
+/**
+ * Reads Bungie's gear-asset SQLite DB (the `mobileGearAssetDataBases`).
+ * Unlike the keyless Lowlines endpoint, this exposes the `gear` array on each
+ * item entry — the gear-content `.js` files that hold the dye colors.
+ * Requires the Bungie API key (manifest lookup). Server-only.
+ */
+
+export type GearAssetEntry = {
+  geometry: string[];
+  textures: string[];
+  gear: string[];
+};
+
+export type GearDye = {
+  slot: number;
+  cloth: boolean;
+  /** linear RGB 0–1 */
+  primary: [number, number, number];
+  secondary: [number, number, number];
+};
+
+const signedId = (hash: number) => (hash > 0x7fffffff ? hash - 0x100000000 : hash);
+const GEAR_CDN = (file: string) =>
+  `https://www.bungie.net/common/destiny2_content/geometry/gear/${file}`;
+
+let dbPromise: Promise<Database | null> | null = null;
+
+async function loadDb(): Promise<Database | null> {
+  const config = getOptionalBungieConfig();
+  if (!config) return null;
+  const manifest = await fetch("https://www.bungie.net/Platform/Destiny2/Manifest/", {
+    headers: { "X-API-Key": config.apiKey },
+    cache: "no-store",
+  });
+  if (!manifest.ok) return null;
+  const manifestJson = (await manifest.json()) as {
+    Response?: { mobileGearAssetDataBases?: { version: number; path: string }[] };
+  };
+  const dbs = manifestJson.Response?.mobileGearAssetDataBases ?? [];
+  const dbPath = dbs[dbs.length - 1]?.path;
+  if (!dbPath) return null;
+
+  const archive = await fetch(`https://www.bungie.net${dbPath}`, { cache: "no-store" });
+  if (!archive.ok) return null;
+  const files = unzipSync(new Uint8Array(await archive.arrayBuffer()));
+  const sqliteBytes = files[Object.keys(files)[0]];
+  if (!sqliteBytes) return null;
+
+  const SQL = await initSqlJs({
+    locateFile: (file) => path.join(process.cwd(), "node_modules/sql.js/dist", file),
+  });
+  return new SQL.Database(sqliteBytes);
+}
+
+function getDb(): Promise<Database | null> {
+  if (!dbPromise) {
+    dbPromise = loadDb().catch(() => null);
+  }
+  return dbPromise;
+}
+
+function decodeBlob(value: unknown): string {
+  const bytes = value instanceof Uint8Array ? Buffer.from(value) : Buffer.from(String(value));
+  try {
+    return zlib.gunzipSync(bytes).toString();
+  } catch {
+    return bytes.toString().replace(/\0+$/, "");
+  }
+}
+
+export async function getGearAsset(itemHash: number): Promise<GearAssetEntry | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const stmt = db.prepare("SELECT json FROM DestinyGearAssetsDefinition WHERE id = ?");
+  try {
+    stmt.bind([signedId(itemHash)]);
+    if (!stmt.step()) return null;
+    const row = stmt.getAsObject() as { json?: unknown };
+    const parsed = JSON.parse(decodeBlob(row.json)) as {
+      gear?: string[];
+      content?: { platform?: string; geometry?: string[]; textures?: string[] }[];
+    };
+    const content =
+      parsed.content?.find((c) => /mobile/i.test(c.platform ?? "")) ?? parsed.content?.[0] ?? {};
+    return {
+      geometry: content.geometry ?? [],
+      textures: content.textures ?? [],
+      gear: parsed.gear ?? [],
+    };
+  } finally {
+    stmt.free();
+  }
+}
+
+const rgb3 = (value: unknown): [number, number, number] => {
+  const a = Array.isArray(value) ? value : [1, 1, 1];
+  return [Number(a[0]) || 0, Number(a[1]) || 0, Number(a[2]) || 0];
+};
+
+/** Fetch the gear-content `.js` files and pull each dye slot's albedo tints. */
+export async function getGearDyes(gearFiles: string[]): Promise<GearDye[]> {
+  const dyes: GearDye[] = [];
+  for (const file of gearFiles) {
+    const response = await fetch(GEAR_CDN(file), { cache: "no-store" });
+    if (!response.ok) continue;
+    const json = (await response.json()) as {
+      default_dyes?: {
+        slot_type_index?: number;
+        cloth?: boolean;
+        material_properties?: { primary_albedo_tint?: unknown; secondary_albedo_tint?: unknown };
+      }[];
+    };
+    for (const dye of json.default_dyes ?? []) {
+      const mp = dye.material_properties ?? {};
+      dyes.push({
+        slot: dye.slot_type_index ?? 0,
+        cloth: Boolean(dye.cloth),
+        primary: rgb3(mp.primary_albedo_tint),
+        secondary: rgb3(mp.secondary_albedo_tint),
+      });
+    }
+  }
+  return dyes;
+}
