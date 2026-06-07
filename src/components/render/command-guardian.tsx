@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { GearCanvas } from "./guardian-canvas";
+import { ShaderPicker } from "./shader-picker";
 
 type RenderCharacter = {
   characterId: string;
@@ -30,6 +31,10 @@ export function CommandGuardian({
   refreshKey?: number;
 }) {
   const [characters, setCharacters] = useState<RenderCharacter[] | null>(null);
+  // In-app shader preview: when set, this shader is applied to ALL armor so you
+  // can test shaders without changing them in-game. dyes=[] lets the gear route
+  // resolve the shader's default dye set.
+  const [override, setOverride] = useState<{ hash: string; name: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,6 +61,10 @@ export function CommandGuardian({
     (characterId == null ? null : characters?.[0]) ??
     null;
   const armor = active?.armor ?? [];
+  // Apply the previewed shader to every armor piece (else show equipped).
+  const items = override
+    ? armor.map((piece) => ({ hash: piece.hash, shader: override.hash, dyes: [] as number[] }))
+    : armor;
 
   return (
     <>
@@ -66,15 +75,22 @@ export function CommandGuardian({
         </div>
       ) : null}
       {armor.length > 0 ? (
-        <div className="d2-stage-guardian-3d" aria-hidden="true">
-          <GearCanvas
-            key={`${active?.characterId ?? "guardian"}-${refreshKey}`}
-            items={armor}
-            showStatus={false}
-            interactive={false}
-            fill={1.55}
+        <>
+          <ShaderPicker
+            activeName={override?.name ?? null}
+            onPick={(hash, name) => setOverride({ hash, name })}
+            onReset={() => setOverride(null)}
           />
-        </div>
+          <div className="d2-stage-guardian-3d" aria-hidden="true">
+            <GearCanvas
+              key={`${active?.characterId ?? "guardian"}-${refreshKey}-${override?.hash ?? "equipped"}`}
+              items={items}
+              showStatus={false}
+              interactive={false}
+              fill={1.55}
+            />
+          </div>
+        </>
       ) : null}
     </>
   );
