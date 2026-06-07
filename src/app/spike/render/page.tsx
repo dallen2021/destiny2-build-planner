@@ -4,11 +4,12 @@ import { MyGuardian } from "@/components/render/my-guardian";
 export const dynamic = "force-dynamic";
 
 // Default: render the signed-in player's equipped Guardian. Override with
-// ?items=h1,h2,... or a single ?item=hash to inspect specific gear.
+// ?items=h1,h2,... or a single ?item=hash to inspect specific gear. Optionally
+// preview a shader on those items with ?shader=<hash>&dyes=<h1,h2,h3>.
 export default async function SpikeRenderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ item?: string; items?: string }>;
+  searchParams: Promise<{ item?: string; items?: string; shader?: string; dyes?: string }>;
 }) {
   const params = await searchParams;
   const raw = params.items ?? params.item;
@@ -18,6 +19,13 @@ export default async function SpikeRenderPage({
         .map((value) => value.trim())
         .filter(Boolean)
     : null;
+  const shader = params.shader ?? null;
+  const dyes = params.dyes
+    ? params.dyes
+        .split(",")
+        .map(Number)
+        .filter((n) => Number.isFinite(n) && n > 0)
+    : undefined;
 
   return (
     <main
@@ -28,7 +36,7 @@ export default async function SpikeRenderPage({
       }}
     >
       {overrideHashes ? (
-        <GearCanvas items={overrideHashes.map((hash) => ({ hash }))} />
+        <GearCanvas items={overrideHashes.map((hash) => ({ hash, shader, dyes }))} />
       ) : (
         <MyGuardian />
       )}
