@@ -7,6 +7,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 export type GearItem = {
   hash: string;
@@ -51,6 +52,11 @@ export function GearCanvas({
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, 1, 0.001, 100);
+
+    // Studio environment so metallic surfaces (the gold armor) actually reflect
+    // something and read as metal instead of flat/black.
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
     // Post-processing: render → selective bloom (the emissive nebula glow) →
     // tone-map/output. Only HDR-bright pixels (the emissive) bloom.
@@ -100,6 +106,8 @@ export function GearCanvas({
       primary: [number, number, number];
       secondary: [number, number, number];
       emissive: [number, number, number];
+      metalness: number;
+      roughness: number;
     };
     type Plate = {
       w: number;
@@ -161,6 +169,8 @@ export function GearCanvas({
       emissiveStrength: number,
       wisp: THREE.Texture | null,
       wispTile: number,
+      slotMetal: THREE.Vector3,
+      slotRough: THREE.Vector3,
     ) => {
       const useDyeslot = dyeslot != null;
       // Glow requires the shader's "wisp" mask (only the bright wisps glow).
@@ -174,6 +184,8 @@ export function GearCanvas({
           shader.uniforms.uSlot2 = { value: slotColors[2] };
           shader.uniforms.uDiffuseRect = { value: diffuseRect };
           shader.uniforms.uDyeslotRect = { value: dyeslotRect };
+          shader.uniforms.uSlotMetal = { value: slotMetal };
+          shader.uniforms.uSlotRough = { value: slotRough };
         } else {
           shader.uniforms.uChangeColors = { value: palette };
         }
@@ -191,7 +203,7 @@ export function GearCanvas({
           );
         const decl =
           (useDyeslot
-            ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nuniform vec4 uDiffuseRect;\nuniform vec4 uDyeslotRect;\nvarying float vDyeIndex;\n"
+            ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nuniform vec4 uDiffuseRect;\nuniform vec4 uDyeslotRect;\nuniform vec3 uSlotMetal;\nuniform vec3 uSlotRough;\nvarying float vDyeIndex;\n"
             : `uniform sampler2D uGearstack;\nuniform vec3 uChangeColors[${DYE_PALETTE_SIZE}];\nvarying float vDyeIndex;\n`) +
           (useWisp
             ? "uniform vec3 uEmissive;\nuniform float uEmissiveStrength;\nuniform sampler2D uWisp;\nuniform float uWispTile;\n"
@@ -206,6 +218,14 @@ export function GearCanvas({
           "#include <map_fragment>",
           `#include <map_fragment>\n  ${pickDye}\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, d2Dye), d2Mask);`,
         );
+        // Per-pixel PBR from the dye material params: the gold slot reads as
+        // smooth metal, cloth as matte — mixed in where the dye applies.
+        if (useDyeslot) {
+          frag = frag.replace(
+            "#include <metalnessmap_fragment>",
+            "#include <metalnessmap_fragment>\n  metalnessFactor = mix(metalnessFactor, dot(d2Slot.rgb, uSlotMetal) / max(d2w, 0.001), d2Mask);\n  roughnessFactor = mix(roughnessFactor, dot(d2Slot.rgb, uSlotRough) / max(d2w, 0.001), d2Mask);",
+          );
+        }
         // Galaxy-shader glow: the dye's emissive tint lights the slot-2 (nebula)
         // regions, gated by the shader's grayscale "wisp" texture so only the
         // bright wisps glow — the magenta nebula between the gold stripes.
@@ -221,7 +241,7 @@ export function GearCanvas({
           frag;
       };
       material.customProgramCacheKey = () =>
-        useWisp ? "d2-dye-slot-v4-wisp" : useDyeslot ? "d2-dye-slot-v4" : "d2-dye-v2";
+        useWisp ? "d2-dye-slot-v5-wisp" : useDyeslot ? "d2-dye-slot-v5" : "d2-dye-v2";
     };
 
     // Normalized placement rect (x, y, w, h) of a plate's first texture.
@@ -378,13 +398,19 @@ export function GearCanvas({
             };
             const slotColors = [slotColor(0), slotColor(1), slotColor(2)];
 
+            // Per-slot metalness/roughness (from the dye material params).
+            const slotMetalAt = (s: number) => header.dyes.find((d) => d.slot === s)?.metalness ?? 0.3;
+            const slotRoughAt = (s: number) => header.dyes.find((d) => d.slot === s)?.roughness ?? 0.6;
+            const slotMetal = new THREE.Vector3(slotMetalAt(0), slotMetalAt(1), slotMetalAt(2));
+            const slotRough = new THREE.Vector3(slotRoughAt(0), slotRoughAt(1), slotRoughAt(2));
+
             // Emissive glow uses slot-2's emissive tint, but only when it's a
             // saturated color (galaxy/“wisp” shaders) — skip white/grey/black.
             const e = header.dyes.find((d) => d.slot === 2)?.emissive ?? [0, 0, 0];
             const eMax = Math.max(e[0], e[1], e[2]);
             const eMin = Math.min(e[0], e[1], e[2]);
             const emissiveColor = new THREE.Vector3(e[0], e[1], e[2]);
-            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 2.6 : 0;
+            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 1.5 : 0;
 
             built.forEach((part, k) => {
               const diffuse = diffuseTex[k];
@@ -395,8 +421,9 @@ export function GearCanvas({
               const material = new THREE.MeshStandardMaterial({
                 map: diffuse,
                 normalMap: normalTex[k] ?? null,
-                metalness: 0.28,
-                roughness: 0.62,
+                metalness: 0.5,
+                roughness: 0.5,
+                envMapIntensity: 0.85,
                 side: THREE.DoubleSide,
               });
               const gearstack = gearstackTex[k];
@@ -413,6 +440,8 @@ export function GearCanvas({
                   emissiveStrength,
                   wispTex,
                   4,
+                  slotMetal,
+                  slotRough,
                 );
               model.add(new THREE.Mesh(part.geometry, material));
             });
@@ -469,6 +498,7 @@ export function GearCanvas({
       window.removeEventListener("resize", resize);
       controls?.dispose();
       composer.dispose();
+      pmrem.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);

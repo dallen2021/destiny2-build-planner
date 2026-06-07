@@ -29,6 +29,10 @@ export type GearDye = {
   secondary: [number, number, number];
   /** primary emissive tint (the glow color for galaxy/“wisp” shaders). */
   emissive: [number, number, number];
+  /** material_params[3] — metalness (gold ≈ 1, cloth ≈ 0). */
+  metalness: number;
+  /** material_params[2] — roughness (gold ≈ 0.35 = shiny). */
+  roughness: number;
 };
 
 const signedId = (hash: number) => (hash > 0x7fffffff ? hash - 0x100000000 : hash);
@@ -170,11 +174,13 @@ export async function getGearDyes(gearFiles: string[]): Promise<GearDye[]> {
           primary_albedo_tint?: unknown;
           secondary_albedo_tint?: unknown;
           primary_emissive_tint_color?: unknown;
+          primary_material_params?: unknown;
         };
       }[];
     };
     for (const dye of json.default_dyes ?? []) {
       const mp = dye.material_properties ?? {};
+      const params = Array.isArray(mp.primary_material_params) ? mp.primary_material_params : [];
       dyes.push({
         slot: dye.slot_type_index ?? 0,
         cloth: Boolean(dye.cloth),
@@ -182,6 +188,8 @@ export async function getGearDyes(gearFiles: string[]): Promise<GearDye[]> {
         primary: rgb3(mp.primary_albedo_tint),
         secondary: rgb3(mp.secondary_albedo_tint),
         emissive: rgb3(mp.primary_emissive_tint_color),
+        metalness: params.length >= 4 ? Number(params[3]) || 0 : 0.3,
+        roughness: params.length >= 3 ? Number(params[2]) || 0.6 : 0.6,
       });
     }
   }
