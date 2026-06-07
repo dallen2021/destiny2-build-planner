@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { GearCanvas, type GearItem } from "./guardian-canvas";
+import { ShaderPicker } from "./shader-picker";
 
 type RenderCharacter = {
   characterId: string;
@@ -30,6 +31,7 @@ type LoadState =
 export function MyGuardian() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [selected, setSelected] = useState(0);
+  const [override, setOverride] = useState<{ hash: string; name: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,16 +71,27 @@ export function MyGuardian() {
   const active = characters?.[Math.min(selected, (characters?.length ?? 1) - 1)] ?? null;
 
   // Stable identity so GearCanvas doesn't re-init on unrelated re-renders.
-  const items = useMemo<GearItem[]>(
-    () => (active ? active.armor : state.kind === "anon" ? DEMO_TITAN : []),
-    [active, state.kind],
-  );
-  const canvasKey = active?.characterId ?? (state.kind === "anon" ? "demo" : "none");
+  const items = useMemo<GearItem[]>(() => {
+    const base = active ? active.armor : state.kind === "anon" ? DEMO_TITAN : [];
+    return override
+      ? base.map((piece) => ({ hash: piece.hash, shader: override.hash, dyes: [] as number[] }))
+      : base;
+  }, [active, state.kind, override]);
+  const canvasKey = `${active?.characterId ?? (state.kind === "anon" ? "demo" : "none")}-${
+    override?.hash ?? "equipped"
+  }`;
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {items.length > 0 ? (
-        <GearCanvas key={canvasKey} items={items} />
+        <>
+          <ShaderPicker
+            activeName={override?.name ?? null}
+            onPick={(hash, name) => setOverride({ hash, name })}
+            onReset={() => setOverride(null)}
+          />
+          <GearCanvas key={canvasKey} items={items} />
+        </>
       ) : (
         <Centered>
           {state.kind === "loading"
