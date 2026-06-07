@@ -423,7 +423,7 @@ export function GearCanvas({
                 normalMap: normalTex[k] ?? null,
                 metalness: 0.5,
                 roughness: 0.5,
-                envMapIntensity: 0.85,
+                envMapIntensity: 0.32,
                 side: THREE.DoubleSide,
               });
               const gearstack = gearstackTex[k];
