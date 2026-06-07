@@ -46,7 +46,7 @@ export function GearCanvas({
     // Tone-map the HDR emissive (the nebula glow runs > 1) so the surface stays
     // a rich magenta instead of clamping to flat pink; bloom adds the halo.
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.1;
     if (!interactive) renderer.domElement.style.pointerEvents = "none";
     mount.appendChild(renderer.domElement);
 
@@ -64,9 +64,9 @@ export function GearCanvas({
     composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(
       new THREE.Vector2(mount.clientWidth || 1, mount.clientHeight || 1),
-      0.55, // strength
+      0.6, // strength
       0.4, // radius
-      0.55, // threshold — only the bright emissive blooms
+      1.05, // threshold — HDR: only the nebula emissive (≫1) blooms, never lit skin/gold/navy
     );
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
@@ -81,12 +81,12 @@ export function GearCanvas({
     };
     resize();
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
     scene.add(new THREE.HemisphereLight(0xbcd2ff, 0x202830, 0.7));
-    const key = new THREE.DirectionalLight(0xffffff, 2.4);
+    const key = new THREE.DirectionalLight(0xffffff, 2.0);
     key.position.set(2.5, 4, 3);
     scene.add(key);
-    const fillLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.9);
     fillLight.position.set(-1, 1, 3);
     scene.add(fillLight);
     const rim = new THREE.DirectionalLight(0x9fc0ff, 1.4);
@@ -410,7 +410,10 @@ export function GearCanvas({
             const eMax = Math.max(e[0], e[1], e[2]);
             const eMin = Math.min(e[0], e[1], e[2]);
             const emissiveColor = new THREE.Vector3(e[0], e[1], e[2]);
-            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 1.5 : 0;
+            // HDR strength so the nebula wisps sit well above lit skin/gold/navy —
+            // only they cross the bloom threshold, so the navy base reads as navy
+            // (not washed magenta) and skin/specular stop blooming.
+            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 2.5 : 0;
 
             built.forEach((part, k) => {
               const diffuse = diffuseTex[k];
@@ -439,7 +442,7 @@ export function GearCanvas({
                   emissiveColor,
                   emissiveStrength,
                   wispTex,
-                  4,
+                  2,
                   slotMetal,
                   slotRough,
                 );
