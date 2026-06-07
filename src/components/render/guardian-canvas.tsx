@@ -132,6 +132,8 @@ export function GearCanvas({
       palette: THREE.Vector3[],
       dyeslot: THREE.CanvasTexture | null,
       slotColors: THREE.Vector3[],
+      diffuseRect: THREE.Vector4,
+      dyeslotRect: THREE.Vector4,
     ) => {
       const useDyeslot = dyeslot != null;
       material.onBeforeCompile = (shader) => {
@@ -141,6 +143,8 @@ export function GearCanvas({
           shader.uniforms.uSlot0 = { value: slotColors[0] };
           shader.uniforms.uSlot1 = { value: slotColors[1] };
           shader.uniforms.uSlot2 = { value: slotColors[2] };
+          shader.uniforms.uDiffuseRect = { value: diffuseRect };
+          shader.uniforms.uDyeslotRect = { value: dyeslotRect };
         } else {
           shader.uniforms.uChangeColors = { value: palette };
         }
@@ -151,10 +155,13 @@ export function GearCanvas({
             "#include <begin_vertex>\n  vDyeIndex = aDyeIndex;",
           );
         const decl = useDyeslot
-          ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nvarying float vDyeIndex;\n"
+          ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nuniform vec4 uDiffuseRect;\nuniform vec4 uDyeslotRect;\nvarying float vDyeIndex;\n"
           : `uniform sampler2D uGearstack;\nuniform vec3 uChangeColors[${DYE_PALETTE_SIZE}];\nvarying float vDyeIndex;\n`;
+        // The dyeslot plate packs its texture at a different rect than the
+        // diffuse, so map the diffuse-plate UV → 0..1 surface fraction → the
+        // dyeslot's own rect before sampling. (gearstack already matches diffuse.)
         const pickDye = useDyeslot
-          ? "vec4 d2Slot = texture2D(uDyeslot, vMapUv);\n  float d2w = d2Slot.r + d2Slot.g + d2Slot.b;\n  vec3 d2Dye = d2w > 0.003 ? (d2Slot.r * uSlot0 + d2Slot.g * uSlot1 + d2Slot.b * uSlot2) / d2w : uSlot0;"
+          ? "vec2 d2Frac = (vMapUv - uDiffuseRect.xy) / uDiffuseRect.zw;\n  vec2 d2SlotUV = uDyeslotRect.xy + d2Frac * uDyeslotRect.zw;\n  vec4 d2Slot = texture2D(uDyeslot, d2SlotUV);\n  float d2w = d2Slot.r + d2Slot.g + d2Slot.b;\n  vec3 d2Dye = d2w > 0.003 ? (d2Slot.r * uSlot0 + d2Slot.g * uSlot1 + d2Slot.b * uSlot2) / d2w : uSlot0;"
           : `int d2i = int(clamp(vDyeIndex + 0.5, 0.0, float(${DYE_PALETTE_SIZE - 1})));\n  vec3 d2Dye = uChangeColors[d2i];`;
         shader.fragmentShader =
           decl +
@@ -164,7 +171,15 @@ export function GearCanvas({
             `#include <map_fragment>\n  ${pickDye}\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, d2Dye), d2Mask);`,
           );
       };
-      material.customProgramCacheKey = () => (useDyeslot ? "d2-dye-slot-v1" : "d2-dye-v2");
+      material.customProgramCacheKey = () => (useDyeslot ? "d2-dye-slot-v2" : "d2-dye-v2");
+    };
+
+    // Normalized placement rect (x, y, w, h) of a plate's first texture.
+    const plateRect = (plate: Plate): THREE.Vector4 => {
+      const pl = plate?.placements?.[0];
+      return plate && pl && plate.w && plate.h
+        ? new THREE.Vector4(pl.x / plate.w, pl.y / plate.h, pl.w / plate.w, pl.h / plate.h)
+        : new THREE.Vector4(0, 0, 1, 1);
     };
 
     void (async () => {
@@ -302,7 +317,16 @@ export function GearCanvas({
                 side: THREE.DoubleSide,
               });
               const gearstack = gearstackTex[k];
-              if (gearstack) applyDye(material, gearstack, palette, dyeslotTex[k], slotColors);
+              if (gearstack)
+                applyDye(
+                  material,
+                  gearstack,
+                  palette,
+                  dyeslotTex[k],
+                  slotColors,
+                  plateRect(part.diffuse),
+                  plateRect(part.dyeslot),
+                );
               model.add(new THREE.Mesh(part.geometry, material));
             });
           }),
