@@ -45,7 +45,7 @@ export function GearCanvas({
     // Tone-map the HDR emissive (the nebula glow runs > 1) so the surface stays
     // a rich magenta instead of clamping to flat pink; bloom adds the halo.
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = 1.05;
     if (!interactive) renderer.domElement.style.pointerEvents = "none";
     mount.appendChild(renderer.domElement);
 
@@ -58,9 +58,9 @@ export function GearCanvas({
     composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(
       new THREE.Vector2(mount.clientWidth || 1, mount.clientHeight || 1),
-      0.9,
-      0.5,
-      0.6,
+      0.55, // strength
+      0.4, // radius
+      0.55, // threshold — only the bright emissive blooms
     );
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
@@ -345,7 +345,7 @@ export function GearCanvas({
             const eMax = Math.max(e[0], e[1], e[2]);
             const eMin = Math.min(e[0], e[1], e[2]);
             const emissiveColor = new THREE.Vector3(e[0], e[1], e[2]);
-            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 2.5 : 0;
+            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 1.5 : 0;
 
             built.forEach((part, k) => {
               const diffuse = diffuseTex[k];
