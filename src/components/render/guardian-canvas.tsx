@@ -77,6 +77,7 @@ export function GearCanvas({
       cloth: boolean;
       primary: [number, number, number];
       secondary: [number, number, number];
+      emissive: [number, number, number];
     };
     type Plate = {
       w: number;
@@ -134,6 +135,8 @@ export function GearCanvas({
       slotColors: THREE.Vector3[],
       diffuseRect: THREE.Vector4,
       dyeslotRect: THREE.Vector4,
+      emissive: THREE.Vector3,
+      emissiveStrength: number,
     ) => {
       const useDyeslot = dyeslot != null;
       material.onBeforeCompile = (shader) => {
@@ -145,6 +148,8 @@ export function GearCanvas({
           shader.uniforms.uSlot2 = { value: slotColors[2] };
           shader.uniforms.uDiffuseRect = { value: diffuseRect };
           shader.uniforms.uDyeslotRect = { value: dyeslotRect };
+          shader.uniforms.uEmissive = { value: emissive };
+          shader.uniforms.uEmissiveStrength = { value: emissiveStrength };
         } else {
           shader.uniforms.uChangeColors = { value: palette };
         }
@@ -155,7 +160,7 @@ export function GearCanvas({
             "#include <begin_vertex>\n  vDyeIndex = aDyeIndex;",
           );
         const decl = useDyeslot
-          ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nuniform vec4 uDiffuseRect;\nuniform vec4 uDyeslotRect;\nvarying float vDyeIndex;\n"
+          ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nuniform vec4 uDiffuseRect;\nuniform vec4 uDyeslotRect;\nuniform vec3 uEmissive;\nuniform float uEmissiveStrength;\nvarying float vDyeIndex;\n"
           : `uniform sampler2D uGearstack;\nuniform vec3 uChangeColors[${DYE_PALETTE_SIZE}];\nvarying float vDyeIndex;\n`;
         // The dyeslot plate packs its texture at a different rect than the
         // diffuse, so map the diffuse-plate UV → 0..1 surface fraction → the
@@ -163,15 +168,24 @@ export function GearCanvas({
         const pickDye = useDyeslot
           ? "vec2 d2Frac = (vMapUv - uDiffuseRect.xy) / uDiffuseRect.zw;\n  vec2 d2SlotUV = uDyeslotRect.xy + d2Frac * uDyeslotRect.zw;\n  vec4 d2Slot = texture2D(uDyeslot, d2SlotUV);\n  float d2w = d2Slot.r + d2Slot.g + d2Slot.b;\n  vec3 d2Dye = d2w > 0.003 ? (d2Slot.r * uSlot0 + d2Slot.g * uSlot1 + d2Slot.b * uSlot2) / d2w : uSlot0;"
           : `int d2i = int(clamp(vDyeIndex + 0.5, 0.0, float(${DYE_PALETTE_SIZE - 1})));\n  vec3 d2Dye = uChangeColors[d2i];`;
+        let frag = shader.fragmentShader.replace(
+          "#include <map_fragment>",
+          `#include <map_fragment>\n  ${pickDye}\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, d2Dye), d2Mask);`,
+        );
+        // Galaxy-shader glow: the slot-2 (purple/nebula) regions emit their dye's
+        // emissive tint — the magenta nebula between the gold stripes.
+        if (useDyeslot) {
+          frag = frag.replace(
+            "#include <emissivemap_fragment>",
+            "#include <emissivemap_fragment>\n  totalEmissiveRadiance += uEmissive * d2Slot.b * d2Mask * uEmissiveStrength;",
+          );
+        }
         shader.fragmentShader =
           decl +
           "vec3 d2Overlay(vec3 b, vec3 s){return mix(2.0*b*s,1.0-2.0*(1.0-b)*(1.0-s),step(vec3(0.5),b));}\n" +
-          shader.fragmentShader.replace(
-            "#include <map_fragment>",
-            `#include <map_fragment>\n  ${pickDye}\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, d2Dye), d2Mask);`,
-          );
+          frag;
       };
-      material.customProgramCacheKey = () => (useDyeslot ? "d2-dye-slot-v2" : "d2-dye-v2");
+      material.customProgramCacheKey = () => (useDyeslot ? "d2-dye-slot-v3" : "d2-dye-v2");
     };
 
     // Normalized placement rect (x, y, w, h) of a plate's first texture.
@@ -303,6 +317,14 @@ export function GearCanvas({
             };
             const slotColors = [slotColor(0), slotColor(1), slotColor(2)];
 
+            // Emissive glow uses slot-2's emissive tint, but only when it's a
+            // saturated color (galaxy/“wisp” shaders) — skip white/grey/black.
+            const e = header.dyes.find((d) => d.slot === 2)?.emissive ?? [0, 0, 0];
+            const eMax = Math.max(e[0], e[1], e[2]);
+            const eMin = Math.min(e[0], e[1], e[2]);
+            const emissiveColor = new THREE.Vector3(e[0], e[1], e[2]);
+            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 2.5 : 0;
+
             built.forEach((part, k) => {
               const diffuse = diffuseTex[k];
               if (!diffuse) {
@@ -326,6 +348,8 @@ export function GearCanvas({
                   slotColors,
                   plateRect(part.diffuse),
                   plateRect(part.dyeslot),
+                  emissiveColor,
+                  emissiveStrength,
                 );
               model.add(new THREE.Mesh(part.geometry, material));
             });

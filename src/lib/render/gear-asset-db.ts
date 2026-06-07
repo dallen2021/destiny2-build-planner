@@ -27,6 +27,8 @@ export type GearDye = {
   /** linear RGB 0–1 */
   primary: [number, number, number];
   secondary: [number, number, number];
+  /** primary emissive tint (the glow color for galaxy/“wisp” shaders). */
+  emissive: [number, number, number];
 };
 
 const signedId = (hash: number) => (hash > 0x7fffffff ? hash - 0x100000000 : hash);
@@ -143,7 +145,11 @@ export async function getGearDyes(gearFiles: string[]): Promise<GearDye[]> {
         slot_type_index?: number;
         cloth?: boolean;
         investment_hash?: number;
-        material_properties?: { primary_albedo_tint?: unknown; secondary_albedo_tint?: unknown };
+        material_properties?: {
+          primary_albedo_tint?: unknown;
+          secondary_albedo_tint?: unknown;
+          primary_emissive_tint_color?: unknown;
+        };
       }[];
     };
     for (const dye of json.default_dyes ?? []) {
@@ -154,6 +160,7 @@ export async function getGearDyes(gearFiles: string[]): Promise<GearDye[]> {
         investment: dye.investment_hash ?? 0,
         primary: rgb3(mp.primary_albedo_tint),
         secondary: rgb3(mp.secondary_albedo_tint),
+        emissive: rgb3(mp.primary_emissive_tint_color),
       });
     }
   }
