@@ -37,6 +37,7 @@ import { isItemMasterworked } from "@/lib/destiny/presentation";
 import { ITEM_TAGS, type ItemTag } from "@/lib/destiny/tags";
 
 import { CommandGuardian } from "@/components/render/command-guardian";
+import { ShaderPickerModal } from "@/components/render/shader-modal";
 
 import { D2BrandLockup } from "./brand-logo";
 import { CommandInspector } from "./command-inspector";
@@ -642,6 +643,7 @@ export function CommandCenter({
   return (
     <div className="d2-command-console">
       <CommandNav />
+      <ShaderPickerModal />
       <section className="d2-console-main">
         <CommandToolbar
           isLoading={isLoading}

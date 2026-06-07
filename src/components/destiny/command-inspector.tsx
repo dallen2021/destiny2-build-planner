@@ -21,12 +21,27 @@ import {
   type WeaponPerkColumn,
 } from "@/lib/destiny/presentation";
 
+import { shaderPreview } from "@/components/render/shader-modal";
+
 import { bungieImage } from "./item-presentation";
 
 type Tab = "overview" | "triage";
 
 /** Canonical Armor 3.0 display order; the inspector always shows all six. */
 const ARMOR_STAT_ORDER = ["Weapons", "Health", "Class", "Melee", "Grenade", "Super"] as const;
+
+/** Armor bucket hash → short slot label, matching the 3D render order. */
+const ARMOR_SLOT_LABEL: Record<number, string> = {
+  3448274439: "Helmet",
+  3551918588: "Arms",
+  14239492: "Chest",
+  20886954: "Legs",
+  1585787867: "Class",
+};
+
+/** A shader plug's category identifier is "shaders"; ornaments differ. */
+const isShaderSocket = (plug: Pick<NormalizedPlug, "category" | "name">): boolean =>
+  /shader/i.test(`${plug.category ?? ""} ${plug.name ?? ""}`);
 
 const MAX_PERK_ALTERNATES = 5;
 
@@ -130,14 +145,34 @@ function PerkColumn({ column }: { column: WeaponPerkColumn }) {
 
 function ModSlot({
   plug,
+  onClick,
 }: {
   plug: Pick<NormalizedPlug, "description" | "icon" | "name">;
+  /** When set, the slot is clickable (used to open the shader preview). */
+  onClick?: () => void;
 }) {
   const icon = bungieImage(plug.icon);
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className="d2-ci-modslot" data-filled={Boolean(icon)} tabIndex={0}>
+        <span
+          className="d2-ci-modslot"
+          data-filled={Boolean(icon)}
+          data-clickable={onClick ? true : undefined}
+          role={onClick ? "button" : undefined}
+          tabIndex={0}
+          onClick={onClick}
+          onKeyDown={
+            onClick
+              ? (event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onClick();
+                  }
+                }
+              : undefined
+          }
+        >
           {icon ? <Image alt="" height={30} src={icon} width={30} /> : null}
         </span>
       </TooltipTrigger>
@@ -148,6 +183,7 @@ function ModSlot({
       >
         <span className="d2-ci-tip-name">{plug.name}</span>
         {plug.description ? <span className="d2-ci-tip-desc">{plug.description}</span> : null}
+        {onClick ? <span className="d2-ci-tip-desc">Click to preview a shader →</span> : null}
       </TooltipContent>
     </Tooltip>
   );
@@ -158,10 +194,13 @@ function SlotRow({
   count,
   items,
   label,
+  onShaderClick,
 }: {
   count: number;
   items: readonly NormalizedSocket[];
   label: string;
+  /** When set, the shader slot in this row opens the shader preview. */
+  onShaderClick?: () => void;
 }) {
   const shown = items.slice(0, count);
   const pad = Math.max(0, count - shown.length);
@@ -170,7 +209,11 @@ function SlotRow({
       <span className="d2-ci-subhead">{label}</span>
       <div className="d2-ci-slot-row">
         {shown.map((socket) => (
-          <ModSlot key={`${socket.index}:${socket.plugHash}`} plug={socket} />
+          <ModSlot
+            key={`${socket.index}:${socket.plugHash}`}
+            plug={socket}
+            onClick={onShaderClick && isShaderSocket(socket) ? onShaderClick : undefined}
+          />
         ))}
         {Array.from({ length: pad }).map((_, index) => (
           <span aria-hidden="true" className="d2-ci-modslot" key={`pad-${index}`} />
@@ -424,7 +467,20 @@ function ArmorOverview({ item }: { item: NormalizedDestinyItem }) {
           ) : null}
 
           <SlotRow count={6} items={sections.mods} label="Armor Mods" />
-          <SlotRow count={4} items={sections.appearance} label="Armor Cosmetics" />
+          <SlotRow
+            count={4}
+            items={sections.appearance}
+            label="Armor Cosmetics"
+            onShaderClick={
+              item.bucketHash != null
+                ? () =>
+                    shaderPreview.open(
+                      item.bucketHash as number,
+                      ARMOR_SLOT_LABEL[item.bucketHash as number] ?? item.slotName,
+                    )
+                : undefined
+            }
+          />
         </div>
 
         <div className="d2-ci-armor-right">

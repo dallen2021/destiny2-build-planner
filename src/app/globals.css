@@ -332,6 +332,27 @@ body:has(.d2-command-console) .app-header {
   text-shadow: 0 0 18px rgba(229, 187, 91, 0.35);
 }
 
+/* Shader-preview reset pill (shown while previewing shaders on the Guardian). */
+.d2-command-console .d2-stage-preview-reset {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 4;
+  pointer-events: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(94, 234, 212, 0.4);
+  background: rgba(94, 234, 212, 0.14);
+  color: #a7f3e0;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+}
+.d2-command-console .d2-stage-preview-reset:hover {
+  background: rgba(94, 234, 212, 0.24);
+}
+
 /* --- Command stage backdrop treatments (switchable via data-stage) --- */
 .d2-command-console .d2-stage-backdrop {
   position: absolute;
@@ -4704,6 +4725,16 @@ main {
 .d2-command-console .d2-ci-modslot[data-filled="true"] {
   border-color: rgba(226, 185, 96, 0.4);
   background: linear-gradient(150deg, rgba(226, 185, 96, 0.14), rgba(3, 10, 15, 0.85));
+}
+.d2-command-console .d2-ci-modslot[data-clickable] {
+  cursor: pointer;
+  border-color: rgba(94, 234, 212, 0.5);
+}
+.d2-command-console .d2-ci-modslot[data-clickable]:hover,
+.d2-command-console .d2-ci-modslot[data-clickable]:focus-visible {
+  border-color: rgba(94, 234, 212, 0.9);
+  box-shadow: 0 0 0 2px rgba(94, 234, 212, 0.35);
+  outline: none;
 }
 
 /* perk columns: cap height so a tall random-roll column scrolls instead of

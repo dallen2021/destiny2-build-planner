@@ -36,7 +36,7 @@ type RenderCharacter = {
   light: number | null;
   emblemPath: string | null;
   /** Equipped armor pieces (ornament-aware render hash + equipped shader). */
-  armor: { hash: string; shader: string | null; dyes: number[]; slot: string }[];
+  armor: { hash: string; shader: string | null; dyes: number[]; slot: string; bucket: number }[];
 };
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (applied.length > 0) dyeByHash.set(entry.itemHash, applied);
       }
 
-      const armor: { hash: string; shader: string | null; dyes: number[]; slot: string }[] = [];
+      const armor: RenderCharacter["armor"] = [];
       for (const bucket of ARMOR_BUCKET_ORDER) {
         const entry = byBucket.get(bucket);
         if (!entry) continue;
@@ -134,6 +134,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           shader: await resolveShader(entry.instanceId),
           dyes,
           slot: ARMOR_SLOT_LABEL[bucket] ?? "Armor",
+          bucket,
         });
       }
       if (armor.length === 0) continue;
