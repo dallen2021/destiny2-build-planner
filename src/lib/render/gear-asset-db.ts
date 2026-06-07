@@ -119,6 +119,27 @@ export async function getItemDyes(itemHash: number): Promise<GearDye[]> {
 }
 
 /**
+ * A shader's detail-diffuse ("wisp"/nebula) texture: the grayscale pattern that
+ * gates where a galaxy shader glows. Returns the shader's texture container
+ * files + the PNG name to pull from them (the gear route does the extraction).
+ */
+export async function getShaderDetail(
+  shaderHash: number,
+): Promise<{ textures: string[]; name: string } | null> {
+  const asset = await getGearAsset(shaderHash);
+  if (!asset?.gear.length || asset.textures.length === 0) return null;
+  const response = await fetch(GEAR_CDN(asset.gear[0]), { cache: "no-store" });
+  if (!response.ok) return null;
+  const json = (await response.json()) as {
+    default_dyes?: { textures?: { diffuse?: { name?: string } } }[];
+  };
+  const name = (json.default_dyes ?? [])
+    .map((dye) => dye.textures?.diffuse?.name)
+    .find((n): n is string => Boolean(n));
+  return name ? { textures: asset.textures, name } : null;
+}
+
+/**
  * Among an item's socket plug hashes, find the equipped shader — the plug whose
  * gear-asset entry carries dye gear files but no geometry (armor/ornaments have
  * geometry; shaders are dye-only).

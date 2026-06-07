@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getItemDyes, type GearDye } from "@/lib/render/gear-asset-db";
+import { getItemDyes, getShaderDetail, type GearDye } from "@/lib/render/gear-asset-db";
 import { extractGearMeshes, type GearMesh } from "@/lib/render/tgxm";
 
 export const dynamic = "force-dynamic";
@@ -196,9 +196,32 @@ export async function GET(
       dyes = [];
     }
 
+    // The shader's detail-diffuse ("wisp") texture gates where the emissive glow
+    // lands — ship it once so only the nebula wisps glow, not the whole slot.
+    let wispPng: Uint8Array | null = null;
+    if (shaderHash) {
+      try {
+        const detail = await getShaderDetail(Number(shaderHash));
+        if (detail) {
+          for (const file of detail.textures) {
+            const res = await fetch(cdnUrl("textures", file));
+            if (!res.ok) continue;
+            const png = readContainerFiles(await res.arrayBuffer()).get(detail.name);
+            if (png) {
+              wispPng = png;
+              break;
+            }
+          }
+        }
+      } catch {
+        wispPng = null;
+      }
+    }
+
     // JSON header describes structure; geometry then diffuse PNGs then normal PNGs.
     const header = {
       dyes,
+      wisp: wispPng?.byteLength ?? null,
       parts: parts.map((part) => ({
         v: part.positions.length / 3,
         i: part.indices.length,
@@ -227,7 +250,8 @@ export async function GET(
       for (const pl of part.dyeslot.placements) pngBytes += pl.png.byteLength;
     }
 
-    const payload = new Uint8Array(geomStart + geomBytes + dyeBytes + pngBytes);
+    const wispBytes = wispPng?.byteLength ?? 0;
+    const payload = new Uint8Array(geomStart + geomBytes + dyeBytes + pngBytes + wispBytes);
     new DataView(payload.buffer).setUint32(0, jsonBytes.byteLength, true);
     payload.set(jsonBytes, 4);
 
@@ -270,6 +294,11 @@ export async function GET(
         payload.set(pl.png, cursor);
         cursor += pl.png.byteLength;
       }
+    }
+    // The shader's wisp PNG (one, shared across parts) goes last.
+    if (wispPng) {
+      payload.set(wispPng, cursor);
+      cursor += wispPng.byteLength;
     }
 
     const stats = {

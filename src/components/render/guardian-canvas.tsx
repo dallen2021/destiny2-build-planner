@@ -159,8 +159,12 @@ export function GearCanvas({
       dyeslotRect: THREE.Vector4,
       emissive: THREE.Vector3,
       emissiveStrength: number,
+      wisp: THREE.Texture | null,
+      wispTile: number,
     ) => {
       const useDyeslot = dyeslot != null;
+      // Glow requires the shader's "wisp" mask (only the bright wisps glow).
+      const useWisp = useDyeslot && wisp != null && emissiveStrength > 0;
       material.onBeforeCompile = (shader) => {
         shader.uniforms.uGearstack = { value: gearstack };
         if (useDyeslot) {
@@ -170,10 +174,14 @@ export function GearCanvas({
           shader.uniforms.uSlot2 = { value: slotColors[2] };
           shader.uniforms.uDiffuseRect = { value: diffuseRect };
           shader.uniforms.uDyeslotRect = { value: dyeslotRect };
-          shader.uniforms.uEmissive = { value: emissive };
-          shader.uniforms.uEmissiveStrength = { value: emissiveStrength };
         } else {
           shader.uniforms.uChangeColors = { value: palette };
+        }
+        if (useWisp) {
+          shader.uniforms.uEmissive = { value: emissive };
+          shader.uniforms.uEmissiveStrength = { value: emissiveStrength };
+          shader.uniforms.uWisp = { value: wisp };
+          shader.uniforms.uWispTile = { value: wispTile };
         }
         shader.vertexShader =
           "attribute float aDyeIndex;\nvarying float vDyeIndex;\n" +
@@ -181,9 +189,13 @@ export function GearCanvas({
             "#include <begin_vertex>",
             "#include <begin_vertex>\n  vDyeIndex = aDyeIndex;",
           );
-        const decl = useDyeslot
-          ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nuniform vec4 uDiffuseRect;\nuniform vec4 uDyeslotRect;\nuniform vec3 uEmissive;\nuniform float uEmissiveStrength;\nvarying float vDyeIndex;\n"
-          : `uniform sampler2D uGearstack;\nuniform vec3 uChangeColors[${DYE_PALETTE_SIZE}];\nvarying float vDyeIndex;\n`;
+        const decl =
+          (useDyeslot
+            ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nuniform vec4 uDiffuseRect;\nuniform vec4 uDyeslotRect;\nvarying float vDyeIndex;\n"
+            : `uniform sampler2D uGearstack;\nuniform vec3 uChangeColors[${DYE_PALETTE_SIZE}];\nvarying float vDyeIndex;\n`) +
+          (useWisp
+            ? "uniform vec3 uEmissive;\nuniform float uEmissiveStrength;\nuniform sampler2D uWisp;\nuniform float uWispTile;\n"
+            : "");
         // The dyeslot plate packs its texture at a different rect than the
         // diffuse, so map the diffuse-plate UV → 0..1 surface fraction → the
         // dyeslot's own rect before sampling. (gearstack already matches diffuse.)
@@ -194,12 +206,13 @@ export function GearCanvas({
           "#include <map_fragment>",
           `#include <map_fragment>\n  ${pickDye}\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, d2Dye), d2Mask);`,
         );
-        // Galaxy-shader glow: the slot-2 (purple/nebula) regions emit their dye's
-        // emissive tint — the magenta nebula between the gold stripes.
-        if (useDyeslot) {
+        // Galaxy-shader glow: the dye's emissive tint lights the slot-2 (nebula)
+        // regions, gated by the shader's grayscale "wisp" texture so only the
+        // bright wisps glow — the magenta nebula between the gold stripes.
+        if (useWisp) {
           frag = frag.replace(
             "#include <emissivemap_fragment>",
-            "#include <emissivemap_fragment>\n  float d2Glow = max(0.0, d2Slot.b - d2Slot.g);\n  totalEmissiveRadiance += uEmissive * d2Glow * d2Mask * uEmissiveStrength;",
+            "#include <emissivemap_fragment>\n  float d2Wisp = texture2D(uWisp, vMapUv * uWispTile).r;\n  totalEmissiveRadiance += uEmissive * d2Slot.b * d2Wisp * d2Mask * uEmissiveStrength;",
           );
         }
         shader.fragmentShader =
@@ -207,7 +220,8 @@ export function GearCanvas({
           "vec3 d2Overlay(vec3 b, vec3 s){return mix(2.0*b*s,1.0-2.0*(1.0-b)*(1.0-s),step(vec3(0.5),b));}\n" +
           frag;
       };
-      material.customProgramCacheKey = () => (useDyeslot ? "d2-dye-slot-v3" : "d2-dye-v2");
+      material.customProgramCacheKey = () =>
+        useWisp ? "d2-dye-slot-v4-wisp" : useDyeslot ? "d2-dye-slot-v4" : "d2-dye-v2";
     };
 
     // Normalized placement rect (x, y, w, h) of a plate's first texture.
@@ -243,7 +257,7 @@ export function GearCanvas({
             const jsonLength = dv.getUint32(0, true);
             const header = JSON.parse(
               new TextDecoder().decode(new Uint8Array(buffer, 4, jsonLength)),
-            ) as { dyes: Dye[]; parts: PartHeader[] };
+            ) as { dyes: Dye[]; parts: PartHeader[]; wisp?: number | null };
             // gear_dye_change_color_index encodes slot*2 + (0 primary, 1 secondary).
             const colorForIndex = (index: number): [number, number, number] | null => {
               const slot = index >> 1;
@@ -329,6 +343,31 @@ export function GearCanvas({
             const gearstackTex = await compositeAll(built.map((b) => b.gearstack), false);
             const dyeslotTex = await compositeAll(built.map((b) => b.dyeslot), false);
 
+            // The shader's grayscale wisp/nebula texture (one, shared) follows the
+            // part PNGs — the mask that gates where the emissive glow lands.
+            const wispLen = header.wisp ?? 0;
+            let wispTex: THREE.Texture | null = null;
+            if (wispLen > 0) {
+              try {
+                const bmp = await createImageBitmap(
+                  new Blob([new Uint8Array(buffer.slice(off, off + wispLen))]),
+                );
+                const canvas = document.createElement("canvas");
+                canvas.width = bmp.width;
+                canvas.height = bmp.height;
+                canvas.getContext("2d")?.drawImage(bmp, 0, 0);
+                bmp.close();
+                wispTex = new THREE.CanvasTexture(canvas);
+                wispTex.wrapS = THREE.RepeatWrapping;
+                wispTex.wrapT = THREE.RepeatWrapping;
+                wispTex.colorSpace = THREE.NoColorSpace;
+                wispTex.flipY = false;
+              } catch {
+                wispTex = null;
+              }
+              off += wispLen;
+            }
+
             // Primary color for dye slots 0/1/2 (raw-linear), indexed by the
             // dyeslot plate's R/G/B weights. Missing slot → neutral overlay no-op.
             const slotColor = (s: number): THREE.Vector3 => {
@@ -345,7 +384,7 @@ export function GearCanvas({
             const eMax = Math.max(e[0], e[1], e[2]);
             const eMin = Math.min(e[0], e[1], e[2]);
             const emissiveColor = new THREE.Vector3(e[0], e[1], e[2]);
-            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 1.5 : 0;
+            const emissiveStrength = eMax > 0.1 && eMax - eMin > 0.2 ? 2.6 : 0;
 
             built.forEach((part, k) => {
               const diffuse = diffuseTex[k];
@@ -372,6 +411,8 @@ export function GearCanvas({
                   plateRect(part.dyeslot),
                   emissiveColor,
                   emissiveStrength,
+                  wispTex,
+                  4,
                 );
               model.add(new THREE.Mesh(part.geometry, material));
             });
