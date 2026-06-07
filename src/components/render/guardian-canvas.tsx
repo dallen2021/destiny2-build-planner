@@ -199,7 +199,7 @@ export function GearCanvas({
         if (useDyeslot) {
           frag = frag.replace(
             "#include <emissivemap_fragment>",
-            "#include <emissivemap_fragment>\n  totalEmissiveRadiance += uEmissive * d2Slot.b * d2Mask * uEmissiveStrength;",
+            "#include <emissivemap_fragment>\n  float d2Glow = max(0.0, d2Slot.b - d2Slot.g);\n  totalEmissiveRadiance += uEmissive * d2Glow * d2Mask * uEmissiveStrength;",
           );
         }
         shader.fragmentShader =
