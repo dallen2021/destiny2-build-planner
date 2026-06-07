@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
 export type GearItem = {
   hash: string;
@@ -38,16 +42,34 @@ export function GearCanvas({
       preserveDrawingBuffer: true,
     });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    // Tone-map the HDR emissive (the nebula glow runs > 1) so the surface stays
+    // a rich magenta instead of clamping to flat pink; bloom adds the halo.
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
     if (!interactive) renderer.domElement.style.pointerEvents = "none";
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(40, 1, 0.001, 100);
 
+    // Post-processing: render → selective bloom (the emissive nebula glow) →
+    // tone-map/output. Only HDR-bright pixels (the emissive) bloom.
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(
+      new THREE.Vector2(mount.clientWidth || 1, mount.clientHeight || 1),
+      0.9,
+      0.5,
+      0.6,
+    );
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+
     const resize = () => {
       const w = mount.clientWidth || 1;
       const h = mount.clientHeight || 1;
       renderer.setSize(w, h);
+      composer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
     };
@@ -396,7 +418,7 @@ export function GearCanvas({
     const loop = () => {
       frame = requestAnimationFrame(loop);
       controls?.update();
-      renderer.render(scene, camera);
+      composer.render();
     };
     loop();
     window.addEventListener("resize", resize);
@@ -405,6 +427,7 @@ export function GearCanvas({
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", resize);
       controls?.dispose();
+      composer.dispose();
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);
