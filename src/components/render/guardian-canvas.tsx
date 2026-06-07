@@ -89,6 +89,7 @@ export function GearCanvas({
       diffuse: Plate;
       normal: Plate;
       gearstack: Plate;
+      dyeslot: Plate;
     };
 
     // Composite a plate's placement PNGs (starting at `offset`) into a canvas
@@ -120,35 +121,50 @@ export function GearCanvas({
     };
 
     // Bungie's gear-dye model (from spasm): albedo = overlay(diffuse, dyeColor)
-    // masked by gearstack.r. The dye color is chosen per pixel from an 8-entry
-    // palette by the per-vertex dye index (different sub-parts of a mesh use
-    // different slots), so e.g. gold stripes sit on a purple base.
+    // masked by gearstack.r. The dye color is chosen per pixel — preferentially
+    // from the dyeslot plate (R/G/B = weights for dye slots 0/1/2, giving true
+    // per-pixel multi-tone), falling back to the per-vertex index palette when a
+    // piece ships no dyeslot.
     const DYE_PALETTE_SIZE = 8;
     const applyDye = (
       material: THREE.MeshStandardMaterial,
       gearstack: THREE.CanvasTexture,
       palette: THREE.Vector3[],
+      dyeslot: THREE.CanvasTexture | null,
+      slotColors: THREE.Vector3[],
     ) => {
+      const useDyeslot = dyeslot != null;
       material.onBeforeCompile = (shader) => {
         shader.uniforms.uGearstack = { value: gearstack };
-        shader.uniforms.uChangeColors = { value: palette };
+        if (useDyeslot) {
+          shader.uniforms.uDyeslot = { value: dyeslot };
+          shader.uniforms.uSlot0 = { value: slotColors[0] };
+          shader.uniforms.uSlot1 = { value: slotColors[1] };
+          shader.uniforms.uSlot2 = { value: slotColors[2] };
+        } else {
+          shader.uniforms.uChangeColors = { value: palette };
+        }
         shader.vertexShader =
           "attribute float aDyeIndex;\nvarying float vDyeIndex;\n" +
           shader.vertexShader.replace(
             "#include <begin_vertex>",
             "#include <begin_vertex>\n  vDyeIndex = aDyeIndex;",
           );
+        const decl = useDyeslot
+          ? "uniform sampler2D uGearstack;\nuniform sampler2D uDyeslot;\nuniform vec3 uSlot0;\nuniform vec3 uSlot1;\nuniform vec3 uSlot2;\nvarying float vDyeIndex;\n"
+          : `uniform sampler2D uGearstack;\nuniform vec3 uChangeColors[${DYE_PALETTE_SIZE}];\nvarying float vDyeIndex;\n`;
+        const pickDye = useDyeslot
+          ? "vec4 d2Slot = texture2D(uDyeslot, vMapUv);\n  float d2w = d2Slot.r + d2Slot.g + d2Slot.b;\n  vec3 d2Dye = d2w > 0.003 ? (d2Slot.r * uSlot0 + d2Slot.g * uSlot1 + d2Slot.b * uSlot2) / d2w : uSlot0;"
+          : `int d2i = int(clamp(vDyeIndex + 0.5, 0.0, float(${DYE_PALETTE_SIZE - 1})));\n  vec3 d2Dye = uChangeColors[d2i];`;
         shader.fragmentShader =
-          `uniform sampler2D uGearstack;\nuniform vec3 uChangeColors[${DYE_PALETTE_SIZE}];\nvarying float vDyeIndex;\n` +
+          decl +
           "vec3 d2Overlay(vec3 b, vec3 s){return mix(2.0*b*s,1.0-2.0*(1.0-b)*(1.0-s),step(vec3(0.5),b));}\n" +
           shader.fragmentShader.replace(
             "#include <map_fragment>",
-            "#include <map_fragment>\n  int d2i = int(clamp(vDyeIndex + 0.5, 0.0, float(" +
-              (DYE_PALETTE_SIZE - 1) +
-              ")));\n  vec3 d2Dye = uChangeColors[d2i];\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, d2Dye), d2Mask);",
+            `#include <map_fragment>\n  ${pickDye}\n  float d2Mask = texture2D(uGearstack, vMapUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, d2Overlay(diffuseColor.rgb, d2Dye), d2Mask);`,
           );
       };
-      material.customProgramCacheKey = () => "d2-dye-v2";
+      material.customProgramCacheKey = () => (useDyeslot ? "d2-dye-slot-v1" : "d2-dye-v2");
     };
 
     void (async () => {
@@ -194,6 +210,7 @@ export function GearCanvas({
               diffuse: Plate;
               normal: Plate;
               gearstack: Plate;
+              dyeslot: Plate;
             }[] = [];
             for (const part of header.parts) {
               const positions = new Float32Array(buffer, cursor, part.v * 3);
@@ -216,6 +233,7 @@ export function GearCanvas({
                 diffuse: part.diffuse,
                 normal: part.normal,
                 gearstack: part.gearstack,
+                dyeslot: part.dyeslot,
               });
               triangleTotal += part.i / 3;
             }
@@ -239,7 +257,7 @@ export function GearCanvas({
               );
             }
 
-            // PNG sections follow: diffuse, normal, gearstack.
+            // PNG sections follow, in order: diffuse, normal, gearstack, dyeslot.
             let off = cursor;
             const compositeAll = async (plates: Plate[], srgb: boolean) => {
               const out: (THREE.CanvasTexture | null)[] = [];
@@ -258,6 +276,17 @@ export function GearCanvas({
             const diffuseTex = await compositeAll(built.map((b) => b.diffuse), true);
             const normalTex = await compositeAll(built.map((b) => b.normal), false);
             const gearstackTex = await compositeAll(built.map((b) => b.gearstack), false);
+            const dyeslotTex = await compositeAll(built.map((b) => b.dyeslot), false);
+
+            // Primary color for dye slots 0/1/2 (raw-linear), indexed by the
+            // dyeslot plate's R/G/B weights. Missing slot → neutral overlay no-op.
+            const slotColor = (s: number): THREE.Vector3 => {
+              const dye = header.dyes.find((d) => d.slot === s) ?? header.dyes[s] ?? header.dyes[0];
+              return dye
+                ? new THREE.Vector3(dye.primary[0], dye.primary[1], dye.primary[2])
+                : new THREE.Vector3(0.5, 0.5, 0.5);
+            };
+            const slotColors = [slotColor(0), slotColor(1), slotColor(2)];
 
             built.forEach((part, k) => {
               const diffuse = diffuseTex[k];
@@ -273,7 +302,7 @@ export function GearCanvas({
                 side: THREE.DoubleSide,
               });
               const gearstack = gearstackTex[k];
-              if (gearstack) applyDye(material, gearstack, palette);
+              if (gearstack) applyDye(material, gearstack, palette, dyeslotTex[k], slotColors);
               model.add(new THREE.Mesh(part.geometry, material));
             });
           }),

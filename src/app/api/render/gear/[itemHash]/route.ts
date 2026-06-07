@@ -75,6 +75,7 @@ type Part = {
   diffuse: Plate;
   normal: Plate;
   gearstack: Plate;
+  dyeslot: Plate;
   dyeIndex: Uint8Array;
 };
 
@@ -156,6 +157,7 @@ export async function GET(
       diffuse: resolvePlate(mesh.diffusePlate),
       normal: resolvePlate(mesh.normalPlate),
       gearstack: resolvePlate(mesh.gearstackPlate),
+      dyeslot: resolvePlate(mesh.dyeslotPlate),
       dyeIndex: new Uint8Array(mesh.dyeIndex),
     }));
 
@@ -203,6 +205,7 @@ export async function GET(
         diffuse: headerPlate(part.diffuse),
         normal: headerPlate(part.normal),
         gearstack: headerPlate(part.gearstack),
+        dyeslot: headerPlate(part.dyeslot),
       })),
     };
     const jsonBytes = new TextEncoder().encode(JSON.stringify(header));
@@ -221,6 +224,7 @@ export async function GET(
       for (const pl of part.diffuse.placements) pngBytes += pl.png.byteLength;
       for (const pl of part.normal.placements) pngBytes += pl.png.byteLength;
       for (const pl of part.gearstack.placements) pngBytes += pl.png.byteLength;
+      for (const pl of part.dyeslot.placements) pngBytes += pl.png.byteLength;
     }
 
     const payload = new Uint8Array(geomStart + geomBytes + dyeBytes + pngBytes);
@@ -257,6 +261,12 @@ export async function GET(
     }
     for (const part of parts) {
       for (const pl of part.gearstack.placements) {
+        payload.set(pl.png, cursor);
+        cursor += pl.png.byteLength;
+      }
+    }
+    for (const part of parts) {
+      for (const pl of part.dyeslot.placements) {
         payload.set(pl.png, cursor);
         cursor += pl.png.byteLength;
       }
