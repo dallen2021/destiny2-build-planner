@@ -21,6 +21,13 @@ const CLASS_NAME: Record<number, string> = {
 
 // Body render order: helmet, arms, chest, legs, class item (mark/bond/cloak).
 const ARMOR_BUCKET_ORDER = [3448274439, 3551918588, 14239492, 20886954, 1585787867];
+const ARMOR_SLOT_LABEL: Record<number, string> = {
+  3448274439: "Helmet",
+  3551918588: "Arms",
+  14239492: "Chest",
+  20886954: "Legs",
+  1585787867: "Class",
+};
 
 type RenderCharacter = {
   characterId: string;
@@ -29,7 +36,7 @@ type RenderCharacter = {
   light: number | null;
   emblemPath: string | null;
   /** Equipped armor pieces (ornament-aware render hash + equipped shader). */
-  armor: { hash: string; shader: string | null; dyes: number[] }[];
+  armor: { hash: string; shader: string | null; dyes: number[]; slot: string }[];
 };
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -117,12 +124,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (applied.length > 0) dyeByHash.set(entry.itemHash, applied);
       }
 
-      const armor: { hash: string; shader: string | null; dyes: number[] }[] = [];
+      const armor: { hash: string; shader: string | null; dyes: number[]; slot: string }[] = [];
       for (const bucket of ARMOR_BUCKET_ORDER) {
         const entry = byBucket.get(bucket);
         if (!entry) continue;
         const dyes = dyeByHash.get(Number(entry.hash)) ?? dyeByHash.get(entry.baseHash) ?? [];
-        armor.push({ hash: entry.hash, shader: await resolveShader(entry.instanceId), dyes });
+        armor.push({
+          hash: entry.hash,
+          shader: await resolveShader(entry.instanceId),
+          dyes,
+          slot: ARMOR_SLOT_LABEL[bucket] ?? "Armor",
+        });
       }
       if (armor.length === 0) continue;
       const classType = character.classType ?? 3;

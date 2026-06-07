@@ -3,23 +3,24 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { GearCanvas, type GearItem } from "./guardian-canvas";
-import { ShaderPicker } from "./shader-picker";
+import { ShaderPicker, type ShaderOverride } from "./shader-picker";
 
+type ArmorPiece = GearItem & { slot?: string };
 type RenderCharacter = {
   characterId: string;
   classType: number;
   className: string;
   light: number | null;
   emblemPath: string | null;
-  armor: GearItem[];
+  armor: ArmorPiece[];
 };
 
 // Shown when nobody is signed in, so the stage still demos something.
-const DEMO_TITAN: GearItem[] = [
-  { hash: "1362342075" },
-  { hash: "241462142" },
-  { hash: "1192890598" },
-  { hash: "1437375562" },
+const DEMO_TITAN: ArmorPiece[] = [
+  { hash: "1362342075", slot: "Helmet" },
+  { hash: "241462142", slot: "Arms" },
+  { hash: "1192890598", slot: "Chest" },
+  { hash: "1437375562", slot: "Legs" },
 ];
 
 type LoadState =
@@ -31,7 +32,7 @@ type LoadState =
 export function MyGuardian() {
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [selected, setSelected] = useState(0);
-  const [override, setOverride] = useState<{ hash: string; name: string } | null>(null);
+  const [overrides, setOverrides] = useState<Record<number, ShaderOverride>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -70,25 +71,38 @@ export function MyGuardian() {
   const characters = state.kind === "ready" ? state.characters : null;
   const active = characters?.[Math.min(selected, (characters?.length ?? 1) - 1)] ?? null;
 
+  const basePieces = useMemo<ArmorPiece[]>(
+    () => (active ? active.armor : state.kind === "anon" ? DEMO_TITAN : []),
+    [active, state.kind],
+  );
   // Stable identity so GearCanvas doesn't re-init on unrelated re-renders.
-  const items = useMemo<GearItem[]>(() => {
-    const base = active ? active.armor : state.kind === "anon" ? DEMO_TITAN : [];
-    return override
-      ? base.map((piece) => ({ hash: piece.hash, shader: override.hash, dyes: [] as number[] }))
-      : base;
-  }, [active, state.kind, override]);
-  const canvasKey = `${active?.characterId ?? (state.kind === "anon" ? "demo" : "none")}-${
-    override?.hash ?? "equipped"
-  }`;
+  const items = useMemo<GearItem[]>(
+    () =>
+      basePieces.map((piece, i) =>
+        overrides[i] ? { hash: piece.hash, shader: overrides[i].hash, dyes: [] as number[] } : piece,
+      ),
+    [basePieces, overrides],
+  );
+  const overrideKey = basePieces.map((_, i) => overrides[i]?.hash ?? "_").join(",");
+  const canvasKey = `${active?.characterId ?? (state.kind === "anon" ? "demo" : "none")}-${overrideKey}`;
+
+  const applyShader = (hash: string, name: string, target: number | "all") => {
+    setOverrides((prev) =>
+      target === "all"
+        ? Object.fromEntries(basePieces.map((_, i) => [i, { hash, name }]))
+        : { ...prev, [target]: { hash, name } },
+    );
+  };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       {items.length > 0 ? (
         <>
           <ShaderPicker
-            activeName={override?.name ?? null}
-            onPick={(hash, name) => setOverride({ hash, name })}
-            onReset={() => setOverride(null)}
+            pieces={basePieces.map((piece, i) => ({ label: piece.slot ?? `Piece ${i + 1}` }))}
+            overrides={overrides}
+            onApply={applyShader}
+            onReset={() => setOverrides({})}
           />
           <GearCanvas key={canvasKey} items={items} />
         </>

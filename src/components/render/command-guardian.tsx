@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 
 import { GearCanvas } from "./guardian-canvas";
-import { ShaderPicker } from "./shader-picker";
+import { ShaderPicker, type ShaderOverride } from "./shader-picker";
 
 type RenderCharacter = {
   characterId: string;
   classType: number;
   className: string;
-  armor: { hash: string; shader: string | null; dyes?: number[] }[];
+  armor: { hash: string; shader: string | null; dyes?: number[]; slot?: string }[];
 };
 
 /**
@@ -31,10 +31,10 @@ export function CommandGuardian({
   refreshKey?: number;
 }) {
   const [characters, setCharacters] = useState<RenderCharacter[] | null>(null);
-  // In-app shader preview: when set, this shader is applied to ALL armor so you
-  // can test shaders without changing them in-game. dyes=[] lets the gear route
-  // resolve the shader's default dye set.
-  const [override, setOverride] = useState<{ hash: string; name: string } | null>(null);
+  // In-app shader preview: per-piece overrides (keyed by armor index) let you
+  // test shaders on one piece or all of them without changing them in-game.
+  // dyes=[] lets the gear route resolve the shader's default dye set.
+  const [overrides, setOverrides] = useState<Record<number, ShaderOverride>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -61,10 +61,19 @@ export function CommandGuardian({
     (characterId == null ? null : characters?.[0]) ??
     null;
   const armor = active?.armor ?? [];
-  // Apply the previewed shader to every armor piece (else show equipped).
-  const items = override
-    ? armor.map((piece) => ({ hash: piece.hash, shader: override.hash, dyes: [] as number[] }))
-    : armor;
+  // Apply each piece's previewed shader (else show the equipped one).
+  const items = armor.map((piece, i) =>
+    overrides[i] ? { hash: piece.hash, shader: overrides[i].hash, dyes: [] as number[] } : piece,
+  );
+  const applyShader = (hash: string, name: string, target: number | "all") => {
+    setOverrides((prev) =>
+      target === "all"
+        ? Object.fromEntries(armor.map((_, i) => [i, { hash, name }]))
+        : { ...prev, [target]: { hash, name } },
+    );
+  };
+  // Remount the canvas whenever the per-piece shader set changes.
+  const overrideKey = armor.map((_, i) => overrides[i]?.hash ?? "_").join(",");
 
   return (
     <>
@@ -77,13 +86,14 @@ export function CommandGuardian({
       {armor.length > 0 ? (
         <>
           <ShaderPicker
-            activeName={override?.name ?? null}
-            onPick={(hash, name) => setOverride({ hash, name })}
-            onReset={() => setOverride(null)}
+            pieces={armor.map((piece) => ({ label: piece.slot ?? "Armor" }))}
+            overrides={overrides}
+            onApply={applyShader}
+            onReset={() => setOverrides({})}
           />
           <div className="d2-stage-guardian-3d" aria-hidden="true">
             <GearCanvas
-              key={`${active?.characterId ?? "guardian"}-${refreshKey}-${override?.hash ?? "equipped"}`}
+              key={`${active?.characterId ?? "guardian"}-${refreshKey}-${overrideKey}`}
               items={items}
               showStatus={false}
               interactive={false}
